@@ -492,9 +492,6 @@ body{font-weight:400;letter-spacing:-.01em}
   </section>
 
   <section id="bankEditView" class="hidden">
-    <div class="page-head">
-      <div class="page-title">문제 편집</div>
-    </div>
     <div class="bank-toolbar" id="bankEditToolbar"></div>
     <div id="bankEditArea"></div>
   </section>
@@ -1063,34 +1060,78 @@ function parseBankWorksheet(ws,source,name){
   }
   return {id:sid,source,name,legacyWrong:isLegacyWrongSheet(name),items:deduped,updatedAt:Date.now()};
 }
+let bankImportBusy=false;
 async function importBankFiles(files){
+  if(bankImportBusy)return toast("가져오는 중입니다");
   if(typeof XLSX==="undefined")return alert("엑셀 읽기 기능을 불러오지 못했습니다.");
+  bankImportBusy=true;
   const failed=[],newSheets=[],sources=[];
-  for(const file of files){
-    try{
-      const source=file.name.replace(/\.(xlsx|xlsm|xlsb|xls)$/i,""),wb=XLSX.read(await file.arrayBuffer(),{cellFormula:true,cellStyles:true});
-      sources.push(source);
-      wb.SheetNames.forEach(name=>{
-        if(isDerivedBankSheet(name))return;
-        const parsed=parseBankWorksheet(wb.Sheets[name],source,name);if(parsed)newSheets.push(parsed);
-      });
-    }catch(e){console.error(e);failed.push(file.name)}
-  }
-  if(newSheets.length){
-    const sourceSet=new Set(sources);
-    const oldIds=app.bank.sheets.filter(s=>sourceSet.has(s.source)).map(s=>s.id);
-    app.bank.sheets=app.bank.sheets.filter(s=>!sourceSet.has(s.source)).concat(newSheets);
-    cleanExistingBankData();
-    if(!app.ui.quiz.sheetId||!app.bank.sheets.some(s=>s.id===app.ui.quiz.sheetId)){
-      app.ui.quiz.sheetId=(app.bank.sheets.find(s=>!s.legacyWrong)||app.bank.sheets[0])?.id||"";
+  try{
+    toast("문제은행 읽는 중…");
+    for(const file of files){
+      try{
+        // iPad/Safari에서 큰 XLSM을 읽을 때 UI가 완전히 멎지 않도록 한 번 양보.
+        await new Promise(r=>setTimeout(r,0));
+        const source=file.name.replace(/\.(xlsx|xlsm|xlsb|xls)$/i,"");
+        const wb=XLSX.read(await file.arrayBuffer(),{cellFormula:true,cellStyles:true});
+        sources.push(source);
+        for(const name of wb.SheetNames){
+          if(isDerivedBankSheet(name))continue;
+          const parsed=parseBankWorksheet(wb.Sheets[name],source,name);
+          if(parsed)newSheets.push(parsed);
+        }
+      }catch(e){
+        console.error("bank import failed:",file.name,e);
+        failed.push(file.name);
+      }
     }
-    app.bank.contentUpdatedAt=Date.now();saveLocal();
-    await syncImportedBankSheets(newSheets,oldIds.filter(id=>!newSheets.some(s=>s.id===id)));
-    const total=newSheets.reduce((n,x)=>n+x.items.length,0);
-    const unique=mergeDuplicateQuizItems(bankQuestions(true)).length;
-    renderQuiz();renderBankEditor();toast(`${newSheets.length}개 시트 · ${total}문제 추가 · 통합 ${unique}문제`);
+
+    if(newSheets.length){
+      const sourceSet=new Set(sources);
+      const oldIds=app.bank.sheets.filter(s=>sourceSet.has(s.source)).map(s=>s.id);
+
+      // 같은 원본 파일을 다시 올리면 그 파일에서 왔던 시트만 교체.
+      // 다른 원본 파일의 문제는 그대로 유지.
+      app.bank.sheets=app.bank.sheets.filter(s=>!sourceSet.has(s.source)).concat(newSheets);
+      cleanExistingBankData();
+
+      if(!app.ui.quiz.sheetId){
+        app.ui.quiz.sheetId="all";
+      }else if(app.ui.quiz.sheetId!=="all"&&!String(app.ui.quiz.sheetId).startsWith("name:")){
+        const oldSheet=app.bank.sheets.find(s=>s.id===app.ui.quiz.sheetId);
+        app.ui.quiz.sheetId=oldSheet?("name:"+encodeURIComponent(oldSheet.name)):"all";
+      }
+
+      app.bank.contentUpdatedAt=Date.now();
+      saveLocal();
+
+      // 가장 중요: 화면에는 로컬 데이터를 즉시 보여준다.
+      // Firestore 업로드가 끝날 때까지 기다리지 않는다.
+      const total=newSheets.reduce((n,x)=>n+x.items.length,0);
+      const unique=mergeDuplicateQuizItems(bankQuestions(true)).length;
+      renderQuiz();renderBankEditor();
+      toast(`${newSheets.length}개 시트 · ${total}문제 불러옴`);
+
+      const deleted=oldIds.filter(id=>!newSheets.some(s=>s.id===id));
+      if(cloudUser){
+        updateSync("…",true);
+        syncImportedBankSheets(newSheets,deleted).then(()=>{
+          updateSync("✓",true);
+          toast(`저장 완료 · 통합 ${unique}문제`);
+        }).catch(e=>{
+          console.error(e);
+          updateSync("!",false);
+          toast("기기에는 저장됨 · 클라우드 동기화 실패");
+        });
+      }
+    }else if(!failed.length){
+      alert("가져올 수 있는 문제 시트를 찾지 못했습니다.\nA열=카테고리/분류, B열=문제/단어, C열=정답 형식인지 확인해 주세요.");
+    }
+
+    if(failed.length)alert(`가져오지 못한 파일:\n${failed.join("\n")}`);
+  }finally{
+    bankImportBusy=false;
   }
-  if(failed.length)alert(`가져오지 못한 파일:\n${failed.join("\n")}`);
 }
 function bankQuestions(includeLegacy=false){
   return app.bank.sheets.filter(s=>includeLegacy||!s.legacyWrong).flatMap(s=>s.items.map(i=>({...i,sheetId:s.id,sheetName:s.name,source:s.source})));
@@ -1410,17 +1451,63 @@ function renderBankEditor(){
     app.bank.statsUpdatedAt=Date.now();
     saveLocal();
 
-    if(cloudUser){
-      try{
-        await deleteDoc(bankSheetDoc(cloudUser.uid,target.id));
-        await saveBankIndexCloud();
-        await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt});
-      }catch(e){console.error(e);toast("로컬에서는 삭제됨 · 클라우드 확인 필요")}
-    }
-
+    // 로컬에서는 즉시 삭제해 화면이 멈춘 것처럼 보이지 않게 한다.
     renderQuiz();renderBankEditor();toast("시트 삭제됨");
+
+    if(cloudUser){
+      updateSync("…",true);
+      (async()=>{
+        try{
+          await deleteDoc(bankSheetDoc(cloudUser.uid,target.id));
+          await saveBankIndexCloud();
+          await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt});
+          updateSync("✓",true);
+        }catch(e){console.error(e);updateSync("!",false);toast("기기에서는 삭제됨 · 클라우드 동기화 실패")}
+      })();
+    }
   };
-  row.append(importBtn,sel,add,delSheet);
+
+  const resetAll=document.createElement("button");resetAll.textContent="전체 삭제";resetAll.className="danger-sheet-btn";
+  resetAll.onclick=async()=>{
+    if(!app.bank.sheets.length)return toast("삭제할 문제은행이 없습니다");
+    const total=app.bank.sheets.reduce((n,x)=>n+(x.items?.length||0),0);
+    const first=confirm(`문제은행을 완전히 비울까요?\n\n${app.bank.sheets.length}개 시트 · ${total}개 문제와 문제풀이 기록이 전부 삭제됩니다.`);
+    if(!first)return;
+    const second=confirm("정말 전체 삭제할까요?\n이 작업 후 엑셀을 다시 가져오면 새로 시작할 수 있습니다.");
+    if(!second)return;
+
+    const ids=app.bank.sheets.map(x=>x.id);
+    app.bank.sheets=[];
+    app.bank.stats={};
+    app.bank.contentUpdatedAt=Date.now();
+    app.bank.statsUpdatedAt=Date.now();
+    app.ui.bankEditSheetId="";
+    app.ui.quiz.sheetId="all";
+    quizSession=null;
+    clearSavedQuiz();
+    document.body.classList.remove("quiz-running");
+    saveLocal();
+
+    renderQuiz();renderBankEditor();toast("문제은행 전체 삭제됨");
+
+    if(cloudUser){
+      updateSync("…",true);
+      (async()=>{
+        try{
+          for(const id of ids)await deleteDoc(bankSheetDoc(cloudUser.uid,id));
+          await setDoc(bankIndexDoc(cloudUser.uid),{sheets:[],updatedAt:app.bank.contentUpdatedAt});
+          await setDoc(bankStatsDoc(cloudUser.uid),{stats:{},updatedAt:app.bank.statsUpdatedAt});
+          updateSync("✓",true);
+        }catch(e){
+          console.error(e);
+          updateSync("!",false);
+          toast("기기는 초기화됨 · 클라우드 동기화 실패");
+        }
+      })();
+    }
+  };
+
+  row.append(importBtn,sel,add,delSheet,resetAll);
   if(sheet){
     const dup=bankDuplicateAudit(sheet);
     const audit=document.createElement("span");audit.className="mini-note";
@@ -1548,11 +1635,13 @@ async function saveBankIndexCloud(){
 }
 async function syncImportedBankSheets(sheets,deleted=[]){
   if(!cloudUser)return;
-  try{
-    await Promise.all(sheets.map(s=>setDoc(bankSheetDoc(cloudUser.uid,s.id),s)));
-    await Promise.all(deleted.map(id=>deleteDoc(bankSheetDoc(cloudUser.uid,id))));
-    await saveBankIndexCloud();updateSync("✓",true);
-  }catch(e){console.error(e);toast("문제은행은 로컬 저장됨");updateSync("!",false)}
+  // 한 번에 수십 개 Promise를 터뜨리지 않고 순차 저장해 iPad/모바일에서 안정적으로 처리.
+  for(const sheet of sheets){
+    await setDoc(bankSheetDoc(cloudUser.uid,sheet.id),sheet);
+    await new Promise(r=>setTimeout(r,0));
+  }
+  for(const id of deleted)await deleteDoc(bankSheetDoc(cloudUser.uid,id));
+  await saveBankIndexCloud();
 }
 async function deleteBankSheetsCloud(ids){if(!cloudUser)return;try{await Promise.all(ids.map(id=>deleteDoc(bankSheetDoc(cloudUser.uid,id))))}catch(e){console.error(e)}}
 async function loadBankFromCloud(u,index){
@@ -1603,7 +1692,7 @@ document.getElementById("subjectModal").onclick=e=>{if(e.target.id==="subjectMod
 document.getElementById("newSubjectChoice").onclick=()=>{document.getElementById("subjectModal").classList.add("hidden");const n=prompt("과목 이름");if(!n)return;const name=n.trim();if(!name)return;if(app.study.subjects.some(s=>s.name===name))return alert("같은 이름의 과목이 있습니다.");const x=studySubject(name);x.currentId=x.sheets[0].id;app.study.subjects.push(x);app.study.subjectId=x.id;markStudyCloud();render()};
 document.getElementById("excelSubjectChoice").onclick=()=>document.getElementById("studyExcelFiles").click();
 document.getElementById("studyExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";document.getElementById("subjectModal").classList.add("hidden");if(files.length)await importStudyFiles(files)};
-document.getElementById("bankExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";if(files.length)await importBankFiles(files)};
+document.getElementById("bankExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";if(files.length){try{await importBankFiles(files)}catch(err){console.error(err);bankImportBusy=false;alert("문제은행을 가져오는 중 오류가 났습니다. 다시 시도해 주세요.")}}};
 
 window.addEventListener("resize",()=>renderSubjects());
 render();
