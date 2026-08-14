@@ -339,6 +339,79 @@ body{font-weight:400;letter-spacing:-.01em}
   .bank-edit-table textarea{font-size:14px;line-height:1.55}
 }
 
+
+/* 암기판 밀도 조정 */
+#studyView .list{gap:4px}
+#studyView .card{
+  padding:6px 8px;
+  border-radius:10px;
+}
+#studyView .meta{
+  min-height:15px;
+  margin-bottom:2px;
+  gap:5px;
+}
+#studyView .category,#studyView .rate{font-size:10px}
+#studyView .star{
+  font-size:16px;
+  line-height:16px;
+  height:18px;
+}
+#studyView .answer-line{gap:4px}
+#studyView .answer{
+  padding:6px 8px;
+  min-height:32px;
+}
+#studyView .answer-action{
+  padding:6px 7px;
+  min-height:32px;
+  font-size:10px;
+}
+#studyView .clear-answer{
+  width:30px;
+  height:32px;
+  min-height:32px;
+}
+#studyView .memo-inline.active{background:#e8e8ec;color:#333}
+#studyView .memo{
+  margin-top:4px;
+  padding:6px 8px;
+  background:#f6f6f8;
+  border-radius:7px;
+  line-height:1.45;
+}
+#studyView .revealed-answer{
+  margin-top:4px;
+  padding:6px 8px;
+}
+#studyView .section-title{padding:4px 2px 2px}
+#studyView .section-study-head{margin-top:2px}
+@media(min-width:641px) and (max-width:1100px){
+  #studyView .card{padding:5px 7px}
+  #studyView .answer{padding:5px 7px;min-height:30px}
+  #studyView .answer-action{padding:5px 6px;min-height:30px}
+  #studyView .clear-answer{height:30px;min-height:30px}
+}
+@media(max-width:640px){
+  #studyView .answer-line{
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto auto 30px;
+    gap:4px;
+  }
+  #studyView .answer-line:not(:has(.memo-inline)){
+    grid-template-columns:minmax(0,1fr) auto 30px;
+  }
+  #studyView .card{padding:6px 7px}
+}
+
+
+.danger-sheet-btn{
+  border:1px solid #ead1cf!important;
+  color:#b94d47!important;
+  background:#fff!important;
+}
+.danger-sheet-btn:active{background:#fff4f3!important}
+
 </style>
 </head>
 <body>
@@ -820,11 +893,17 @@ function renderStudy(){
     bindSafeEnter(input,()=>{submitStudyAnswer(r,input);updateRate();const inputs=[...document.querySelectorAll(".answer")];const i=inputs.indexOf(input);if(i>=0&&i<inputs.length-1){inputs[i+1].focus();inputs[i+1].select()}else input.blur()});
     const reveal=document.createElement("button");reveal.className="answer-action";reveal.textContent=r.revealed?"답 숨기기":"답 보기";
     reveal.onclick=()=>{if(!r.revealed){r.revealed=true;r.attempts=(r.attempts||0)+1;r.wrong=(r.wrong||0)+1;markStudyCloud()}else{r.revealed=false;saveLocal()}renderStudy()};
+    let mb=null,memo=null;
+    if(r.memo){
+      mb=document.createElement("button");mb.className="answer-action memo-inline";mb.textContent="메모";
+      memo=document.createElement("div");memo.className="memo";memo.textContent=r.memo;
+      mb.onclick=()=>{memo.classList.toggle("show");mb.classList.toggle("active",memo.classList.contains("show"));mb.textContent=memo.classList.contains("show")?"닫기":"메모"};
+    }
     const clear=document.createElement("button");clear.className="answer-action clear-answer";clear.textContent="×";
     clear.onclick=()=>{r.user="";r.last="";r.revealed=false;saveLocal();input.value="";input.classList.remove("correct","wrong");input.focus()};
-    line.append(input,reveal,clear);card.append(meta,line);
+    line.append(input,reveal);if(mb)line.append(mb);line.append(clear);card.append(meta,line);
     if(r.revealed){const a=document.createElement("div");a.className="revealed-answer";a.textContent=r.correct||"";card.append(a)}
-    if(r.memo){const mb=document.createElement("button");mb.className="memo-btn";mb.textContent="메모";const memo=document.createElement("div");memo.className="memo";memo.textContent=r.memo;mb.onclick=()=>{memo.classList.toggle("show");mb.textContent=memo.classList.contains("show")?"닫기":"메모"};card.append(mb,memo)}
+    if(memo)card.append(memo);
     list.append(card);
   });
 }
@@ -1309,7 +1388,39 @@ function renderBankEditor(){
   const sheet=currentBankEditSheet();if(sheet)sel.value=sheet.id;
   sel.onchange=()=>{app.ui.bankEditSheetId=sel.value;saveLocal();renderBankEditor()};
   const add=document.createElement("button");add.className="primary";add.textContent="＋ 문제";add.onclick=()=>{const x=currentBankEditSheet();if(x)addBankQuestion(x)};
-  row.append(importBtn,sel,add);
+  const delSheet=document.createElement("button");delSheet.textContent="시트 삭제";delSheet.className="danger-sheet-btn";
+  delSheet.onclick=async()=>{
+    const target=currentBankEditSheet();if(!target)return;
+    if(!confirm(`'${target.name}' 시트를 통째로 삭제할까요?\n이 시트의 문제 ${target.items.length}개가 삭제됩니다.`))return;
+
+    // Remove only this physical imported sheet. If another workbook has a sheet with the same name, it remains.
+    app.bank.sheets=app.bank.sheets.filter(x=>x.id!==target.id);
+
+    // Remove stats only for canonical questions that no longer exist anywhere else.
+    const remainingKeys=new Set(bankQuestions(true).map(x=>canonicalProblemId(x)));
+    for(const item of target.items){
+      const cid=canonicalProblemId(item);
+      if(!remainingKeys.has(cid))delete app.bank.stats[cid];
+    }
+
+    if(app.ui.bankEditSheetId===target.id)app.ui.bankEditSheetId="";
+    if(app.ui.quiz.sheetId===target.id)app.ui.quiz.sheetId="all";
+
+    app.bank.contentUpdatedAt=Date.now();
+    app.bank.statsUpdatedAt=Date.now();
+    saveLocal();
+
+    if(cloudUser){
+      try{
+        await deleteDoc(bankSheetDoc(cloudUser.uid,target.id));
+        await saveBankIndexCloud();
+        await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt});
+      }catch(e){console.error(e);toast("로컬에서는 삭제됨 · 클라우드 확인 필요")}
+    }
+
+    renderQuiz();renderBankEditor();toast("시트 삭제됨");
+  };
+  row.append(importBtn,sel,add,delSheet);
   if(sheet){
     const dup=bankDuplicateAudit(sheet);
     const audit=document.createElement("span");audit.className="mini-note";
