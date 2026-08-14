@@ -300,9 +300,10 @@ td input:focus,td textarea:focus{background:#f7f7f9}
 
 
 /* 문제풀이 텍스트 색상 보정 */
-.question,.choice,.choice span,.quiz-answer,.write-answer,.answer-panel,.revealed-answer{display:none!important;
+.question,.choice,.choice span,.quiz-answer,.write-answer,.answer-panel{
   color:#202024;
 }
+.revealed-answer{display:none!important;color:#202024}
 .choice:visited,.choice:focus,.choice:active{color:#202024}
 .choice.correct,.choice.correct span{color:#202024}
 .choice.wrong,.choice.wrong span{color:#202024}
@@ -1396,6 +1397,15 @@ main{
     padding-right:28px!important;
   }
 }
+
+
+/* ===== quiz content visibility safety ===== */
+#quizView .question{display:block!important}
+#quizView .choice{display:flex!important}
+#quizView .quiz-answer{display:block!important}
+#quizView .write-answer{display:block!important}
+#quizView .answer-panel{display:block!important}
+#quizView .revealed-answer{display:none!important}
 
 </style>
 </head>
