@@ -1317,6 +1317,86 @@ main{
   .section-study-head.sub{border-top:1px solid #777!important}
 }
 
+
+/* ===== critical workspace visibility fix ===== */
+#memoryModebar.hidden,
+#bankModebar.hidden,
+#studyView.hidden,
+#editView.hidden,
+#quizView.hidden,
+#bankEditView.hidden,
+#memoryHeader.hidden,
+#memorySummary.hidden,
+#headerToggle.hidden{
+  display:none!important;
+}
+body.quiz-running #memoryModebar,
+body.quiz-running #studyView,
+body.quiz-running #editView{
+  display:none!important;
+}
+
+
+/* ===== remove artificial content width limits ===== */
+main,
+#memoryModebar,#studyView,#editView,
+#quizView,#bankEditView,
+#quizArea,#bankControlsWrap{
+  max-width:none!important;
+  width:100%!important;
+}
+main{
+  margin:0!important;
+  padding-left:16px!important;
+  padding-right:16px!important;
+}
+#memoryModebar,#studyView,#editView,
+#quizView,#bankEditView{
+  margin-left:0!important;
+  margin-right:0!important;
+}
+
+/* section/topic editor should use the whole available row */
+.section-edit{
+  width:100%!important;
+  box-sizing:border-box!important;
+}
+.section-edit input{
+  flex:1 1 auto!important;
+  width:100%!important;
+  min-width:0!important;
+  max-width:none!important;
+}
+.section-row td:first-child{
+  width:auto!important;
+  max-width:none!important;
+}
+.section-row .section-edit{
+  padding-right:4px!important;
+}
+
+/* regular editor also uses available width without arbitrary caps */
+.edit-wrap,.table-wrap,table{
+  max-width:none!important;
+}
+#editView table{
+  width:100%!important;
+}
+
+/* tablet / desktop: keep only page-edge breathing room, not a centered narrow column */
+@media (min-width:641px){
+  main{
+    padding-left:22px!important;
+    padding-right:22px!important;
+  }
+}
+@media (min-width:1025px){
+  main{
+    padding-left:28px!important;
+    padding-right:28px!important;
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1890,7 +1970,7 @@ function renderStudy(){
         const showingAnswer=!!(r.revealed||app.ui.showAllStudyAnswers);
         const input=document.createElement("input");input.className="section-memory-input";input.type="text";
         input.value=showingAnswer?(r.title||""):(r.user||"");
-        input.readOnly=showingAnswer;input.placeholder="소제목 입력";
+        input.readOnly=showingAnswer;
         const status=document.createElement("span");status.className="answer-status";status.setAttribute("aria-hidden","true");
         const paintSectionState=()=>{
           input.classList.remove("correct","wrong","showing-answer");
@@ -2127,7 +2207,7 @@ function renderEdit(){
       const level=document.createElement("button");level.type="button";level.className="section-level";
       level.textContent=r.level==="major"?"대":"소";level.title=r.level==="major"?"대주제":"소주제";
       level.onclick=e=>{e.stopPropagation();r.level=r.level==="major"?"sub":"major";markStudyCloud();renderEdit();renderStudy()};
-      const input=document.createElement("input");input.value=r.title||"";input.placeholder=r.level==="major"?"대주제":"소주제";
+      const input=document.createElement("input");input.value=r.title||"";
       input.oninput=e=>{r.title=e.target.value;saveLocal()};input.onchange=markStudyCloud;
       wrap.append(level,input);td.append(wrap);tr.append(td,makeActionMenu(i));body.append(tr);
     }else body.append(makeItemRow(r,i,false));
@@ -2933,6 +3013,7 @@ function renderMode(){
     document.getElementById("studyBtn").classList.toggle("active",mode==="study");
     document.getElementById("editBtn").classList.toggle("active",mode==="edit");
   }else{
+    document.getElementById("studyMenu")?.classList.add("hidden");
     document.getElementById("studyView").classList.add("hidden");document.getElementById("editView").classList.add("hidden");
     const bm=app.ui.bankMode||"quiz";
     document.getElementById("quizView").classList.toggle("hidden",bm!=="quiz");
@@ -3125,7 +3206,11 @@ onAuthStateChanged(auth,async user=>{
 document.getElementById("headerToggle").onclick=()=>{const h=document.getElementById("memoryHeader");setHeaderCollapsed(!h.classList.contains("collapsed"))};
 document.getElementById("memorySummaryBtn").onclick=()=>{const h=document.getElementById("memoryHeader");setHeaderCollapsed(!h.classList.contains("collapsed"))};
 document.getElementById("memorySpace").onclick=()=>{app.ui.workspace="memory";saveLocal();renderMode()};
-document.getElementById("bankSpace").onclick=()=>{app.ui.workspace="bank";saveLocal();renderMode()};
+document.getElementById("bankSpace").onclick=()=>{
+  app.ui.workspace="bank";
+  document.getElementById("studyMenu")?.classList.add("hidden");
+  saveLocal();renderMode();
+};
 document.getElementById("studyBtn").onclick=()=>{app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode()};
 document.getElementById("editBtn").onclick=()=>{app.study.mode="edit";app.ui.workspace="memory";saveLocal();renderMode()};
 document.getElementById("quizBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="quiz";saveLocal();renderMode()};
