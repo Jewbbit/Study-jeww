@@ -1002,6 +1002,127 @@ body[data-study-density="normal"] .answer-line{gap:4px!important}
   .settings-modal{max-height:88dvh;overflow:auto}
 }
 
+
+/* problem-bank repair */
+.quiz-sheet-name{font-size:10.5px!important;line-height:1.25!important;color:#8a8b90!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quiz-category{margin-top:3px!important;font-size:13px!important;line-height:1.45!important;color:#4c4d52!important;font-weight:600!important;white-space:normal!important}
+.q-progress{white-space:nowrap!important;align-self:flex-start!important}
+
+
+/* ===== memorization polish + bug fixes ===== */
+main{
+  max-width:920px!important;
+  margin:0 auto!important;
+  padding-left:14px!important;
+  padding-right:14px!important;
+  padding-bottom:40px!important;
+}
+#memoryModebar,#studyView,#editView{
+  width:100%;
+  max-width:780px;
+  margin-left:auto!important;
+  margin-right:auto!important;
+}
+.memory-toolbar{
+  margin-top:8px!important;
+  margin-bottom:8px!important;
+  padding:3px 2px 6px!important;
+}
+.memory-tools{gap:1px!important}
+.memory-tools .study-all-answer{
+  padding:6px 7px!important;
+  min-width:auto!important;
+  font-size:10.5px!important;
+  color:#56575c!important;
+}
+.study-menu-wrap{position:relative!important;overflow:visible!important}
+#studyMenu{
+  right:0!important;top:34px!important;z-index:300!important;
+  min-width:190px!important;background:#fff!important;
+  border:1px solid #d9d9dd!important;
+  box-shadow:0 10px 26px rgba(0,0,0,.14)!important
+}
+#studyMenu:not(.hidden){display:block!important}
+
+#studyView{
+  padding-left:2px!important;
+  padding-right:2px!important;
+  padding-top:2px!important;
+}
+.study-row{
+  padding:6px 2px 7px!important;
+}
+.study-row .category{
+  margin:0 0 3px 34px!important;
+}
+.answer-line{
+  grid-template-columns:32px minmax(0,1fr) 34px 30px 30px!important;
+  gap:3px!important;
+}
+.answer-line:not(:has(.memo-inline)){
+  grid-template-columns:32px minmax(0,1fr) 34px 30px 30px!important;
+}
+.star{
+  position:relative!important;
+  width:32px!important;height:34px!important;
+  overflow:visible!important;
+}
+.star-glyph{font-size:16px;line-height:1}
+.star-count{
+  position:absolute;right:0px;top:1px;
+  min-width:12px;height:12px;line-height:12px;
+  padding:0 2px;border-radius:6px;
+  background:#f2f2f3;color:#67686d;
+  font-size:8.5px;font-weight:750;text-align:center;
+}
+.star.on .star-count{background:#fff5cf;color:#7f5900}
+.memo-inline.empty{
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+.memo-inline.active{background:#ededee!important;color:#242428!important}
+.memo{
+  margin:4px 30px 0 35px!important;
+  padding:7px 9px!important;
+  border-left:2px solid #c5c5c9!important;
+  background:#f8f8f9!important;
+  border-radius:0 5px 5px 0!important;
+  line-height:1.5!important;
+}
+.section-study-head{
+  margin-top:12px!important;
+}
+#editView .table-wrap{
+  border-top:1px solid #ececef;
+}
+#editView th:nth-child(1),#editView td:nth-child(1){width:24%!important}
+#editView th:nth-child(2),#editView td:nth-child(2){width:40%!important}
+#editView th:nth-child(3),#editView td:nth-child(3){width:28%!important}
+#editView th:nth-child(4),#editView td:nth-child(4){width:8%!important}
+#editView td{padding:4px!important}
+#editView .edit-memo{
+  width:100%!important;
+  min-width:0!important;
+  height:32px!important;min-height:32px!important;max-height:32px!important;
+}
+@media(max-width:640px){
+  main{
+    padding-left:12px!important;
+    padding-right:12px!important;
+    padding-top:6px!important;
+  }
+  #memoryModebar,#studyView,#editView{max-width:none}
+  .memory-toolbar{margin-left:0!important;margin-right:0!important}
+  #studyView{padding-left:0!important;padding-right:0!important}
+  .answer-line{
+    grid-template-columns:31px minmax(0,1fr) 34px 29px 29px!important;
+  }
+  .answer-line:not(:has(.memo-inline)){
+    grid-template-columns:31px minmax(0,1fr) 34px 29px 29px!important;
+  }
+  .study-answer,.section-memory-input{height:35px!important;min-height:35px!important;max-height:35px!important}
+}
+
 </style>
 </head>
 <body>
@@ -1036,11 +1157,12 @@ body[data-study-density="normal"] .answer-line{gap:4px!important}
     </div>
     <div class="memory-tools">
       <button class="study-all-answer" id="toggleAllAnswers">답 전체</button>
+      <button class="study-all-answer" id="toggleAllMemos">메모 전체</button>
       <div class="study-menu-wrap">
-        <button class="icon" id="studyMenuBtn" aria-label="암기판 메뉴">•••</button>
+        <button class="icon" id="studyMenuBtn" aria-label="암기판 메뉴" aria-expanded="false">•••</button>
         <div class="menu hidden" id="studyMenu">
           <button id="clearSheetReview">현재 입력 전체 지우기</button>
-          <button id="clearSheetStars">★ 현재 표시 전체 해제</button>
+          <button id="clearSheetStars">★ 표시 전체 해제</button>
           <button id="clearSheetStarCounts">★ 횟수 초기화</button>
         </div>
       </div>
@@ -1310,6 +1432,7 @@ function cleanup(){
   if(!app.ui)app.ui={workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",quiz:{sheetId:"",mode:"choice",filter:"all",order:"sequence",mastery:true}};
   if(!app.ui.workspace)app.ui.workspace="memory";if(!app.ui.bankMode)app.ui.bankMode="quiz";
   if(!app.ui.settings)app.ui.settings={fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"};
+  if(app.ui.showAllStudyMemos==null)app.ui.showAllStudyMemos=false;
   if(!Number.isFinite(app.ui.settings.memoryFontSize))app.ui.settings.memoryFontSize=14;
   if(!Number.isFinite(app.ui.settings.quizFontSize))app.ui.settings.quizFontSize=17;
   app.ui.settings.memoryFontSize=Math.max(12,Math.min(20,app.ui.settings.memoryFontSize));
@@ -1448,7 +1571,10 @@ function bindLongPressReorder(button,getButtons,getIndex,onMove){
   };
   button.addEventListener("pointerup",finish);button.addEventListener("pointercancel",finish);
 }
-document.addEventListener("click",()=>document.querySelectorAll(".menu").forEach(m=>m.classList.add("hidden")));
+document.addEventListener("click",()=>{
+  document.querySelectorAll(".menu").forEach(m=>m.classList.add("hidden"));
+  document.getElementById("studyMenuBtn")?.setAttribute("aria-expanded","false");
+});
 
 function updateMemorySummary(){
   const b=document.getElementById("memorySummaryBtn"); if(!b)return;
@@ -1543,7 +1669,9 @@ function toggleSectionCollapsed(sectionId){
 function renderStudy(){
   document.getElementById("studyTitle").textContent=sh().name;
   const allBtn=document.getElementById("toggleAllAnswers");
-  if(allBtn)allBtn.textContent=app.ui.showAllStudyAnswers?"전체 숨김":"답 전체";
+  if(allBtn)allBtn.textContent=app.ui.showAllStudyAnswers?"답 숨김":"답 전체";
+  const memoAllBtn=document.getElementById("toggleAllMemos");
+  if(memoAllBtn)memoAllBtn.textContent=app.ui.showAllStudyMemos?"메모 숨김":"메모 전체";
 
   const list=document.getElementById("studyList");list.innerHTML="";
   let rows=sh().rows.filter(r=>r.type==="section"?(r.title||"").trim():(r.correct||r.category||r.memo));
@@ -1605,7 +1733,9 @@ function renderStudy(){
 
     const line=document.createElement("div");line.className="answer-line";
     const star=document.createElement("button");star.className="star"+(r.flagged?" on":"");
-    star.textContent=r.flagCount?`★${r.flagCount}`:"☆";
+    const starGlyph=document.createElement("span");starGlyph.className="star-glyph";starGlyph.textContent=r.flagged?"★":"☆";
+    const starCount=document.createElement("span");starCount.className="star-count";starCount.textContent=r.flagCount?String(r.flagCount):"";
+    star.append(starGlyph,starCount);
     star.title=r.flagCount?`헷갈림 ${r.flagCount}회`:"헷갈리면 표시";
     star.onclick=e=>{
       e.stopPropagation();
@@ -1647,16 +1777,20 @@ function renderStudy(){
     reveal.setAttribute("aria-label",showingAnswer?"정답 숨기기":"정답 보기");
     reveal.onclick=e=>{e.stopPropagation();r.revealed=!r.revealed;renderStudy()};
 
-    let memoButton=null,memo=null;
+    const memoButton=document.createElement("button");memoButton.className="study-action memo-inline";
+    memoButton.textContent="M";memoButton.setAttribute("aria-label",r.memo?"메모":"메모 없음");
+    let memo=null;
     if(r.memo){
-      memoButton=document.createElement("button");memoButton.className="study-action memo-inline";
-      memoButton.textContent="M";memoButton.setAttribute("aria-label","메모");
-      memo=document.createElement("div");memo.className="memo";memo.textContent=r.memo;
+      memo=document.createElement("div");memo.className="memo"+(app.ui.showAllStudyMemos?" show":"");memo.textContent=r.memo;
+      memoButton.classList.toggle("active",app.ui.showAllStudyMemos);
       memoButton.onclick=e=>{
         e.stopPropagation();
         memo.classList.toggle("show");
         memoButton.classList.toggle("active",memo.classList.contains("show"))
       };
+    }else{
+      memoButton.disabled=true;
+      memoButton.classList.add("empty");
     }
 
     const clear=document.createElement("button");clear.className="study-action clear-answer";
@@ -1667,9 +1801,7 @@ function renderStudy(){
       renderStudy();
     };
 
-    line.append(star,field,reveal);
-    if(memoButton)line.append(memoButton);
-    line.append(clear);
+    line.append(star,field,reveal,memoButton,clear);
     row.append(line);
     if(memo)row.append(memo);
 
@@ -1996,14 +2128,16 @@ function selectedBankSheets(){
   let sheets=app.bank.sheets.filter(s=>!s.legacyWrong);
   if(q.subject&&q.subject!=="all"){
     sheets=sheets.filter(s=>bankSheetMeta(s).subject===q.subject);
-    if(Array.isArray(q.areas))sheets=sheets.filter(s=>q.areas.includes(bankSheetMeta(s).area));
+    const areas=bankAreas(q.subject);
+    const picked=q.areaSelectionV2?(Array.isArray(q.areas)?q.areas:[]):areas;
+    sheets=sheets.filter(s=>picked.includes(bankSheetMeta(s).area));
   }
   return sheets;
 }
 function quizRangeLabel(){
   const q=app.ui.quiz;
   if(q.subject==="all"||!q.subject)return "전체 과목";
-  const all=bankAreas(q.subject),picked=q.areas||[];
+  const all=bankAreas(q.subject),picked=q.areaSelectionV2?(q.areas||[]):all;
   if(picked.length===all.length)return `${q.subject} 전체`;if(!picked.length)return `${q.subject} · 선택 없음`;
   return picked.length===1?`${q.subject} · ${picked[0]}`:`${q.subject} · ${picked[0]} 외 ${picked.length-1}`;
 }
@@ -2099,24 +2233,31 @@ function renderBankToolbar(){
   const subjectRow=document.createElement("div");subjectRow.className="subject-pills";
   ["all",...bankSubjects()].forEach(subject=>{
     const b=document.createElement("button");b.className="mini-pill"+(app.ui.quiz.subject===subject?" active":"");b.textContent=subject==="all"?"전체":subject;
-    b.onclick=()=>{app.ui.quiz.subject=subject;app.ui.quiz.areas=(subject==="all"?[]:bankAreas(subject));saveLocal();renderBankToolbar()};
+    b.onclick=()=>{app.ui.quiz.subject=subject;app.ui.quiz.areas=(subject==="all"?[]:bankAreas(subject));app.ui.quiz.areaSelectionV2=true;saveLocal();renderBankToolbar()};
     subjectRow.append(b);
   });
   panel.append(subjectRow);
 
   if(app.ui.quiz.subject!=="all"){
     const areas=bankAreas(app.ui.quiz.subject);
+    if(!app.ui.quiz.areaSelectionV2){
+      app.ui.quiz.areas=[...areas];
+      app.ui.quiz.areaSelectionV2=true;
+      saveLocal();
+    }
+    const selected=Array.isArray(app.ui.quiz.areas)?app.ui.quiz.areas:[...areas];
     const areaBox=document.createElement("div");areaBox.className="area-checks";
     const allLabel=document.createElement("label");const allCb=document.createElement("input");allCb.type="checkbox";
-    allCb.checked=!app.ui.quiz.areas.length||app.ui.quiz.areas.length===areas.length;
-    allCb.onchange=()=>{app.ui.quiz.areas=allCb.checked?[...areas]:[];saveLocal();renderBankToolbar()};
+    allCb.checked=areas.length>0&&selected.length===areas.length;
+    allCb.onchange=()=>{app.ui.quiz.areas=allCb.checked?[...areas]:[];app.ui.quiz.areaSelectionV2=true;saveLocal();renderBankToolbar()};
     allLabel.append(allCb,document.createTextNode(" 전체"));areaBox.append(allLabel);
     areas.forEach(area=>{
-      const label=document.createElement("label"),cb=document.createElement("input");cb.type="checkbox";cb.checked=!app.ui.quiz.areas.length||app.ui.quiz.areas.includes(area);
+      const label=document.createElement("label"),cb=document.createElement("input");cb.type="checkbox";cb.checked=selected.includes(area);
       cb.onchange=()=>{
-        let picked=app.ui.quiz.areas.length?[...app.ui.quiz.areas]:[...areas];
-        if(cb.checked&&!picked.includes(area))picked.push(area);if(!cb.checked)picked=picked.filter(x=>x!==area);
-        app.ui.quiz.areas=picked;saveLocal();renderBankToolbar();
+        let picked=[...selected];
+        if(cb.checked&&!picked.includes(area))picked.push(area);
+        if(!cb.checked)picked=picked.filter(x=>x!==area);
+        app.ui.quiz.areas=picked;app.ui.quiz.areaSelectionV2=true;saveLocal();renderBankToolbar();
       };
       label.append(cb,document.createTextNode(" "+area));areaBox.append(label);
     });
@@ -2125,7 +2266,7 @@ function renderBankToolbar(){
 
   if(app.ui.quiz.recentRanges?.length){
     const recent=document.createElement("div");recent.className="recent-ranges";
-    app.ui.quiz.recentRanges.forEach(r=>{const b=document.createElement("button");b.textContent=r.label;b.onclick=()=>{app.ui.quiz.subject=r.subject;app.ui.quiz.areas=[...r.areas];saveLocal();renderBankToolbar()};recent.append(b)});
+    app.ui.quiz.recentRanges.forEach(r=>{const b=document.createElement("button");b.textContent=r.label;b.onclick=()=>{app.ui.quiz.subject=r.subject;app.ui.quiz.areas=[...r.areas];app.ui.quiz.areaSelectionV2=true;saveLocal();renderBankToolbar()};recent.append(b)});
     panel.append(recent);
   }
 
@@ -2149,7 +2290,11 @@ function renderBankToolbar(){
   const edit=document.createElement("button");edit.textContent="문제 편집";edit.onclick=()=>{app.ui.bankMode="edit";saveLocal();renderMode()};
   menu.append(imp,edit);more.onclick=e=>{e.stopPropagation();menu.classList.toggle("hidden")};manage.append(more,menu);panel.append(manage);
 
-  const start=document.createElement("button");start.className="primary quiz-start";start.textContent="시작";start.onclick=()=>startQuiz();
+  const start=document.createElement("button");start.className="primary quiz-start";start.textContent="시작";
+  start.onclick=()=>{
+    if(app.ui.quiz.subject!=="all"&&app.ui.quiz.areaSelectionV2&&!(app.ui.quiz.areas||[]).length)return toast("영역을 하나 이상 선택하세요");
+    startQuiz();
+  };
   box.append(summary,panel,start);
 }
 function currentSessionScore(){
@@ -2710,7 +2855,16 @@ document.getElementById("editBtn").onclick=()=>{app.study.mode="edit";app.ui.wor
 document.getElementById("quizBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="quiz";saveLocal();renderMode()};
 document.getElementById("bankEditBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="edit";saveLocal();renderMode()};
 document.getElementById("toggleAllAnswers").onclick=()=>{app.ui.showAllStudyAnswers=!app.ui.showAllStudyAnswers;renderStudy()};
-document.getElementById("studyMenuBtn").onclick=e=>{e.stopPropagation();document.getElementById("studyMenu").classList.toggle("hidden")};
+document.getElementById("toggleAllMemos").onclick=()=>{app.ui.showAllStudyMemos=!app.ui.showAllStudyMemos;saveLocal();renderStudy()};
+document.getElementById("studyMenuBtn").onclick=e=>{
+  e.preventDefault();e.stopPropagation();
+  const menu=document.getElementById("studyMenu"),btn=e.currentTarget;
+  const opening=menu.classList.contains("hidden");
+  document.querySelectorAll(".menu").forEach(m=>m.classList.add("hidden"));
+  menu.classList.toggle("hidden",!opening);
+  btn.setAttribute("aria-expanded",opening?"true":"false");
+};
+document.getElementById("studyMenu").onclick=e=>e.stopPropagation();
 document.getElementById("clearSheetReview").onclick=e=>{e.stopPropagation();if(!confirm(`'${sh().name}'의 현재 입력내용을 전부 지울까요?`))return;sh().rows.forEach(clearReviewRow);saveLocal();renderStudy()};
 document.getElementById("clearSheetStars").onclick=e=>{e.stopPropagation();sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});markStudyCloud();renderStudy()};
 document.getElementById("clearSheetStarCounts").onclick=e=>{e.stopPropagation();if(!confirm("이 시트의 ★ 누적 횟수를 0으로 초기화할까요?"))return;sh().rows.forEach(r=>{if(r.type!=="section"){r.flagCount=0;r.flagged=false}});markStudyCloud();renderStudy()};
