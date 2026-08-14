@@ -373,6 +373,17 @@ function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 function sub(){return state.subjects.find(x=>x.name===state.subject)||state.subjects[0]}
 function sh(){return sub().sheets.find(x=>x.name===sub().current)||sub().sheets[0]}
 function norm(s){return (s||"").trim().replace(/\s/g,"").replace(/[·,]/g,"").toLowerCase()}
+function bindSafeEnter(el,handler){
+  let composing=false;
+  el.addEventListener("compositionstart",()=>{composing=true});
+  el.addEventListener("compositionend",()=>{composing=false});
+  el.addEventListener("keyup",e=>{
+    if(e.key!=="Enter")return;
+    if(composing || e.isComposing || e.keyCode===229)return;
+    e.preventDefault();
+    setTimeout(()=>handler(),0);
+  });
+}
 function isBlankItem(r){
   return r && r.type!=="section" && !(r.category||"").trim() && !(r.correct||"").trim() && !(r.memo||"").trim();
 }
@@ -389,6 +400,7 @@ function grade(u,c){
 }
 
 function renderSubjects(){
+  document.querySelectorAll(".subject-menu").forEach(m=>m.remove());
   const el=document.getElementById("subjects");el.innerHTML="";
   state.subjects.forEach(s=>{
     const b=document.createElement("button");
@@ -424,7 +436,11 @@ function renderSubjects(){
   manage.title="과목 메뉴";
 
   const menu=document.createElement("div");
-  menu.className="menu hidden";
+  menu.className="menu subject-menu hidden";
+  menu.style.position="fixed";
+  menu.style.top="0";
+  menu.style.right="auto";
+  menu.style.left="0";
 
   const rename=document.createElement("button");
   rename.textContent="이름 변경";
@@ -468,9 +484,18 @@ function renderSubjects(){
   manage.onclick=e=>{
     e.stopPropagation();
     document.querySelectorAll(".menu").forEach(m=>{if(m!==menu)m.classList.add("hidden")});
-    menu.classList.toggle("hidden");
+    const opening=menu.classList.contains("hidden");
+    if(opening){
+      const r=manage.getBoundingClientRect();
+      menu.style.left=Math.max(8,Math.min(window.innerWidth-124,r.right-116))+"px";
+      menu.style.top=(r.bottom+6)+"px";
+      menu.classList.remove("hidden");
+    }else{
+      menu.classList.add("hidden");
+    }
   };
-  manageWrap.append(manage,menu);
+  manageWrap.append(manage);
+  document.body.appendChild(menu);
 
   el.append(plus,manageWrap);
 }
@@ -555,20 +580,17 @@ function renderStudy(){
       rate.textContent=r.attempts?`${pct}%`:"";
     };
     input.onchange=submitAnswer;
-    input.onkeydown=e=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        submitAnswer();
-        const inputs=[...document.querySelectorAll(".answer")];
-        const pos=inputs.indexOf(input);
-        if(pos>=0 && pos<inputs.length-1){
-          inputs[pos+1].focus();
-          inputs[pos+1].select();
-        }else{
-          input.blur();
-        }
+    bindSafeEnter(input,()=>{
+      submitAnswer();
+      const inputs=[...document.querySelectorAll(".answer")];
+      const pos=inputs.indexOf(input);
+      if(pos>=0 && pos<inputs.length-1){
+        inputs[pos+1].focus();
+        inputs[pos+1].select();
+      }else{
+        input.blur();
       }
-    };
+    });
 
     line.append(input,result);
     card.append(meta,line);
@@ -621,6 +643,47 @@ function moveRow(index,delta){
   save();
   renderEdit();
 }
+
+function toggleRowType(index){
+  const rows=sh().rows;
+  const r=rows[index];
+  if(!r)return;
+
+  if(r.type==="section"){
+    const restored=r._itemBackup || {};
+    rows[index]={
+      type:"item",
+      category:restored.category||"",
+      correct:(r.title||restored.correct||""),
+      memo:restored.memo||"",
+      user:restored.user||"",
+      attempts:restored.attempts||0,
+      wrong:restored.wrong||0,
+      flagged:!!restored.flagged,
+      last:restored.last||""
+    };
+  }else{
+    rows[index]={
+      type:"section",
+      title:r.correct||r.category||"",
+      _itemBackup:{
+        category:r.category||"",
+        correct:r.correct||"",
+        memo:r.memo||"",
+        user:r.user||"",
+        attempts:r.attempts||0,
+        wrong:r.wrong||0,
+        flagged:!!r.flagged,
+        last:r.last||""
+      }
+    };
+  }
+
+  ensureTrailingBlank();
+  save();
+  renderEdit();
+}
+
 function makeActionMenu(index){
   const td=document.createElement("td");
   td.className="action-cell";
@@ -649,6 +712,11 @@ function makeActionMenu(index){
   sectionBelow.textContent="아래에 소제목";
   sectionBelow.onclick=e=>{e.stopPropagation();insertAt(index+1,"section")};
 
+  const convert=document.createElement("button");
+  const currentRow=sh().rows[index];
+  convert.textContent=currentRow && currentRow.type==="section" ? "항목으로 변경" : "소제목으로 변경";
+  convert.onclick=e=>{e.stopPropagation();toggleRowType(index)};
+
   const divider=document.createElement("div");
   divider.style.height="1px";
   divider.style.background="var(--line)";
@@ -675,7 +743,7 @@ function makeActionMenu(index){
     renderEdit();
   };
 
-  menu.append(addAbove,addBelow,sectionAbove,sectionBelow,divider,up,down,del);
+  menu.append(addAbove,addBelow,sectionAbove,sectionBelow,convert,divider,up,down,del);
   more.onclick=e=>{
     e.stopPropagation();
     document.querySelectorAll(".menu").forEach(m=>{if(m!==menu)m.classList.add("hidden")});
@@ -708,20 +776,17 @@ function renderEdit(){
       input.dataset.rowIndex=String(i);
       input.placeholder="소제목";
       input.oninput=e=>{r.title=e.target.value;save()};
-      input.onkeydown=e=>{
-        if(e.key==="Enter"){
-          e.preventDefault();
-          const next=row();
-          sh().rows.splice(i+1,0,next);
-          save();
-          renderEdit();
-          requestAnimationFrame(()=>{
-            const corrects=[...document.querySelectorAll(".edit-correct")];
-            const target=corrects.find(x=>Number(x.dataset.rowIndex)===i+1);
-            if(target)target.focus();
-          });
-        }
-      };
+      bindSafeEnter(input,()=>{
+        const next=row();
+        sh().rows.splice(i+1,0,next);
+        save();
+        renderEdit();
+        requestAnimationFrame(()=>{
+          const corrects=[...document.querySelectorAll(".edit-correct")];
+          const target=corrects.find(x=>Number(x.dataset.rowIndex)===i+1);
+          if(target)target.focus();
+        });
+      });
 
       wrap.append(input);
       td.appendChild(wrap);
@@ -750,13 +815,10 @@ function renderEdit(){
         });
       }else save();
     };
-    cat.onkeydown=e=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        cor.focus();
-        cor.select();
-      }
-    };
+    bindSafeEnter(cat,()=>{
+      cor.focus();
+      cor.select();
+    });
     catTd.appendChild(cat);
 
     const corTd=document.createElement("td");
@@ -778,29 +840,26 @@ function renderEdit(){
         });
       }else save();
     };
-    cor.onkeydown=e=>{
-      if(e.key==="Enter"){
-        e.preventDefault();
-        const currentIndex=sh().rows.indexOf(r);
-        let nextIndex=currentIndex+1;
-        while(nextIndex<sh().rows.length && sh().rows[nextIndex].type==="section"){
-          nextIndex++;
-        }
-        if(nextIndex>=sh().rows.length){
-          sh().rows.push(row());
-          nextIndex=sh().rows.length-1;
-          save();
-          renderEdit();
-          requestAnimationFrame(()=>{
-            const target=[...document.querySelectorAll(".edit-correct")].find(x=>Number(x.dataset.rowIndex)===nextIndex);
-            if(target)target.focus();
-          });
-        }else{
-          const target=[...document.querySelectorAll(".edit-correct")].find(x=>Number(x.dataset.rowIndex)===nextIndex);
-          if(target){target.focus();target.select();}
-        }
+    bindSafeEnter(cor,()=>{
+      const currentIndex=sh().rows.indexOf(r);
+      let nextIndex=currentIndex+1;
+      while(nextIndex<sh().rows.length && sh().rows[nextIndex].type==="section"){
+        nextIndex++;
       }
-    };
+      if(nextIndex>=sh().rows.length){
+        sh().rows.push(row());
+        nextIndex=sh().rows.length-1;
+        save();
+        renderEdit();
+        requestAnimationFrame(()=>{
+          const target=[...document.querySelectorAll(".edit-correct")].find(x=>Number(x.dataset.rowIndex)===nextIndex);
+          if(target)target.focus();
+        });
+      }else{
+        const target=[...document.querySelectorAll(".edit-correct")].find(x=>Number(x.dataset.rowIndex)===nextIndex);
+        if(target){target.focus();target.select();}
+      }
+    });
     corTd.appendChild(cor);
 
     const memoTd=document.createElement("td");
