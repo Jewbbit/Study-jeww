@@ -309,6 +309,32 @@ td:last-child,th:last-child{
 .menu button:active{background:#f2f2f4}
 .menu button.danger{color:var(--bad)}
 
+
+.reorder-dragging{opacity:.45;transform:scale(.98)}
+.reorder-target{outline:2px solid #bbb;outline-offset:2px}
+.chip{touch-action:pan-y}
+
+
+.study-head{display:flex;align-items:center;gap:8px}
+.study-head .sheet-title{flex:1;min-width:0}
+.study-menu-wrap{position:relative;flex:0 0 auto}
+.section-study-head{display:flex;align-items:center;gap:6px}
+.section-study-head .section-title{flex:1;min-width:0}
+.section-menu-wrap{position:relative;flex:0 0 auto}
+.section-menu-wrap .more{width:30px;height:30px}
+
+
+.card-actions{display:flex;gap:6px;align-items:center;margin-top:8px}
+.card-actions button{
+  border:0;background:#f3f3f5;border-radius:8px;padding:7px 9px;
+  font-size:12px;color:#555
+}
+.card-actions button:active{background:#e9e9ec}
+.revealed-answer{
+  margin-top:8px;padding:9px 10px;border-radius:9px;background:#f6f6f8;
+  font-size:14px;font-weight:600;white-space:pre-wrap
+}
+
 </style>
 </head>
 <body>
@@ -325,7 +351,16 @@ td:last-child,th:last-child{
   </div>
 
   <section id="studyView">
-    <div class="sheet-title" id="studyTitle"></div>
+    <div class="study-head">
+      <div class="sheet-title" id="studyTitle"></div>
+      <div class="study-menu-wrap">
+        <button class="icon" id="studyMenuBtn" title="복습 메뉴">•••</button>
+        <div class="menu hidden" id="studyMenu">
+          <button id="clearSheetReview">복습기록 전체 삭제</button>
+          <button id="clearSheetStars">★ 전체 해제</button>
+        </div>
+      </div>
+    </div>
     <div class="list" id="studyList"></div>
   </section>
 
@@ -360,7 +395,7 @@ td:last-child,th:last-child{
 
 <script>
 const KEY="study-min-v1";
-function row(){return {type:"item",category:"",correct:"",memo:"",user:"",attempts:0,wrong:0,flagged:false,last:""}}
+function row(){return {type:"item",category:"",correct:"",memo:"",user:"",attempts:0,wrong:0,flagged:false,last:"",revealed:false}}
 function sectionRow(){return {type:"section",title:""}}
 function sheet(name){return {name,rows:[row()]}}
 function subject(name){return {name,current:"기본",sheets:[sheet("기본")]}}
@@ -399,6 +434,75 @@ function grade(u,c){
   return norm(u)===norm(c)?["정답","ok"]:["오답","bad"];
 }
 
+
+function reorderArray(arr,from,to){
+  if(from===to || from<0 || to<0 || from>=arr.length || to>=arr.length)return;
+  const item=arr.splice(from,1)[0];
+  arr.splice(to,0,item);
+}
+function bindLongPressReorder(button,getItems,getIndex,onMove){
+  let timer=null;
+  let dragging=false;
+  let startX=0,startY=0;
+
+  const clearTimer=()=>{
+    if(timer){clearTimeout(timer);timer=null;}
+  };
+
+  button.addEventListener("pointerdown",e=>{
+    if(e.pointerType==="mouse" && e.button!==0)return;
+    startX=e.clientX; startY=e.clientY;
+    clearTimer();
+    timer=setTimeout(()=>{
+      dragging=true;
+      button.classList.add("reorder-dragging");
+      try{button.setPointerCapture(e.pointerId)}catch(_){}
+      if(navigator.vibrate) navigator.vibrate(15);
+    },420);
+  });
+
+  button.addEventListener("pointermove",e=>{
+    if(!dragging){
+      if(Math.hypot(e.clientX-startX,e.clientY-startY)>10)clearTimer();
+      return;
+    }
+    e.preventDefault();
+    const items=getItems();
+    items.forEach(x=>x.classList.remove("reorder-target"));
+    const target=items.find(x=>{
+      const r=x.getBoundingClientRect();
+      return e.clientX>=r.left && e.clientX<=r.right && e.clientY>=r.top && e.clientY<=r.bottom;
+    });
+    if(target && target!==button)target.classList.add("reorder-target");
+  });
+
+  const finish=e=>{
+    clearTimer();
+    if(!dragging)return;
+    dragging=false;
+    button.classList.remove("reorder-dragging");
+    const items=getItems();
+    let targetIndex=-1;
+    items.forEach((x,i)=>{
+      if(x.classList.contains("reorder-target"))targetIndex=i;
+      x.classList.remove("reorder-target");
+    });
+    if(targetIndex>=0){
+      const from=getIndex();
+      onMove(from,targetIndex);
+    }
+    // Prevent the tap/click that follows a completed long-press drag.
+    button.dataset.skipClick="1";
+    setTimeout(()=>delete button.dataset.skipClick,0);
+  };
+
+  button.addEventListener("pointerup",finish);
+  button.addEventListener("pointercancel",finish);
+  button.addEventListener("pointerleave",e=>{
+    if(!dragging)clearTimer();
+  });
+}
+
 function renderSubjects(){
   document.querySelectorAll(".subject-menu").forEach(m=>m.remove());
   const el=document.getElementById("subjects");el.innerHTML="";
@@ -406,8 +510,23 @@ function renderSubjects(){
     const b=document.createElement("button");
     b.className="chip"+(s.name===state.subject?" active":"");
     b.textContent=s.name;
-    b.onclick=()=>{state.subject=s.name;save();render()};
+    b.dataset.subjectName=s.name;
+    b.onclick=()=>{
+      if(b.dataset.skipClick)return;
+      state.subject=s.name;save();render();
+    };
     el.appendChild(b);
+
+    bindLongPressReorder(
+      b,
+      ()=>[...el.querySelectorAll(".chip")],
+      ()=>state.subjects.indexOf(s),
+      (from,to)=>{
+        reorderArray(state.subjects,from,to);
+        save();
+        render();
+      }
+    );
   });
   const plus=document.createElement("button");
   plus.className="icon";plus.textContent="＋";plus.title="과목 추가";
@@ -505,9 +624,70 @@ function renderSheets(){
     const b=document.createElement("button");
     b.className="chip"+(s.name===sub().current?" active":"");
     b.textContent=s.name;
-    b.onclick=()=>{sub().current=s.name;save();render()};
+    b.dataset.sheetName=s.name;
+    b.onclick=()=>{
+      if(b.dataset.skipClick)return;
+      sub().current=s.name;save();render();
+    };
     el.appendChild(b);
+
+    bindLongPressReorder(
+      b,
+      ()=>[...el.querySelectorAll(".chip")],
+      ()=>sub().sheets.indexOf(s),
+      (from,to)=>{
+        reorderArray(sub().sheets,from,to);
+        save();
+        render();
+      }
+    );
   });
+}
+
+
+function clearReviewRow(r){
+  if(!r || r.type==="section")return;
+  r.user="";
+  r.attempts=0;
+  r.wrong=0;
+  r.last="";
+  r.revealed=false;
+}
+function sectionRange(rows,sectionIndex){
+  let end=rows.length;
+  for(let i=sectionIndex+1;i<rows.length;i++){
+    if(rows[i].type==="section"){end=i;break;}
+  }
+  return [sectionIndex+1,end];
+}
+function clearSectionReview(sectionIndex){
+  const rows=sh().rows;
+  const [start,end]=sectionRange(rows,sectionIndex);
+  for(let i=start;i<end;i++)clearReviewRow(rows[i]);
+  save();
+  renderStudy();
+}
+
+
+function revealAnswer(r){
+  if(!r || r.type==="section")return;
+  if(!r.revealed){
+    r.revealed=true;
+    r.attempts=(r.attempts||0)+1;
+    r.wrong=(r.wrong||0)+1;
+    r.last="__revealed__";
+    save();
+  }else{
+    r.revealed=false;
+    save();
+  }
+}
+function clearCurrentItem(r){
+  if(!r || r.type==="section")return;
+  r.user="";
+  r.last="";
+  r.revealed=false;
+  save();
 }
 
 function renderStudy(){
@@ -532,10 +712,45 @@ function renderStudy(){
   }
   rows.forEach((r,idx)=>{
     if(r.type==="section"){
+      const originalIndex=sh().rows.indexOf(r);
+
+      const head=document.createElement("div");
+      head.className="section-study-head";
+
       const sec=document.createElement("div");
       sec.className="section-title";
       sec.textContent=r.title||"";
-      list.appendChild(sec);
+
+      const wrap=document.createElement("div");
+      wrap.className="section-menu-wrap";
+
+      const more=document.createElement("button");
+      more.className="more";
+      more.textContent="•••";
+      more.title="소제목 메뉴";
+
+      const menu=document.createElement("div");
+      menu.className="menu hidden";
+
+      const clear=document.createElement("button");
+      clear.textContent="이 구간 복습기록 삭제";
+      clear.onclick=e=>{
+        e.stopPropagation();
+        if(confirm(`'${r.title||"이 구간"}'의 복습기록을 삭제할까요?`)){
+          clearSectionReview(originalIndex);
+        }
+      };
+
+      menu.append(clear);
+      more.onclick=e=>{
+        e.stopPropagation();
+        document.querySelectorAll(".menu").forEach(m=>{if(m!==menu)m.classList.add("hidden")});
+        menu.classList.toggle("hidden");
+      };
+
+      wrap.append(more,menu);
+      head.append(sec,wrap);
+      list.appendChild(head);
       return;
     }
     const card=document.createElement("div");card.className="card"+(r.flagged?" flagged":"");
@@ -570,6 +785,7 @@ function renderStudy(){
     };
     const submitAnswer=()=>{
       if(!r.user)return;
+      if(r.last===r.user)return;
       const ok=norm(r.user)===norm(r.correct);
       r.attempts=(r.attempts||0)+1;
       if(!ok)r.wrong=(r.wrong||0)+1;
@@ -594,6 +810,33 @@ function renderStudy(){
 
     line.append(input,result);
     card.append(meta,line);
+
+    if(r.revealed){
+      const ans=document.createElement("div");
+      ans.className="revealed-answer";
+      ans.textContent=r.correct||"";
+      card.appendChild(ans);
+    }
+
+    const actions=document.createElement("div");
+    actions.className="card-actions";
+
+    const reveal=document.createElement("button");
+    reveal.textContent=r.revealed ? "답 숨기기" : "답 보기";
+    reveal.onclick=()=>{
+      revealAnswer(r);
+      renderStudy();
+    };
+
+    const clear=document.createElement("button");
+    clear.textContent="지우기";
+    clear.onclick=()=>{
+      clearCurrentItem(r);
+      renderStudy();
+    };
+
+    actions.append(reveal,clear);
+    card.appendChild(actions);
 
     if(r.memo){
       const mb=document.createElement("button");mb.className="memo-btn";mb.textContent="메모";
@@ -1070,6 +1313,29 @@ async function importWorkbook(file){
 function render(){
   renderSubjects();renderSheets();renderStudy();renderEdit();renderMode();
 }
+
+document.getElementById("studyMenuBtn").onclick=e=>{
+  e.stopPropagation();
+  const menu=document.getElementById("studyMenu");
+  document.querySelectorAll(".menu").forEach(m=>{if(m!==menu)m.classList.add("hidden")});
+  menu.classList.toggle("hidden");
+};
+document.getElementById("clearSheetReview").onclick=e=>{
+  e.stopPropagation();
+  if(!confirm(`'${sh().name}'의 복습기록을 전부 삭제할까요?`))return;
+  sh().rows.forEach(clearReviewRow);
+  save();
+  renderStudy();
+  document.getElementById("studyMenu").classList.add("hidden");
+};
+document.getElementById("clearSheetStars").onclick=e=>{
+  e.stopPropagation();
+  sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});
+  save();
+  renderStudy();
+  document.getElementById("studyMenu").classList.add("hidden");
+};
+
 document.getElementById("studyBtn").onclick=()=>{state.mode="study";save();renderMode()};
 document.getElementById("editBtn").onclick=()=>{state.mode="edit";save();renderMode()};
 document.getElementById("flagBtn").onclick=e=>{
