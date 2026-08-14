@@ -3,142 +3,241 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Study</title>
+<title>Study Jew</title>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 :root{
-  --bg:#f6f6f7;--card:#fff;--line:#e5e5e8;--text:#171719;--sub:#8e8e93;
-  --ok:#22865a;--bad:#c94b45;--accent:#6d5dfc;
+  --bg:#f5f5f7;--card:#fff;--line:#e4e4e8;--text:#171719;--sub:#8d8d94;
+  --ok:#23855a;--bad:#c94b45;--accent:#6557e8;--soft:#f2f2f5;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
-button,input,textarea{font:inherit}
+button,input,textarea,select{font:inherit}
 button{cursor:pointer}
 .hidden{display:none!important}
-header{position:sticky;top:0;z-index:20;background:rgba(246,246,247,.94);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
-.row{display:flex;align-items:center;gap:7px;padding:9px 12px;overflow-x:auto;scrollbar-width:none}
-.row::-webkit-scrollbar{display:none}
-#subjects{padding-bottom:5px}
-#sheets{padding-top:3px}
-.chip,.icon,.switch button,.small-btn{
-  border:0;background:var(--card);border-radius:11px;color:var(--text)
+header{position:sticky;top:0;z-index:30;background:rgba(245,245,247,.95);backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.navline{display:flex;align-items:center;gap:7px;padding:7px 10px}
+.scrolltabs{display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none;flex:1;min-width:0}
+.scrolltabs::-webkit-scrollbar{display:none}
+.right-tools{display:flex;align-items:center;gap:5px;margin-left:auto;flex:0 0 auto}
+.chip,.icon,.modebar button,.small-btn,.tool-btn{
+  border:0;background:var(--card);border-radius:10px;color:var(--text)
 }
-.chip{padding:8px 12px;white-space:nowrap;flex:0 0 auto;
-  -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none;touch-action:pan-y}
+.chip{padding:7px 11px;white-space:nowrap;flex:0 0 auto;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-user-drag:none;touch-action:pan-y}
 .chip.active{background:var(--text);color:#fff}
-.icon{width:34px;height:34px;flex:0 0 auto;font-size:18px}
+.icon{width:33px;height:33px;flex:0 0 auto;font-size:17px}
 .icon.muted{color:#aaa}
-.reorder-dragging{opacity:.42;transform:scale(.98)}
-.reorder-target{outline:2px solid #bbb;outline-offset:2px}
-main{max-width:880px;margin:0 auto;padding:14px 12px 50px}
-.switch{display:flex;gap:7px;margin-bottom:12px}
-.switch button{padding:9px 13px;color:var(--sub)}
-.switch button.active{background:var(--text);color:#fff}
-.study-head,.edit-head{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.sheet-title{font-size:21px;font-weight:700;flex:1;min-width:0;padding:5px 2px}
-.study-menu-wrap,.subject-menu-wrap{position:relative;flex:0 0 auto}
-.list{display:flex;flex-direction:column;gap:9px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
-.card.flagged{border-color:#c9c4ff}
-.meta{display:flex;align-items:center;gap:7px;min-height:24px;margin-bottom:7px}
-.category{font-size:12px;color:var(--sub);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rate{font-size:12px;color:var(--sub)}
-.star{border:0;background:transparent;font-size:19px;color:#c3c3c7;padding:0 2px}
-.star.on{color:#e6a700}
-.answer-line{display:flex;align-items:center;gap:7px}
+.sync-btn{width:auto;min-width:38px;padding:0 9px;font-size:11px;color:#777}
+.sync-btn.signed{color:var(--ok)}
+.reorder-dragging{opacity:.4;transform:scale(.97)}
+.reorder-target{outline:2px solid #aaa;outline-offset:2px}
+main{max-width:1050px;margin:0 auto;padding:10px 10px 44px}
+.modebar{display:flex;gap:6px;margin-bottom:9px;overflow-x:auto;scrollbar-width:none}
+.modebar::-webkit-scrollbar{display:none}
+.modebar button{padding:8px 11px;color:var(--sub);white-space:nowrap}
+.modebar button.active{background:var(--text);color:#fff}
+.study-head,.edit-head,.page-head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
+.sheet-title,.page-title{font-size:20px;font-weight:750;flex:1;min-width:0;padding:3px 2px}
+.study-menu-wrap,.subject-menu-wrap,.section-menu-wrap{position:relative;flex:0 0 auto}
+.list{display:flex;flex-direction:column;gap:6px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 10px}
+.card.flagged{border-color:#c7c1ff}
+.meta{display:flex;align-items:center;gap:6px;min-height:19px;margin-bottom:5px}
+.category{font-size:11px;color:var(--sub);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rate{font-size:11px;color:var(--sub)}
+.star{border:0;background:transparent;font-size:18px;color:#c5c5ca;padding:0 1px}
+.star.on{color:#e4a500}
+.answer-line{display:flex;align-items:center;gap:6px}
 .answer{
-  flex:1;min-width:90px;max-width:68%;border:1px solid var(--line);border-radius:10px;
-  background:#fff;padding:10px 11px;font-size:16px;outline:none
+  flex:0 1 68%;min-width:120px;border:1px solid var(--line);border-radius:9px;background:#fff;
+  padding:8px 10px;font-size:15px;outline:none
 }
 .answer:focus{border-color:#aaa}
 .answer.correct{border-color:var(--ok);background:#f4fbf7}
 .answer.wrong{border-color:var(--bad);background:#fff6f5}
-.answer-action{
-  border:0;background:#f2f2f4;border-radius:9px;padding:9px 10px;font-size:12px;color:#555;white-space:nowrap
-}
-.clear-answer{width:35px;height:35px;padding:0;font-size:18px}
-.revealed-answer{margin-top:8px;padding:9px 10px;background:#f5f5f7;border-radius:9px;font-weight:650;white-space:pre-wrap}
-.memo-btn{margin-top:8px;border:0;background:transparent;color:var(--sub);padding:0;font-size:12px}
-.memo{display:none;margin-top:7px;font-size:13px;color:#555;white-space:pre-wrap}
+.answer-action{border:0;background:var(--soft);border-radius:8px;padding:8px 9px;font-size:11px;color:#555;white-space:nowrap}
+.clear-answer{width:32px;height:32px;padding:0;font-size:17px}
+.revealed-answer{margin-top:6px;padding:8px 9px;background:#f4f4f6;border-radius:8px;font-weight:650;white-space:pre-wrap;font-size:13px}
+.memo-btn{margin-top:6px;border:0;background:transparent;color:var(--sub);padding:0;font-size:11px}
+.memo{display:none;margin-top:6px;font-size:12px;color:#555;white-space:pre-wrap}
 .memo.show{display:block}
-.section-study-head{display:flex;align-items:center;gap:5px;margin-top:8px}
-.section-title{font-weight:750;font-size:15px;flex:1;padding:8px 3px 5px}
-.more{border:0;background:transparent;color:#999;width:31px;height:31px;border-radius:8px}
+.section-study-head{display:flex;align-items:center;gap:4px;margin-top:4px}
+.section-title{font-weight:760;font-size:14px;flex:1;padding:6px 2px 4px}
+.section-toggle{border:0;background:transparent;color:#888;padding:4px 5px}
+.more{border:0;background:transparent;color:#999;width:30px;height:30px;border-radius:8px}
 .more:active{background:#ececef;color:#555}
-.menu{
-  position:absolute;right:0;top:38px;z-index:60;min-width:150px;background:#fff;border:1px solid var(--line);
-  border-radius:12px;padding:4px;box-shadow:0 9px 30px rgba(0,0,0,.13)
-}
-.menu button{display:block;width:100%;border:0;background:transparent;text-align:left;padding:9px 10px;border-radius:8px;font-size:13px;color:#333}
+.menu{position:absolute;right:0;top:36px;z-index:80;min-width:155px;background:#fff;border:1px solid var(--line);border-radius:11px;padding:4px;box-shadow:0 9px 30px rgba(0,0,0,.13)}
+.menu button{display:block;width:100%;border:0;background:transparent;text-align:left;padding:8px 9px;border-radius:7px;font-size:12px;color:#333}
 .menu button:active{background:#f2f2f4}
 .menu .danger{color:var(--bad)}
 .menu-sep{height:1px;background:var(--line);margin:4px}
-.edit-wrap{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.edit-head{margin:0;padding:9px;border-bottom:1px solid var(--line)}
-#sheetName{flex:1;min-width:0;border:0;background:transparent;font-size:19px;font-weight:700;padding:6px;outline:none}
+.edit-wrap{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.edit-head{margin:0;padding:7px;border-bottom:1px solid var(--line)}
+#sheetName{flex:1;min-width:0;border:0;background:transparent;font-size:18px;font-weight:720;padding:5px;outline:none}
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse}
-th{font-size:12px;color:var(--sub);font-weight:500;text-align:left;padding:8px;border-bottom:1px solid var(--line)}
-td{padding:5px;border-bottom:1px solid var(--line);vertical-align:top}
-td input,td textarea{
-  width:100%;border:0;background:transparent;padding:8px;outline:none;border-radius:7px
-}
+th{font-size:11px;color:var(--sub);font-weight:500;text-align:left;padding:7px;border-bottom:1px solid var(--line)}
+td{padding:4px;border-bottom:1px solid var(--line);vertical-align:top}
+td input,td textarea{width:100%;border:0;background:transparent;padding:7px;outline:none;border-radius:6px}
 td input:focus,td textarea:focus{background:#f7f7f9}
-.edit-memo{min-height:38px;resize:vertical}
+.edit-memo{min-height:34px;resize:vertical}
 .edit-correct{font-weight:600}
-.action-cell{position:relative;width:42px;text-align:center}
-.section-edit{background:#f7f7f9;padding:4px 6px}
+.action-cell{position:relative;width:39px;text-align:center}
+.section-edit{background:#f7f7f9;padding:3px 5px}
 .section-edit input{font-weight:750}
-.draft-row td{background:#fafafb}
+.draft-row td{background:#fbfbfc}
 .draft-row input,.draft-row textarea{color:#555}
 .adds{display:grid;grid-template-columns:1fr;border-top:1px solid var(--line)}
-.adds button{border:0;background:#fff;padding:12px;color:#777}
-.empty{height:30px}
-.sync-btn{width:auto;padding:0 10px;font-size:12px;color:#777}
-.sync-btn.signed{color:var(--ok)}
-.modal-backdrop{
-  position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;padding:20px
-}
-.modal{width:min(340px,100%);background:#fff;border-radius:18px;padding:14px;box-shadow:0 15px 45px rgba(0,0,0,.2)}
-.modal-title{font-weight:750;padding:6px 4px 12px}
-.modal-choice{display:block;width:100%;border:0;background:#f5f5f7;border-radius:12px;padding:13px;text-align:left;margin:7px 0}
-.modal-cancel{display:block;width:100%;border:0;background:transparent;color:#888;padding:10px}
-.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:150;background:#222;color:#fff;border-radius:20px;padding:8px 13px;font-size:12px;opacity:0;pointer-events:none;transition:.2s}
+.adds button{border:0;background:#fff;padding:10px;color:#777}
+.modal-backdrop{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;padding:18px}
+.modal{width:min(360px,100%);background:#fff;border-radius:17px;padding:13px;box-shadow:0 15px 45px rgba(0,0,0,.2)}
+.modal-title{font-weight:750;padding:5px 4px 10px}
+.modal-choice{display:block;width:100%;border:0;background:#f5f5f7;border-radius:11px;padding:12px;text-align:left;margin:6px 0}
+.modal-cancel{display:block;width:100%;border:0;background:transparent;color:#888;padding:9px}
+.toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:150;background:#222;color:#fff;border-radius:20px;padding:8px 13px;font-size:11px;opacity:0;pointer-events:none;transition:.2s}
 .toast.show{opacity:1}
+
+/* problem bank */
+.bank-toolbar{background:#fff;border:1px solid var(--line);border-radius:12px;padding:9px;margin-bottom:8px}
+.bank-toolbar-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.bank-toolbar select,.bank-toolbar button,.bank-toolbar input{
+  border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 9px;font-size:12px
+}
+.bank-toolbar select{max-width:220px}
+.primary{background:var(--text)!important;color:#fff!important;border-color:var(--text)!important}
+.question-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px}
+.q-top{display:flex;gap:7px;align-items:center;margin-bottom:8px}
+.q-tag{font-size:11px;color:var(--sub);flex:1}
+.q-progress{font-size:11px;color:var(--sub)}
+.question{font-size:17px;line-height:1.55;font-weight:650;white-space:pre-wrap;margin:8px 0 13px}
+.choices{display:grid;gap:7px}
+.choice{display:flex;align-items:flex-start;gap:9px;width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;padding:10px;text-align:left}
+.choice .num{flex:0 0 22px;font-weight:700;color:var(--sub)}
+.choice.correct{border-color:var(--ok);background:#f4fbf7}
+.choice.wrong{border-color:var(--bad);background:#fff5f4}
+.quiz-answer{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;outline:none}
+.quiz-answer.correct{border-color:var(--ok);background:#f4fbf7}
+.quiz-answer.wrong{border-color:var(--bad);background:#fff5f4}
+.write-answer{width:100%;min-height:130px;border:1px solid var(--line);border-radius:10px;padding:10px;resize:vertical;outline:none}
+.quiz-actions{display:flex;gap:6px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.quiz-actions button{border:0;background:var(--soft);border-radius:9px;padding:9px 10px;font-size:12px}
+.quiz-actions .primary{margin-left:auto}
+.answer-panel{margin-top:10px;padding:10px;border-radius:10px;background:#f4f4f6;white-space:pre-wrap;font-size:13px}
+.bank-empty{background:#fff;border:1px dashed #ccc;border-radius:12px;padding:30px 15px;text-align:center;color:#777}
+.bank-empty button{margin-top:10px;border:0;background:var(--text);color:#fff;border-radius:10px;padding:10px 13px}
+.wrong-list{display:flex;flex-direction:column;gap:6px}
+.wrong-item{background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 10px}
+.wrong-item-top{display:flex;gap:7px;align-items:center}
+.wrong-q{font-size:13px;line-height:1.4;flex:1}
+.wrong-stat{font-size:11px;color:var(--bad)}
+.wrong-meta{font-size:11px;color:var(--sub);margin-top:4px}
+.bank-manage{margin-left:auto}
+.bank-source-list{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}
+.bank-source-chip{background:var(--soft);border:0;border-radius:8px;padding:6px 8px;font-size:11px}
+.empty{height:20px}
+
+/* tablet */
+@media(min-width:641px) and (max-width:1100px){
+  main{max-width:none;padding:8px 8px 38px}
+  .navline{padding:6px 8px}
+  .chip{padding:6px 10px}
+  .card{padding:8px 9px}
+  .list{gap:5px}
+  .answer{padding:7px 9px;flex-basis:62%}
+  .answer-action{padding:7px 8px}
+  .section-title{padding-top:5px}
+}
+/* phone */
 @media(max-width:640px){
-  main{padding:10px 8px 76px}
-  .answer{max-width:none}
-  .answer-line{display:grid;grid-template-columns:minmax(0,1fr) auto 35px;gap:6px}
-  .card{padding:10px;border-radius:12px}
+  main{padding:8px 7px 74px}
+  .navline{padding:6px 7px}
+  .chip{padding:6px 9px}
+  .modebar{gap:5px;margin-bottom:7px}
+  .modebar button{padding:7px 9px;font-size:12px}
+  .sheet-title,.page-title{font-size:18px}
+  .answer-line{display:grid;grid-template-columns:minmax(0,1fr) auto 32px;gap:5px}
+  .answer{max-width:none;width:100%;min-width:0}
+  .card{padding:8px;border-radius:11px}
   .table-wrap{overflow:visible}
   table,thead,tbody,tr,td{display:block;width:100%}
   thead{display:none}
-  tbody{display:flex;flex-direction:column;gap:8px;padding:8px;background:var(--bg)}
-  tr{position:relative;background:#fff;border:1px solid var(--line);border-radius:12px;padding:7px 42px 7px 7px}
-  td{border:0;padding:2px}
-  td:has(.edit-input)::before{content:"카테고리";display:block;font-size:11px;color:var(--sub);padding:2px 7px}
-  td:has(.edit-correct)::before{content:"정답";display:block;font-size:11px;color:var(--sub);padding:2px 7px}
-  td:has(.edit-memo)::before{content:"메모";display:block;font-size:11px;color:var(--sub);padding:2px 7px}
-  .action-cell{position:absolute;right:5px;top:5px;width:34px}
-  .section-row{padding:0 42px 0 0}
+  tbody{display:flex;flex-direction:column;gap:6px;padding:6px;background:var(--bg)}
+  tr{position:relative;background:#fff;border:1px solid var(--line);border-radius:10px;padding:5px 38px 5px 5px}
+  td{border:0;padding:1px}
+  td:has(.edit-input)::before{content:"카테고리";display:block;font-size:10px;color:var(--sub);padding:2px 7px}
+  td:has(.edit-correct)::before{content:"정답";display:block;font-size:10px;color:var(--sub);padding:2px 7px}
+  td:has(.edit-memo)::before{content:"메모";display:block;font-size:10px;color:var(--sub);padding:2px 7px}
+  .action-cell{position:absolute;right:4px;top:4px;width:32px}
+  .section-row{padding:0 38px 0 0}
   .section-row td:first-child{padding:0}
-  .section-edit{border-radius:11px;background:#f2f2f4}
+  .section-edit{border-radius:9px;background:#f2f2f4}
   .draft-row{border-style:dashed}
-  .edit-head{position:sticky;top:90px;background:#fff;z-index:5}
+  .question-card{padding:11px}
+  .question{font-size:15px}
+  .bank-toolbar select{max-width:100%;flex:1}
+  .bank-toolbar-row>*{min-width:0}
 }
+
+.workspace-line{padding-top:7px;padding-bottom:5px}
+.workspace-switch{display:inline-flex;background:#e9e9ed;border-radius:11px;padding:3px;gap:2px}
+.workspace-btn{border:0;background:transparent;border-radius:8px;padding:7px 12px;font-size:12px;color:#666}
+.workspace-btn.active{background:#fff;color:#171719;font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.bank-editor{background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.bank-edit-table{width:100%;border-collapse:collapse}
+.bank-edit-table th{position:sticky;top:0;background:#fff;z-index:2}
+.bank-edit-table td{padding:4px;border-bottom:1px solid var(--line)}
+.bank-edit-table input,.bank-edit-table textarea{width:100%;border:0;background:transparent;padding:7px;outline:none;border-radius:6px}
+.bank-edit-table input:focus,.bank-edit-table textarea:focus{background:#f7f7f9}
+.bank-edit-table textarea{min-height:36px;resize:vertical}
+.bank-row-actions{white-space:nowrap;text-align:center}
+.bank-row-actions button{border:0;background:transparent;color:#999;padding:6px}
+.quiz-status{display:flex;gap:8px;align-items:center;margin:0 0 8px;font-size:11px;color:var(--sub)}
+.round-pill{background:#ededf1;border-radius:999px;padding:4px 8px}
+.quiz-inline-edit{margin-top:10px;padding:9px;border:1px solid var(--line);border-radius:10px;background:#fafafd;display:grid;gap:6px}
+.quiz-inline-edit input,.quiz-inline-edit textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}
+.quiz-inline-edit textarea{min-height:70px;resize:vertical}
+.mini-note{font-size:11px;color:var(--sub)}
+@media(max-width:640px){
+  .workspace-btn{padding:6px 10px}
+  .bank-edit-table,.bank-edit-table tbody,.bank-edit-table tr,.bank-edit-table td{display:block;width:100%}
+  .bank-edit-table thead{display:none}
+  .bank-edit-table tbody{display:flex;flex-direction:column;gap:6px;padding:6px;background:var(--bg)}
+  .bank-edit-table tr{background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 36px 6px 6px;position:relative}
+  .bank-edit-table td{border:0;padding:1px}
+  .bank-row-actions{position:absolute;right:4px;top:4px;width:32px}
+}
+
 </style>
 </head>
 <body>
 <header>
-  <div class="row" id="subjects"></div>
-  <div class="row" id="sheets"></div>
+  <div class="navline workspace-line">
+    <div class="workspace-switch">
+      <button id="memorySpace" class="workspace-btn active">암기</button>
+      <button id="bankSpace" class="workspace-btn">문제은행</button>
+    </div>
+    <div class="right-tools" id="globalTools"></div>
+  </div>
+  <div id="memoryHeader">
+    <div class="navline">
+      <div class="scrolltabs" id="subjects"></div>
+      <div class="right-tools" id="subjectTools"></div>
+    </div>
+    <div class="navline">
+      <div class="scrolltabs" id="sheets"></div>
+    </div>
+  </div>
 </header>
 
 <main>
-  <div class="switch">
+  <div class="modebar" id="memoryModebar">
     <button id="studyBtn" class="active">복습</button>
     <button id="editBtn">편집</button>
     <button id="flagBtn">★만</button>
+  </div>
+  <div class="modebar hidden" id="bankModebar">
+    <button id="quizBtn" class="active">풀기</button>
+    <button id="bankEditBtn">문제 편집</button>
   </div>
 
   <section id="studyView">
@@ -171,6 +270,22 @@ td input:focus,td textarea:focus{background:#f7f7f9}
       <div class="adds"><button id="addSection">＋ 소제목</button></div>
     </div>
   </section>
+
+  <section id="quizView" class="hidden">
+    <div class="page-head">
+      <div class="page-title">문제은행</div>
+    </div>
+    <div class="bank-toolbar" id="bankToolbar"></div>
+    <div id="quizArea"></div>
+  </section>
+
+  <section id="bankEditView" class="hidden">
+    <div class="page-head">
+      <div class="page-title">문제 편집</div>
+    </div>
+    <div class="bank-toolbar" id="bankEditToolbar"></div>
+    <div id="bankEditArea"></div>
+  </section>
 </main>
 
 <div class="modal-backdrop hidden" id="subjectModal">
@@ -179,19 +294,20 @@ td input:focus,td textarea:focus{background:#f7f7f9}
     <button class="modal-choice" id="newSubjectChoice">새 과목 만들기</button>
     <button class="modal-choice" id="excelSubjectChoice">엑셀에서 가져오기</button>
     <button class="modal-cancel" id="subjectModalCancel">취소</button>
-    <input class="hidden" id="excelFiles" type="file" multiple accept=".xlsx,.xlsm,.xls,.xlsb">
+    <input class="hidden" id="studyExcelFiles" type="file" multiple accept=".xlsx,.xlsm,.xls,.xlsb">
   </div>
 </div>
+<input class="hidden" id="bankExcelFiles" type="file" multiple accept=".xlsx,.xlsm,.xls,.xlsb">
 <div class="toast" id="toast"></div>
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js';
 import {
-  getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect,
+  getAuth, GoogleAuthProvider, signInWithPopup,
   onAuthStateChanged, setPersistence, browserLocalPersistence, signOut
 } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot
+  getFirestore, doc, getDoc, setDoc, deleteDoc, onSnapshot
 } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js';
 
 const firebaseConfig={
@@ -209,76 +325,109 @@ const db=getFirestore(fbApp);
 const provider=new GoogleAuthProvider();
 setPersistence(auth,browserLocalPersistence).catch(()=>{});
 
-const KEY="study-min-v1";
-const row=()=>({type:"item",category:"",correct:"",memo:"",user:"",attempts:0,wrong:0,flagged:false,last:"",revealed:false});
-const sectionRow=()=>({type:"section",title:""});
-const sheet=name=>({name,rows:[]});
-const subject=name=>({name,current:"기본",sheets:[sheet("기본")]});
-const init=()=>({subject:"국어",mode:"study",subjects:[subject("국어")],_updatedAt:0});
-
-let state;
-try{state=JSON.parse(localStorage.getItem(KEY))||init()}catch{state=init()}
-let flaggedOnly=false;
-let cloudUser=null, cloudUnsub=null, cloudTimer=null, applyingRemote=false;
-
-function cleanupState(){
-  if(!state || !Array.isArray(state.subjects) || !state.subjects.length)state=init();
-  state.subjects.forEach(s=>{
-    if(!Array.isArray(s.sheets)||!s.sheets.length)s.sheets=[sheet("기본")];
-    s.sheets.forEach(sh=>{
-      if(!Array.isArray(sh.rows))sh.rows=[];
-      sh.rows=sh.rows.filter(r=>{
-        if(!r)return false;
-        if(r.type==="section")return !!(r.title||"").trim();
-        return !!((r.category||"").trim()||(r.correct||"").trim()||(r.memo||"").trim()||(r.user||"").trim()||r.attempts||r.flagged);
-      });
-      sh.rows.forEach(r=>{if(!r.type)r.type="item"; if(r.revealed==null)r.revealed=false});
+const OLD_KEY="study-min-v1";
+const KEY="study-jew-v4";
+const uid=()=>crypto.randomUUID?.()||("id_"+Date.now()+"_"+Math.random().toString(36).slice(2));
+const studyRow=()=>({id:uid(),type:"item",category:"",correct:"",memo:"",user:"",attempts:0,wrong:0,flagged:false,last:"",revealed:false});
+const sectionRow=()=>({id:uid(),type:"section",title:""});
+const studySheet=name=>({id:uid(),name,rows:[]});
+const studySubject=name=>({id:uid(),name,currentId:null,sheets:[studySheet("기본")]});
+function initialApp(){
+  const s=studySubject("국어");s.currentId=s.sheets[0].id;
+  return {
+    study:{subjectId:s.id,mode:"study",subjects:[s],updatedAt:0},
+    bank:{sheets:[],stats:{},contentUpdatedAt:0,statsUpdatedAt:0},
+    ui:{workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",quiz:{sheetId:"",mode:"choice",filter:"all",order:"sequence",mastery:true}}
+  };
+}
+function migrate(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(KEY));
+    if(saved)return saved;
+    const old=JSON.parse(localStorage.getItem(OLD_KEY));
+    if(!old)return initialApp();
+    const app=initialApp();
+    const subjects=(old.subjects||[]).map(os=>{
+      const ns={id:uid(),name:os.name||"과목",currentId:null,sheets:[]};
+      ns.sheets=(os.sheets||[]).map(osh=>({
+        id:uid(),name:osh.name||"시트",
+        rows:(osh.rows||[]).filter(r=>r&&(
+          r.type==="section"?(r.title||"").trim():
+          (r.category||r.correct||r.memo||r.user||r.attempts||r.flagged)
+        )).map(r=>r.type==="section"?
+          {id:uid(),type:"section",title:r.title||""}:
+          {id:uid(),type:"item",category:r.category||"",correct:r.correct||"",memo:r.memo||"",user:r.user||"",attempts:r.attempts||0,wrong:r.wrong||0,flagged:!!r.flagged,last:r.last||"",revealed:false}
+        )
+      }));
+      if(!ns.sheets.length)ns.sheets=[studySheet("기본")];
+      const oldCur=(os.current||"");
+      ns.currentId=(ns.sheets.find(x=>x.name===oldCur)||ns.sheets[0]).id;
+      return ns;
     });
-    if(!s.current || !s.sheets.some(x=>x.name===s.current))s.current=s.sheets[0].name;
-  });
-  if(!state.subject || !state.subjects.some(s=>s.name===state.subject))state.subject=state.subjects[0].name;
+    if(subjects.length)app.study.subjects=subjects;
+    const oldSub=app.study.subjects.find(x=>x.name===old.subject)||app.study.subjects[0];
+    app.study.subjectId=oldSub.id;
+    app.study.mode=old.mode==="edit"?"edit":"study";
+    return app;
+  }catch{return initialApp()}
 }
-cleanupState();
+let app=migrate();
+let cloudUser=null,studyUnsub=null,bankIndexUnsub=null,cloudTimer=null;
+let applyingRemote=false;
+let quizSession=null;
 
-function localSave(touch=true){
-  if(touch && !applyingRemote)state._updatedAt=Date.now();
-  localStorage.setItem(KEY,JSON.stringify(state));
-}
-function save(){
-  localSave(true);
-  scheduleCloudSave();
-}
-function sub(){return state.subjects.find(x=>x.name===state.subject)||state.subjects[0]}
-function sh(){return sub().sheets.find(x=>x.name===sub().current)||sub().sheets[0]}
-function norm(v){return (v||"").trim().replace(/\s/g,"").replace(/[·,]/g,"").toLowerCase()}
-function toast(msg){
-  const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");
-  clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove("show"),1800);
-}
-function uniqueSubjectName(base){
-  let n=(base||"가져온 자료").trim()||"가져온 자료";
-  if(!state.subjects.some(s=>s.name===n))return n;
-  let i=2; while(state.subjects.some(s=>s.name===`${n} ${i}`))i++;
-  return `${n} ${i}`;
-}
-function bindSafeEnter(el,handler){
-  let composing=false, queued=false;
-  el.addEventListener("compositionstart",()=>composing=true);
-  el.addEventListener("compositionend",()=>{
-    composing=false;
-    if(queued){queued=false;setTimeout(handler,100);}
+function cleanup(){
+  if(!app.study)app.study=initialApp().study;
+  if(!app.bank)app.bank={sheets:[],stats:{},contentUpdatedAt:0,statsUpdatedAt:0};
+  if(app.bank.updatedAt && !app.bank.contentUpdatedAt)app.bank.contentUpdatedAt=app.bank.updatedAt;
+  if(app.bank.updatedAt && !app.bank.statsUpdatedAt)app.bank.statsUpdatedAt=app.bank.updatedAt;
+  if(!app.ui)app.ui={workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",quiz:{sheetId:"",mode:"choice",filter:"all",order:"sequence",mastery:true}};
+  if(!app.ui.workspace)app.ui.workspace="memory";if(!app.ui.bankMode)app.ui.bankMode="quiz";
+  if(!app.ui.quiz)app.ui.quiz={sheetId:"",mode:"choice",filter:"all",order:"sequence",mastery:true};
+  if(app.ui.quiz.mastery==null)app.ui.quiz.mastery=true;if(!app.ui.quiz.order)app.ui.quiz.order="sequence";
+  if(!Array.isArray(app.study.subjects)||!app.study.subjects.length){
+    const s=studySubject("국어");s.currentId=s.sheets[0].id;app.study.subjects=[s];app.study.subjectId=s.id;
+  }
+  app.study.subjects.forEach(s=>{
+    if(!s.id)s.id=uid();
+    if(!Array.isArray(s.sheets)||!s.sheets.length)s.sheets=[studySheet("기본")];
+    s.sheets.forEach(sh=>{
+      if(!sh.id)sh.id=uid();
+      if(!Array.isArray(sh.rows))sh.rows=[];
+      sh.rows=sh.rows.filter(r=>r&&(
+        r.type==="section"?(r.title||"").trim():
+        (r.category||r.correct||r.memo||r.user||r.attempts||r.flagged)
+      ));
+      sh.rows.forEach(r=>{if(!r.id)r.id=uid();if(!r.type)r.type="item";if(r.revealed==null)r.revealed=false});
+    });
+    if(!s.currentId||!s.sheets.some(x=>x.id===s.currentId))s.currentId=s.sheets[0].id;
   });
+  if(!app.study.subjectId||!app.study.subjects.some(s=>s.id===app.study.subjectId))app.study.subjectId=app.study.subjects[0].id;
+}
+cleanup();
+
+function saveLocal(){localStorage.setItem(KEY,JSON.stringify(app))}
+function markStudyCloud(){app.study.updatedAt=Date.now();saveLocal();scheduleStudyCloud()}
+function markBankStatsCloud(){app.bank.statsUpdatedAt=Date.now();saveLocal();scheduleBankStatsCloud()}
+function sub(){return app.study.subjects.find(x=>x.id===app.study.subjectId)||app.study.subjects[0]}
+function sh(){return sub().sheets.find(x=>x.id===sub().currentId)||sub().sheets[0]}
+function norm(v){return (v||"").trim().replace(/\s/g,"").replace(/[·,]/g,"").toLowerCase()}
+function cleanText(v){return String(v??"").replace(/_x000D_/g,"\n").replace(/\r\n?/g,"\n").trim()}
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove("show"),1700)}
+function hashString(str){let h=2166136261;for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)}
+function isPhone(){return window.matchMedia("(max-width:640px)").matches}
+
+function bindSafeEnter(el,handler){
+  let composing=false,queued=false;
+  el.addEventListener("compositionstart",()=>composing=true);
+  el.addEventListener("compositionend",()=>{composing=false;if(queued){queued=false;setTimeout(handler,120)}});
   el.addEventListener("keydown",e=>{
     if(e.key!=="Enter")return;
-    if(composing||e.isComposing||e.keyCode===229){queued=true;return;}
-    e.preventDefault();
-    setTimeout(handler,80);
+    if(composing||e.isComposing||e.keyCode===229){queued=true;return}
+    e.preventDefault();setTimeout(handler,100);
   });
 }
-function reorderArray(arr,from,to){
-  if(from===to||from<0||to<0||from>=arr.length||to>=arr.length)return;
-  const item=arr.splice(from,1)[0];arr.splice(to,0,item);
-}
+function reorderArray(arr,from,to){if(from===to||from<0||to<0||from>=arr.length||to>=arr.length)return;const x=arr.splice(from,1)[0];arr.splice(to,0,x)}
 function bindLongPressReorder(button,getButtons,getIndex,onMove){
   let timer=null,dragging=false,sx=0,sy=0;
   const clear=()=>{if(timer){clearTimeout(timer);timer=null}};
@@ -287,236 +436,152 @@ function bindLongPressReorder(button,getButtons,getIndex,onMove){
   button.addEventListener("contextmenu",e=>e.preventDefault());
   button.addEventListener("pointerdown",e=>{
     sx=e.clientX;sy=e.clientY;clear();
-    timer=setTimeout(()=>{
-      dragging=true;button.classList.add("reorder-dragging");
-      try{button.setPointerCapture(e.pointerId)}catch{}
-    },450);
+    timer=setTimeout(()=>{dragging=true;button.classList.add("reorder-dragging");try{button.setPointerCapture(e.pointerId)}catch{}},450);
   });
   button.addEventListener("pointermove",e=>{
     if(!dragging){if(Math.hypot(e.clientX-sx,e.clientY-sy)>12)clear();return}
     e.preventDefault();
     const bs=getButtons();bs.forEach(b=>b.classList.remove("reorder-target"));
-    const target=bs.find(b=>{
-      const r=b.getBoundingClientRect();
-      return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
-    });
+    const target=bs.find(b=>{const r=b.getBoundingClientRect();return e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom});
     if(target&&target!==button)target.classList.add("reorder-target");
   });
   const finish=()=>{
-    clear();
-    if(!dragging)return;
-    dragging=false;button.classList.remove("reorder-dragging");
-    const bs=getButtons();let to=-1;
-    bs.forEach((b,i)=>{if(b.classList.contains("reorder-target"))to=i;b.classList.remove("reorder-target")});
+    clear();if(!dragging)return;dragging=false;button.classList.remove("reorder-dragging");
+    const bs=getButtons();let to=-1;bs.forEach((b,i)=>{if(b.classList.contains("reorder-target"))to=i;b.classList.remove("reorder-target")});
     if(to>=0)onMove(getIndex(),to);
-    button.dataset.skipClick="1";
-    setTimeout(()=>delete button.dataset.skipClick,50);
+    button.dataset.skipClick="1";setTimeout(()=>delete button.dataset.skipClick,60);
   };
-  button.addEventListener("pointerup",finish);
-  button.addEventListener("pointercancel",finish);
+  button.addEventListener("pointerup",finish);button.addEventListener("pointercancel",finish);
 }
 document.addEventListener("click",()=>document.querySelectorAll(".menu").forEach(m=>m.classList.add("hidden")));
 
 function renderSubjects(){
-  const el=document.getElementById("subjects");el.innerHTML="";
-  state.subjects.forEach(s=>{
-    const b=document.createElement("button");
-    b.className="chip"+(s.name===state.subject?" active":"");b.textContent=s.name;
-    b.onclick=()=>{if(b.dataset.skipClick)return;state.subject=s.name;save();render()};
-    el.appendChild(b);
-    bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>state.subjects.indexOf(s),(from,to)=>{
-      reorderArray(state.subjects,from,to);save();render();
-    });
+  const el=document.getElementById("subjects"),tools=document.getElementById("subjectTools"),global=document.getElementById("globalTools");
+  el.innerHTML="";tools.innerHTML="";global.innerHTML="";
+  app.study.subjects.forEach(s=>{
+    const b=document.createElement("button");b.className="chip"+(s.id===app.study.subjectId?" active":"");
+    b.textContent=isPhone()&&s.id!==app.study.subjectId?(s.name||"?").slice(0,1):s.name;b.title=s.name;
+    b.onclick=()=>{if(b.dataset.skipClick)return;app.study.subjectId=s.id;saveLocal();render()};
+    el.append(b);
+    bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>app.study.subjects.indexOf(s),(from,to)=>{reorderArray(app.study.subjects,from,to);markStudyCloud();render()});
   });
   const plus=document.createElement("button");plus.className="icon";plus.textContent="＋";plus.title="과목 추가";
   plus.onclick=e=>{e.stopPropagation();document.getElementById("subjectModal").classList.remove("hidden")};
-
   const wrap=document.createElement("div");wrap.className="subject-menu-wrap";
   const more=document.createElement("button");more.className="icon";more.textContent="•••";
   const menu=document.createElement("div");menu.className="menu hidden";
   const rename=document.createElement("button");rename.textContent="이름 변경";
-  rename.onclick=e=>{
-    e.stopPropagation();const cur=sub();const n=prompt("과목 이름",cur.name);if(!n)return;
-    const name=n.trim();if(!name||name===cur.name)return;
-    if(state.subjects.some(s=>s!==cur&&s.name===name))return alert("같은 이름의 과목이 있습니다.");
-    cur.name=name;state.subject=name;save();render();
-  };
+  rename.onclick=e=>{e.stopPropagation();const cur=sub(),n=prompt("과목 이름",cur.name);if(!n)return;const name=n.trim();if(!name||name===cur.name)return;if(app.study.subjects.some(s=>s!==cur&&s.name===name))return alert("같은 이름의 과목이 있습니다.");cur.name=name;markStudyCloud();render()};
   const del=document.createElement("button");del.className="danger";del.textContent="삭제";
-  del.onclick=e=>{
-    e.stopPropagation();if(state.subjects.length<=1)return alert("과목은 하나 이상 있어야 합니다.");
-    const cur=sub();if(!confirm(`'${cur.name}' 과목을 전부 삭제할까요?`))return;
-    const i=state.subjects.indexOf(cur);state.subjects.splice(i,1);
-    state.subject=state.subjects[Math.min(i,state.subjects.length-1)].name;save();render();
-  };
-  menu.append(rename,del);more.onclick=e=>{e.stopPropagation();menu.classList.toggle("hidden")};
-  wrap.append(more,menu);
-
-  const sync=document.createElement("button");sync.id="syncBtn";sync.className="icon sync-btn"+(cloudUser?" signed":"");
-  sync.textContent=cloudUser?"동기화됨":"로그인";
-  sync.onclick=e=>{e.stopPropagation();cloudUser?signOut(auth):startLogin()};
-  el.append(plus,wrap,sync);
+  del.onclick=e=>{e.stopPropagation();if(app.study.subjects.length<=1)return alert("과목은 하나 이상 있어야 합니다.");const cur=sub();if(!confirm(`'${cur.name}' 과목을 전부 삭제할까요?`))return;const i=app.study.subjects.indexOf(cur);app.study.subjects.splice(i,1);app.study.subjectId=app.study.subjects[Math.min(i,app.study.subjects.length-1)].id;markStudyCloud();render()};
+  menu.append(rename,del);more.onclick=e=>{e.stopPropagation();menu.classList.toggle("hidden")};wrap.append(more,menu);
+  tools.append(plus,wrap);
+  const sync=document.createElement("button");sync.id="syncBtn";sync.className="icon sync-btn"+(cloudUser?" signed":"");sync.textContent=cloudUser?"✓":"로그인";sync.title=cloudUser?"자동 동기화 중 — 누르면 로그아웃":"Google 로그인";
+  sync.onclick=e=>{e.stopPropagation();cloudUser?signOut(auth):startLogin()};global.append(sync);
 }
 function renderSheets(){
   const el=document.getElementById("sheets");el.innerHTML="";
   sub().sheets.forEach(s=>{
-    const b=document.createElement("button");b.className="chip"+(s.name===sub().current?" active":"");b.textContent=s.name;
-    b.onclick=()=>{if(b.dataset.skipClick)return;sub().current=s.name;save();render()};
-    el.appendChild(b);
-    bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>sub().sheets.indexOf(s),(from,to)=>{
-      reorderArray(sub().sheets,from,to);save();render();
-    });
+    const b=document.createElement("button");b.className="chip"+(s.id===sub().currentId?" active":"");b.textContent=s.name;
+    b.onclick=()=>{if(b.dataset.skipClick)return;sub().currentId=s.id;saveLocal();render()};
+    el.append(b);
+    bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>sub().sheets.indexOf(s),(from,to)=>{reorderArray(sub().sheets,from,to);markStudyCloud();render()});
   });
 }
-
-function clearReviewRow(r){
-  if(r.type==="section")return;
-  r.user="";r.attempts=0;r.wrong=0;r.last="";r.revealed=false;
-}
-function sectionRange(rows,i){
-  let end=rows.length;for(let x=i+1;x<rows.length;x++){if(rows[x].type==="section"){end=x;break}}
-  return [i+1,end];
-}
-function submitAnswer(r,input){
+function clearReviewRow(r){if(r.type==="section")return;r.user="";r.attempts=0;r.wrong=0;r.last="";r.revealed=false}
+function sectionRange(rows,i){let end=rows.length;for(let x=i+1;x<rows.length;x++){if(rows[x].type==="section"){end=x;break}}return [i+1,end]}
+function submitStudyAnswer(r,input){
   if(!r.user||r.last===r.user)return;
-  const ok=norm(r.user)===norm(r.correct);
-  r.attempts=(r.attempts||0)+1;if(!ok)r.wrong=(r.wrong||0)+1;
-  r.last=r.user;r.revealed=false;save();
-  input.classList.toggle("correct",ok);input.classList.toggle("wrong",!ok);
+  const ok=norm(r.user)===norm(r.correct);r.attempts=(r.attempts||0)+1;if(!ok)r.wrong=(r.wrong||0)+1;r.last=r.user;r.revealed=false;
+  markStudyCloud();input.classList.toggle("correct",ok);input.classList.toggle("wrong",!ok);
 }
 function renderStudy(){
   document.getElementById("studyTitle").textContent=sh().name;
   const list=document.getElementById("studyList");list.innerHTML="";
   let rows=sh().rows.filter(r=>r.type==="section"?(r.title||"").trim():(r.correct||r.category||r.memo));
-  if(flaggedOnly){
-    const out=[];let sec=null;
-    rows.forEach(r=>{if(r.type==="section")sec=r;else if(r.flagged){if(sec){out.push(sec);sec=null}out.push(r)}});
-    rows=out;
+  if(app.ui.flaggedOnly){
+    const out=[];let sec=null;rows.forEach(r=>{if(r.type==="section")sec=r;else if(r.flagged){if(sec){out.push(sec);sec=null}out.push(r)}});rows=out;
   }
+  let hiddenBySection=false;
   rows.forEach(r=>{
     if(r.type==="section"){
-      const originalIndex=sh().rows.indexOf(r);
+      const original=sh().rows.indexOf(r);
+      hiddenBySection=!!app.ui.collapsedSections[r.id];
       const head=document.createElement("div");head.className="section-study-head";
+      const tog=document.createElement("button");tog.className="section-toggle";tog.textContent=hiddenBySection?"▸":"▾";
+      tog.onclick=()=>{app.ui.collapsedSections[r.id]=!app.ui.collapsedSections[r.id];saveLocal();renderStudy()};
       const title=document.createElement("div");title.className="section-title";title.textContent=r.title||"";
-      const w=document.createElement("div");w.className="study-menu-wrap";
+      const w=document.createElement("div");w.className="section-menu-wrap";
       const b=document.createElement("button");b.className="more";b.textContent="•••";
       const m=document.createElement("div");m.className="menu hidden";
       const clear=document.createElement("button");clear.textContent="이 구간 복습기록 삭제";
-      clear.onclick=e=>{e.stopPropagation();if(!confirm(`'${r.title||"이 구간"}'의 복습기록을 삭제할까요?`))return;
-        const [a,z]=sectionRange(sh().rows,originalIndex);for(let i=a;i<z;i++)clearReviewRow(sh().rows[i]);save();renderStudy()};
-      m.append(clear);b.onclick=e=>{e.stopPropagation();m.classList.toggle("hidden")};w.append(b,m);head.append(title,w);list.append(head);return;
+      clear.onclick=e=>{e.stopPropagation();if(!confirm(`'${r.title||"이 구간"}'의 복습기록을 삭제할까요?`))return;const [a,z]=sectionRange(sh().rows,original);for(let i=a;i<z;i++)clearReviewRow(sh().rows[i]);markStudyCloud();renderStudy()};
+      m.append(clear);b.onclick=e=>{e.stopPropagation();m.classList.toggle("hidden")};w.append(b,m);head.append(tog,title,w);list.append(head);return;
     }
+    if(hiddenBySection)return;
     const card=document.createElement("div");card.className="card"+(r.flagged?" flagged":"");
     const meta=document.createElement("div");meta.className="meta";
     const cat=document.createElement("div");cat.className="category";cat.textContent=r.category||"";
     const rate=document.createElement("div");rate.className="rate";
-    const updateRate=()=>rate.textContent=r.attempts?`${Math.round((r.wrong/r.attempts)*100)}%`:"";
-    updateRate();
+    const updateRate=()=>rate.textContent=r.attempts?`${Math.round((r.wrong/r.attempts)*100)}%`:"";updateRate();
     const star=document.createElement("button");star.className="star"+(r.flagged?" on":"");star.textContent="★";
-    star.onclick=()=>{r.flagged=!r.flagged;save();renderStudy()};
+    star.onclick=()=>{r.flagged=!r.flagged;markStudyCloud();renderStudy()};
     meta.append(cat,rate,star);
-
     const line=document.createElement("div");line.className="answer-line";
     const input=document.createElement("input");input.className="answer";input.value=r.user||"";input.autocomplete="off";
-    if(r.user&&r.last===r.user){
-      const ok=norm(r.user)===norm(r.correct);input.classList.add(ok?"correct":"wrong");
-    }
-    input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;input.classList.remove("correct","wrong");save()};
-    input.onchange=()=>{submitAnswer(r,input);updateRate()};
-    bindSafeEnter(input,()=>{
-      submitAnswer(r,input);updateRate();
-      const inputs=[...document.querySelectorAll(".answer")];const i=inputs.indexOf(input);
-      if(i>=0&&i<inputs.length-1){inputs[i+1].focus();inputs[i+1].select()}else input.blur();
-    });
-
+    if(r.user&&r.last===r.user){input.classList.add(norm(r.user)===norm(r.correct)?"correct":"wrong")}
+    input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;input.classList.remove("correct","wrong");saveLocal()};
+    input.onchange=()=>{submitStudyAnswer(r,input);updateRate()};
+    bindSafeEnter(input,()=>{submitStudyAnswer(r,input);updateRate();const inputs=[...document.querySelectorAll(".answer")];const i=inputs.indexOf(input);if(i>=0&&i<inputs.length-1){inputs[i+1].focus();inputs[i+1].select()}else input.blur()});
     const reveal=document.createElement("button");reveal.className="answer-action";reveal.textContent=r.revealed?"답 숨기기":"답 보기";
-    reveal.onclick=()=>{
-      if(!r.revealed){r.revealed=true;r.attempts=(r.attempts||0)+1;r.wrong=(r.wrong||0)+1}
-      else r.revealed=false;
-      save();renderStudy();
-    };
-    const clear=document.createElement("button");clear.className="answer-action clear-answer";clear.textContent="×";clear.title="입력 지우기";
-    clear.onclick=()=>{r.user="";r.last="";r.revealed=false;save();input.value="";input.classList.remove("correct","wrong");input.focus()};
-    line.append(input,reveal,clear);
-    card.append(meta,line);
-    if(r.revealed){const ans=document.createElement("div");ans.className="revealed-answer";ans.textContent=r.correct||"";card.append(ans)}
-    if(r.memo){
-      const mb=document.createElement("button");mb.className="memo-btn";mb.textContent="메모";
-      const memo=document.createElement("div");memo.className="memo";memo.textContent=r.memo;
-      mb.onclick=()=>{memo.classList.toggle("show");mb.textContent=memo.classList.contains("show")?"닫기":"메모"};
-      card.append(mb,memo);
-    }
+    reveal.onclick=()=>{if(!r.revealed){r.revealed=true;r.attempts=(r.attempts||0)+1;r.wrong=(r.wrong||0)+1;markStudyCloud()}else{r.revealed=false;saveLocal()}renderStudy()};
+    const clear=document.createElement("button");clear.className="answer-action clear-answer";clear.textContent="×";
+    clear.onclick=()=>{r.user="";r.last="";r.revealed=false;saveLocal();input.value="";input.classList.remove("correct","wrong");input.focus()};
+    line.append(input,reveal,clear);card.append(meta,line);
+    if(r.revealed){const a=document.createElement("div");a.className="revealed-answer";a.textContent=r.correct||"";card.append(a)}
+    if(r.memo){const mb=document.createElement("button");mb.className="memo-btn";mb.textContent="메모";const memo=document.createElement("div");memo.className="memo";memo.textContent=r.memo;mb.onclick=()=>{memo.classList.toggle("show");mb.textContent=memo.classList.contains("show")?"닫기":"메모"};card.append(mb,memo)}
     list.append(card);
   });
 }
-function insertAt(index,type){
-  sh().rows.splice(index,0,type==="section"?sectionRow():row());save();renderEdit();
-}
-function moveRow(index,delta){
-  const rows=sh().rows,target=index+delta;if(target<0||target>=rows.length)return;
-  const item=rows.splice(index,1)[0];rows.splice(target,0,item);save();renderEdit();
-}
+function insertAt(index,type){sh().rows.splice(index,0,type==="section"?sectionRow():studyRow());markStudyCloud();renderEdit()}
+function moveRow(index,delta){const rows=sh().rows,target=index+delta;if(target<0||target>=rows.length)return;const x=rows.splice(index,1)[0];rows.splice(target,0,x);markStudyCloud();renderEdit()}
 function toggleRowType(index){
   const rows=sh().rows,r=rows[index];if(!r)return;
-  if(r.type==="section"){
-    const b=r._itemBackup||{};
-    rows[index]={type:"item",category:b.category||"",correct:r.title||b.correct||"",memo:b.memo||"",user:b.user||"",attempts:b.attempts||0,wrong:b.wrong||0,flagged:!!b.flagged,last:b.last||"",revealed:false};
-  }else{
-    rows[index]={type:"section",title:r.correct||r.category||"",_itemBackup:{...r}};
-  }
-  save();renderEdit();
+  if(r.type==="section"){const b=r._itemBackup||{};rows[index]={id:r.id,type:"item",category:b.category||"",correct:r.title||b.correct||"",memo:b.memo||"",user:b.user||"",attempts:b.attempts||0,wrong:b.wrong||0,flagged:!!b.flagged,last:b.last||"",revealed:false}}
+  else rows[index]={id:r.id,type:"section",title:r.correct||r.category||"",_itemBackup:{...r}};
+  markStudyCloud();renderEdit();
 }
 function makeActionMenu(index){
   const td=document.createElement("td");td.className="action-cell";
   const more=document.createElement("button");more.className="more";more.textContent="•••";
   const menu=document.createElement("div");menu.className="menu hidden";
   const add=(text,fn,cls="")=>{const b=document.createElement("button");b.textContent=text;b.className=cls;b.onclick=e=>{e.stopPropagation();fn()};menu.append(b)};
-  add("위에 항목 추가",()=>insertAt(index,"item"));
-  add("아래에 항목 추가",()=>insertAt(index+1,"item"));
-  add("위에 소제목",()=>insertAt(index,"section"));
-  add("아래에 소제목",()=>insertAt(index+1,"section"));
+  add("위에 항목 추가",()=>insertAt(index,"item"));add("아래에 항목 추가",()=>insertAt(index+1,"item"));
+  add("위에 소제목",()=>insertAt(index,"section"));add("아래에 소제목",()=>insertAt(index+1,"section"));
   add(sh().rows[index]?.type==="section"?"항목으로 변경":"소제목으로 변경",()=>toggleRowType(index));
   const sep=document.createElement("div");sep.className="menu-sep";menu.append(sep);
   add("위로 이동",()=>moveRow(index,-1));add("아래로 이동",()=>moveRow(index,1));
-  add("삭제",()=>{sh().rows.splice(index,1);save();renderEdit()},"danger");
+  add("삭제",()=>{sh().rows.splice(index,1);markStudyCloud();renderEdit()},"danger");
   more.onclick=e=>{e.stopPropagation();menu.classList.toggle("hidden")};td.append(more,menu);return td;
 }
 function makeItemRow(r,i,isDraft=false){
   const tr=document.createElement("tr");if(isDraft)tr.className="draft-row";
   const catTd=document.createElement("td"),corTd=document.createElement("td"),memoTd=document.createElement("td");
   const cat=document.createElement("input");cat.className="edit-input";cat.value=r.category||"";cat.placeholder=isDraft?"새 항목":"";
-  const cor=document.createElement("input");cor.className="edit-correct";cor.value=r.correct||"";cor.placeholder=isDraft?"정답":"";
-  cor.dataset.rowIndex=String(i);
+  const cor=document.createElement("input");cor.className="edit-correct";cor.value=r.correct||"";cor.placeholder=isDraft?"정답":"";cor.dataset.rowIndex=String(i);
   const memo=document.createElement("textarea");memo.className="edit-memo";memo.value=r.memo||"";memo.placeholder=isDraft?"메모":"";
   if(isDraft){
     let committed=false;
-    const commit=(field,value)=>{
-      if(committed||!value)return;committed=true;
-      const n=row();n[field]=value;sh().rows.push(n);save();renderEdit();
-      requestAnimationFrame(()=>{
-        const actual=[...document.querySelectorAll(`[data-row-index="${sh().rows.length-1}"]`)];
-        const target=field==="correct"?actual.find(x=>x.classList.contains("edit-correct")):null;
-        if(target){target.focus();target.setSelectionRange(target.value.length,target.value.length)}
-      });
-    };
-    cat.oninput=e=>commit("category",e.target.value);
-    cor.oninput=e=>commit("correct",e.target.value);
-    memo.oninput=e=>commit("memo",e.target.value);
+    const commit=(field,value)=>{if(committed||!value)return;committed=true;const n=studyRow();n[field]=value;sh().rows.push(n);markStudyCloud();renderEdit()};
+    cat.oninput=e=>commit("category",e.target.value);cor.oninput=e=>commit("correct",e.target.value);memo.oninput=e=>commit("memo",e.target.value);
   }else{
-    cat.oninput=e=>{r.category=e.target.value;save()};
-    cor.oninput=e=>{r.correct=e.target.value;save()};
-    memo.oninput=e=>{r.memo=e.target.value;save()};
+    cat.oninput=e=>{r.category=e.target.value;saveLocal()};cat.onchange=markStudyCloud;
+    cor.oninput=e=>{r.correct=e.target.value;saveLocal()};cor.onchange=markStudyCloud;
+    memo.oninput=e=>{r.memo=e.target.value;saveLocal()};memo.onchange=markStudyCloud;
     bindSafeEnter(cat,()=>{cor.focus();cor.select()});
-    bindSafeEnter(cor,()=>{
-      let next=i+1;while(next<sh().rows.length&&sh().rows[next].type==="section")next++;
-      const target=[...document.querySelectorAll(".edit-correct")].find(x=>Number(x.dataset.rowIndex)===next);
-      if(target){target.focus();target.select()}else{
-        const draft=document.querySelector(".draft-row .edit-correct");if(draft)draft.focus();
-      }
-    });
+    bindSafeEnter(cor,()=>{let next=i+1;while(next<sh().rows.length&&sh().rows[next].type==="section")next++;const target=[...document.querySelectorAll(".edit-correct")].find(x=>Number(x.dataset.rowIndex)===next);if(target){target.focus();target.select()}else document.querySelector(".draft-row .edit-correct")?.focus()});
   }
-  cat.dataset.rowIndex=String(i);memo.dataset.rowIndex=String(i);
-  catTd.append(cat);corTd.append(cor);memoTd.append(memo);
-  tr.append(catTd,corTd,memoTd,isDraft?document.createElement("td"):makeActionMenu(i));return tr;
+  catTd.append(cat);corTd.append(cor);memoTd.append(memo);tr.append(catTd,corTd,memoTd,isDraft?document.createElement("td"):makeActionMenu(i));return tr;
 }
 function renderEdit(){
   document.getElementById("sheetName").value=sh().name;
@@ -524,173 +589,508 @@ function renderEdit(){
   sh().rows.forEach((r,i)=>{
     if(r.type==="section"){
       const tr=document.createElement("tr");tr.className="section-row";
-      const td=document.createElement("td");td.colSpan=3;
-      const wrap=document.createElement("div");wrap.className="section-edit";
-      const input=document.createElement("input");input.value=r.title||"";input.placeholder="소제목";
-      input.oninput=e=>{r.title=e.target.value;save()};wrap.append(input);td.append(wrap);tr.append(td,makeActionMenu(i));body.append(tr);
+      const td=document.createElement("td");td.colSpan=3;const wrap=document.createElement("div");wrap.className="section-edit";
+      const input=document.createElement("input");input.value=r.title||"";input.placeholder="소제목";input.oninput=e=>{r.title=e.target.value;saveLocal()};input.onchange=markStudyCloud;
+      wrap.append(input);td.append(wrap);tr.append(td,makeActionMenu(i));body.append(tr);
     }else body.append(makeItemRow(r,i,false));
   });
-  body.append(makeItemRow(row(),sh().rows.length,true));
+  body.append(makeItemRow(studyRow(),sh().rows.length,true));
 }
-function renderMode(){
-  const study=state.mode!=="edit";
-  document.getElementById("studyView").classList.toggle("hidden",!study);
-  document.getElementById("editView").classList.toggle("hidden",study);
-  document.getElementById("studyBtn").classList.toggle("active",study);
-  document.getElementById("editBtn").classList.toggle("active",!study);
-}
-function render(){renderSubjects();renderSheets();renderStudy();renderEdit();renderMode()}
 
-/* Excel import */
-function cellValue(ws,addr){const c=ws[addr];return !c||c.v==null?"":String(c.w!=null?c.w:c.v).trim()}
+/* Study Excel auto import */
+function cellValue(ws,addr){const c=ws[addr];return !c||c.v==null?"":cleanText(c.w!=null?c.w:c.v)}
 function colHidden(ws,c){return !!(ws["!cols"]&&ws["!cols"][c]&&ws["!cols"][c].hidden)}
-function refsFromFormula(formula,row1){
-  const out=[],re=/(?:'[^']+'!|[A-Za-z0-9_가-힣]+!)?\$?([A-Z]{1,3})\$?(\d+)/g;let m;
-  while((m=re.exec(formula||""))){if(Number(m[2])!==row1)continue;const c=XLSX.utils.decode_col(m[1]);out.push({col:c,addr:XLSX.utils.encode_cell({r:row1-1,c})})}
-  return out;
-}
+function refsFromFormula(formula,row1){const out=[],re=/(?:'[^']+'!|[A-Za-z0-9_가-힣]+!)?\$?([A-Z]{1,3})\$?(\d+)/g;let m;while((m=re.exec(formula||""))){if(Number(m[2])!==row1)continue;const c=XLSX.utils.decode_col(m[1]);out.push({col:c,addr:XLSX.utils.encode_cell({r:row1-1,c})})}return out}
 function detectFormulaRow(ws,r,range){
   let best=null;
   for(let c=range.s.c;c<=range.e.c;c++){
     const addr=XLSX.utils.encode_cell({r,c}),cell=ws[addr];if(!cell||!cell.f)continue;
     const refs=refsFromFormula(cell.f,r+1).filter(x=>x.addr!==addr);if(refs.length<2)continue;
     const counts=new Map();refs.forEach(x=>counts.set(x.addr,(counts.get(x.addr)||0)+1));
-    const uniq=[...counts.keys()].map(a=>{const p=XLSX.utils.decode_cell(a),v=cellValue(ws,a);let score=counts.get(a)||0;
-      if(v)score+=5;if(colHidden(ws,p.c))score+=8;if(p.c>c)score+=2;return {addr:a,col:p.c,val:v,score,count:counts.get(a)||0}}).sort((a,b)=>b.score-a.score);
-    const answer=uniq[0];if(!answer||!answer.val)continue;
-    const input=uniq.slice(1).sort((a,b)=>b.count-a.count)[0];
+    const uniq=[...counts.keys()].map(a=>{const p=XLSX.utils.decode_cell(a),v=cellValue(ws,a);let score=counts.get(a)||0;if(v)score+=5;if(colHidden(ws,p.c))score+=8;if(p.c>c)score+=2;return {addr:a,col:p.c,val:v,score,count:counts.get(a)||0}}).sort((a,b)=>b.score-a.score);
+    const answer=uniq[0];if(!answer||!answer.val)continue;const input=uniq.slice(1).sort((a,b)=>b.count-a.count)[0];
     let memo="";if(input){const a=XLSX.utils.encode_cell({r,c:input.col+1}),x=ws[a];if(x&&!x.f&&input.col+1!==answer.col)memo=cellValue(ws,a)}
-    if(norm(memo)===norm(answer.val))memo="";
-    const cand={answer:answer.val,memo,_score:answer.score};if(!best||cand._score>best._score)best=cand;
-  }
-  return best;
+    if(norm(memo)===norm(answer.val))memo="";const cand={answer:answer.val,memo,_score:answer.score};if(!best||cand._score>best._score)best=cand;
+  }return best;
 }
-function headingAt(ws,r,range){
-  const candidates=[];for(const c of [0,1,11,13]){if(c<range.s.c||c>range.e.c)continue;const a=XLSX.utils.encode_cell({r,c}),x=ws[a];if(x&&!x.f){const v=cellValue(ws,a);if(v)candidates.push(v)}}
-  return candidates.find(v=>!/^hint$/i.test(v)&&v!=="정답"&&v!=="오답")||"";
+function headingAt(ws,r,range){const vals=[];for(const c of [0,1,11,13]){if(c<range.s.c||c>range.e.c)continue;const a=XLSX.utils.encode_cell({r,c}),x=ws[a];if(x&&!x.f){const v=cellValue(ws,a);if(v)vals.push(v)}}return vals.find(v=>!/^hint$/i.test(v)&&v!=="정답"&&v!=="오답")||""}
+function convertStudyWorksheet(ws,name){
+  if(!ws["!ref"])return null;const range=XLSX.utils.decode_range(ws["!ref"]),det=new Map();
+  for(let r=range.s.r;r<=range.e.r;r++){const d=detectFormulaRow(ws,r,range);if(d)det.set(r,d)}
+  const rr=[...det.keys()].sort((a,b)=>a-b);if(!rr.length)return null;
+  const rows=[];let prev=null,lastSec="";
+  rr.forEach(r=>{if(prev==null||r>prev+1){const start=prev==null?Math.max(range.s.r,r-2):prev+1;let h="";for(let x=r-1;x>=start;x--){if(det.has(x))continue;const z=headingAt(ws,x,range);if(z){h=z;break}}if(h&&h!==lastSec){rows.push({...sectionRow(),title:h});lastSec=h}}
+    const d=det.get(r);rows.push({...studyRow(),correct:d.answer,memo:d.memo||""});prev=r});
+  return {id:uid(),name,rows};
 }
-function convertWorksheet(ws,name){
-  if(!ws["!ref"])return null;const range=XLSX.utils.decode_range(ws["!ref"]),detected=new Map();
-  for(let r=range.s.r;r<=range.e.r;r++){const d=detectFormulaRow(ws,r,range);if(d)detected.set(r,d)}
-  const formulaRows=[...detected.keys()].sort((a,b)=>a-b);if(!formulaRows.length)return null;
-  const rows=[];let prev=null,lastSection="";
-  formulaRows.forEach(r=>{
-    if(prev==null||r>prev+1){
-      const start=prev==null?Math.max(range.s.r,r-2):prev+1;let heading="";
-      for(let rr=r-1;rr>=start;rr--){if(detected.has(rr))continue;const h=headingAt(ws,rr,range);if(h){heading=h;break}}
-      if(heading&&heading!==lastSection){rows.push({type:"section",title:heading});lastSection=heading}
-    }
-    const d=detected.get(r);rows.push({...row(),correct:d.answer,memo:d.memo||""});prev=r;
-  });
-  return {name,rows};
-}
-async function workbookToSubject(file){
-  const ab=await file.arrayBuffer(),wb=XLSX.read(ab,{cellFormula:true,cellStyles:true}),sheets=[];
-  wb.SheetNames.forEach(name=>{const x=convertWorksheet(wb.Sheets[name],name);if(x&&x.rows.some(r=>r.type==="item"))sheets.push(x)});
+async function workbookToStudySubject(file){
+  const wb=XLSX.read(await file.arrayBuffer(),{cellFormula:true,cellStyles:true}),sheets=[];
+  wb.SheetNames.forEach(name=>{const x=convertStudyWorksheet(wb.Sheets[name],name);if(x&&x.rows.some(r=>r.type==="item"))sheets.push(x)});
   if(!sheets.length)throw new Error("정답 위치를 찾지 못함");
-  const base=file.name.replace(/\.(xlsx|xlsm|xlsb|xls)$/i,"");
-  const name=uniqueSubjectName(base);return {name,current:sheets[0].name,sheets};
+  let name=file.name.replace(/\.(xlsx|xlsm|xlsb|xls)$/i,"");const base=name;let n=2;while(app.study.subjects.some(s=>s.name===name))name=`${base} ${n++}`;
+  return {id:uid(),name,currentId:sheets[0].id,sheets};
 }
-async function importExcelFiles(files){
+async function importStudyFiles(files){
   const failed=[],made=[];
-  for(const file of files){
-    try{const s=await workbookToSubject(file);state.subjects.push(s);made.push(s.name)}
-    catch(e){failed.push(file.name)}
-  }
-  if(made.length){state.subject=made[made.length-1];state.mode="edit";save();render()}
-  if(failed.length)alert(`가져오지 못한 파일:\n${failed.join("\n")}`);
-  else if(made.length)toast(`${made.length}개 과목 가져옴`);
+  for(const f of files){try{const s=await workbookToStudySubject(f);app.study.subjects.push(s);made.push(s)}catch{failed.push(f.name)}}
+  if(made.length){app.study.subjectId=made[made.length-1].id;app.study.mode="edit";markStudyCloud();render()}
+  if(failed.length)alert(`가져오지 못한 파일:\n${failed.join("\n")}`);else if(made.length)toast(`${made.length}개 과목 가져옴`);
 }
 
-/* Firebase sync */
-function cloudDoc(uid){return doc(db,"users",uid,"study","state")}
-function updateSyncLabel(text,signed=false){
-  const b=document.getElementById("syncBtn");if(!b)return;b.textContent=text;b.classList.toggle("signed",signed);
+/* Problem bank importer: A category / B question / C answer / D memo / E,F check flags / G tag */
+function bankSheetId(source,name){return "b_"+hashString(source+"\u0000"+name)}
+function makeBankItem(sheetId,rowNo,data){return {id:`${sheetId}_${rowNo}`,row:rowNo,...data}}
+function isDerivedBankSheet(name){
+  return name==="Sheet1"||name==="복습_문제은행";
 }
+function isLegacyWrongSheet(name){return name==="오답목록"||name==="복습_오답목록"}
+function parseBankWorksheet(ws,source,name){
+  if(!ws["!ref"])return null;
+  const range=XLSX.utils.decode_range(ws["!ref"]);
+  const hA=cellValue(ws,"A1"),hB=cellValue(ws,"B1"),hC=cellValue(ws,"C1");
+  const looksLikeBank=/카테고리|분류/.test(hA)&&/문제|단어/.test(hB)&&/정답/.test(hC);
+  if(!looksLikeBank)return null;
+  const sid=bankSheetId(source,name),items=[];let inheritedCategory="",section="";
+  for(let r=1;r<=range.e.r;r++){
+    const a=cellValue(ws,XLSX.utils.encode_cell({r,c:0}));
+    const q=cellValue(ws,XLSX.utils.encode_cell({r,c:1}));
+    const ans=cellValue(ws,XLSX.utils.encode_cell({r,c:2}));
+    const memo=cellValue(ws,XLSX.utils.encode_cell({r,c:3}));
+    const e=ws[XLSX.utils.encode_cell({r,c:4})]?.v;
+    const f=ws[XLSX.utils.encode_cell({r,c:5})]?.v;
+    const g=cellValue(ws,XLSX.utils.encode_cell({r,c:6}));
+    if(!a&&!q&&!ans&&!memo)continue;
+    if(a)inheritedCategory=a;
+    if(q&&!ans&&!a&&!memo&&q.length<=55&&!/[?？]$/.test(q)){
+      const nextAns=r<range.e.r?cellValue(ws,XLSX.utils.encode_cell({r:r+1,c:2})):"";
+      if(nextAns){section=q;continue}
+    }
+    if(!q)continue;
+    items.push(makeBankItem(sid,r+1,{
+      category:a||inheritedCategory||"",section,question:q,answer:ans,memo,
+      excelCheck:!!e,excelCheck2:!!f,tag:g||"",legacyWrong:isLegacyWrongSheet(name)
+    }));
+  }
+  if(!items.length)return null;
+  return {id:sid,source,name,legacyWrong:isLegacyWrongSheet(name),items,updatedAt:Date.now()};
+}
+async function importBankFiles(files){
+  if(typeof XLSX==="undefined")return alert("엑셀 읽기 기능을 불러오지 못했습니다.");
+  const failed=[],newSheets=[],sources=[];
+  for(const file of files){
+    try{
+      const source=file.name.replace(/\.(xlsx|xlsm|xlsb|xls)$/i,""),wb=XLSX.read(await file.arrayBuffer(),{cellFormula:true,cellStyles:true});
+      sources.push(source);
+      wb.SheetNames.forEach(name=>{
+        if(isDerivedBankSheet(name))return;
+        const parsed=parseBankWorksheet(wb.Sheets[name],source,name);if(parsed)newSheets.push(parsed);
+      });
+    }catch(e){console.error(e);failed.push(file.name)}
+  }
+  if(newSheets.length){
+    const sourceSet=new Set(sources);
+    const oldIds=app.bank.sheets.filter(s=>sourceSet.has(s.source)).map(s=>s.id);
+    app.bank.sheets=app.bank.sheets.filter(s=>!sourceSet.has(s.source)).concat(newSheets);
+    if(!app.ui.quiz.sheetId||!app.bank.sheets.some(s=>s.id===app.ui.quiz.sheetId)){
+      app.ui.quiz.sheetId=(app.bank.sheets.find(s=>!s.legacyWrong)||app.bank.sheets[0])?.id||"";
+    }
+    app.bank.contentUpdatedAt=Date.now();saveLocal();
+    await syncImportedBankSheets(newSheets,oldIds.filter(id=>!newSheets.some(s=>s.id===id)));
+    renderQuiz();renderBankEditor();toast(`문제은행 ${newSheets.length}개 시트 가져옴`);
+  }
+  if(failed.length)alert(`가져오지 못한 파일:\n${failed.join("\n")}`);
+}
+function bankQuestions(includeLegacy=false){
+  return app.bank.sheets.filter(s=>includeLegacy||!s.legacyWrong).flatMap(s=>s.items.map(i=>({...i,sheetId:s.id,sheetName:s.name,source:s.source})));
+}
+function getStat(id){
+  if(!app.bank.stats[id])app.bank.stats[id]={attempts:0,wrong:0,correct:0,needsReview:false,lastWrongAt:0};
+  return app.bank.stats[id];
+}
+function recordQuiz(item,ok){
+  const st=getStat(item.id);st.attempts++;
+  if(ok){st.correct++;}else{st.wrong++;st.needsReview=true;st.lastWrongAt=Date.now();if(quizSession?.mastery)quizSession.nextRound.push(item)}
+  markBankStatsCloud();
+}
+function clearWrong(item){const st=getStat(item.id);st.needsReview=false;markBankStatsCloud();renderQuiz()}
+function shuffled(arr){const a=[...arr];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function quizPool(){
+  const q=app.ui.quiz;let sheets=app.bank.sheets.filter(s=>!s.legacyWrong);
+  if(q.sheetId&&q.sheetId!=="all")sheets=sheets.filter(s=>s.id===q.sheetId);
+  let items=sheets.flatMap(s=>s.items.map(i=>({...i,sheetId:s.id,sheetName:s.name,source:s.source})));
+  if(q.filter==="unchecked")items=items.filter(i=>!i.excelCheck);
+  if(q.filter==="checked")items=items.filter(i=>i.excelCheck);
+  if(q.filter==="answered")items=items.filter(i=>i.answer);
+  if(q.filter==="wrong")items=items.filter(i=>getStat(i.id).needsReview);
+  if(q.mode!=="write")items=items.filter(i=>i.answer);
+  return q.order==="random"?shuffled(items):items;
+}
+function startQuiz(customItems=null){
+  const items=customItems||quizPool();
+  if(!items.length)return toast("출제할 문제가 없습니다");
+  quizSession={items:[...items],index:0,answered:false,selected:null,showAnswer:false,draft:"",choices:[],round:1,nextRound:[],mastery:!!app.ui.quiz.mastery};
+  buildChoices();renderQuizQuestion();
+}
+function currentQuizItem(){return quizSession?.items[quizSession.index]}
+function buildChoices(){
+  if(!quizSession||app.ui.quiz.mode!=="choice")return;
+  const item=currentQuizItem(),same=bankQuestions(false).filter(x=>x.answer&&x.id!==item.id&&norm(x.answer)!==norm(item.answer));
+  const sameCat=same.filter(x=>x.category&&x.category===item.category);
+  const candidates=[...sameCat,...shuffled(same.filter(x=>!sameCat.includes(x)))];
+  const distract=[];const seen=new Set([norm(item.answer)]);
+  for(const x of candidates){const n=norm(x.answer);if(!n||seen.has(n))continue;seen.add(n);distract.push(x.answer);if(distract.length===3)break}
+  while(distract.length<3)distract.push(`보기 ${distract.length+2}`);
+  quizSession.choices=shuffled([item.answer,...distract]);
+}
+function nextQuiz(){
+  if(!quizSession)return;
+  if(quizSession.index>=quizSession.items.length-1){
+    if(quizSession.mastery&&quizSession.nextRound.length){
+      const seen=new Set(),remain=quizSession.nextRound.filter(x=>!seen.has(x.id)&&seen.add(x.id));
+      quizSession.items=app.ui.quiz.order==="random"?shuffled(remain):remain;
+      quizSession.index=0;quizSession.round++;quizSession.nextRound=[];quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";
+      buildChoices();toast(`${quizSession.round}회차 · ${quizSession.items.length}문제 남음`);renderQuizQuestion();return;
+    }
+    toast(quizSession.mastery?"전부 맞혔습니다 ✓":"끝");quizSession=null;renderQuiz();return;
+  }
+  quizSession.index++;quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";buildChoices();renderQuizQuestion();
+}
+function renderBankToolbar(){
+  const box=document.getElementById("bankToolbar");box.innerHTML="";
+  const row=document.createElement("div");row.className="bank-toolbar-row";
+  const importBtn=document.createElement("button");importBtn.textContent="엑셀 가져오기";importBtn.onclick=()=>document.getElementById("bankExcelFiles").click();
+  const sheetSel=document.createElement("select");sheetSel.innerHTML='<option value="all">전체 시트</option>';
+  app.bank.sheets.filter(s=>!s.legacyWrong).forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=`${s.source} · ${s.name}`;sheetSel.append(o)});
+  sheetSel.value=app.ui.quiz.sheetId||"all";sheetSel.onchange=()=>{app.ui.quiz.sheetId=sheetSel.value;saveLocal()};
+  const mode=document.createElement("select");
+  [["choice","객관식"],["subjective","주관식"],["write","글쓰기"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;mode.append(o)});
+  mode.value=app.ui.quiz.mode;mode.onchange=()=>{app.ui.quiz.mode=mode.value;saveLocal()};
+  const filter=document.createElement("select");
+  [["all","전체"],["wrong","누적 오답"],["unchecked","E열 미체크"],["checked","E열 체크"],["answered","정답 있는 문제"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;filter.append(o)});
+  filter.value=app.ui.quiz.filter;filter.onchange=()=>{app.ui.quiz.filter=filter.value;saveLocal()};
+  const order=document.createElement("select");
+  [["sequence","원래 순서"],["random","랜덤"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;order.append(o)});
+  order.value=app.ui.quiz.order||"sequence";order.onchange=()=>{app.ui.quiz.order=order.value;saveLocal()};
+  const mastery=document.createElement("select");
+  mastery.innerHTML='<option value="yes">전부 맞을 때까지</option><option value="no">1회만</option>';
+  mastery.value=app.ui.quiz.mastery?"yes":"no";mastery.onchange=()=>{app.ui.quiz.mastery=mastery.value==="yes";saveLocal()};
+  const start=document.createElement("button");start.className="primary";start.textContent="시작";start.onclick=()=>startQuiz();
+  row.append(importBtn,sheetSel,mode,filter,order,mastery,start);box.append(row);
+  const sources=[...new Set(app.bank.sheets.map(s=>s.source))];
+  if(sources.length){
+    const chips=document.createElement("div");chips.className="bank-source-list";
+    sources.forEach(src=>{
+      const c=document.createElement("button");c.className="bank-source-chip";c.textContent=`${src} ×`;
+      c.onclick=async()=>{if(!confirm(`'${src}' 문제은행을 삭제할까요?`))return;const doomed=app.bank.sheets.filter(s=>s.source===src);const ids=doomed.map(s=>s.id);doomed.forEach(s=>s.items.forEach(i=>delete app.bank.stats[i.id]));app.bank.sheets=app.bank.sheets.filter(s=>s.source!==src);app.bank.contentUpdatedAt=Date.now();saveLocal();await deleteBankSheetsCloud(ids);await saveBankIndexCloud();renderQuiz();renderBankEditor()};
+      chips.append(c);
+    });box.append(chips);
+  }
+}function renderQuiz(){
+  renderBankToolbar();
+  const area=document.getElementById("quizArea");
+  if(!app.bank.sheets.length){area.innerHTML='<div class="bank-empty">문제은행 엑셀을 올리면 A=카테고리, B=문제, C=정답, D=메모 구조를 자동으로 읽습니다.<br><button id="emptyBankImport">문제은행 불러오기</button></div>';document.getElementById("emptyBankImport").onclick=()=>document.getElementById("bankExcelFiles").click();return}
+  if(!quizSession){area.innerHTML='<div class="bank-empty">범위와 방식을 고르고 시작하세요.</div>';return}
+  renderQuizQuestion();
+}
+function renderQuizQuestion(){
+  const area=document.getElementById("quizArea");area.innerHTML="";
+  const item=currentQuizItem();if(!item)return;
+  const card=document.createElement("div");card.className="question-card";
+  const top=document.createElement("div");top.className="q-top";
+  const tag=document.createElement("div");tag.className="q-tag";tag.textContent=[item.source,item.sheetName,item.section||item.category].filter(Boolean).join(" · ");
+  const prog=document.createElement("div");prog.className="q-progress";prog.textContent=`${quizSession.index+1}/${quizSession.items.length}`;
+  top.append(tag,prog);
+  const q=document.createElement("div");q.className="question";q.textContent=item.question;
+  card.append(top,q);
+  if(quizSession.mastery){const status=document.createElement("div");status.className="quiz-status";status.innerHTML=`<span class="round-pill">${quizSession.round}회차</span><span>이번 회차 ${quizSession.items.length}문제</span>${quizSession.nextRound.length?`<span>재도전 ${quizSession.nextRound.length}</span>`:""}`;card.append(status)}
+  const mode=app.ui.quiz.mode;
+  if(mode==="choice"){
+    const choices=document.createElement("div");choices.className="choices";
+    quizSession.choices.forEach((text,i)=>{
+      const b=document.createElement("button");b.className="choice";
+      if(quizSession.answered){
+        if(norm(text)===norm(item.answer))b.classList.add("correct");
+        else if(i===quizSession.selected)b.classList.add("wrong");
+      }
+      const n=document.createElement("span");n.className="num";n.textContent=i+1;
+      const tx=document.createElement("span");tx.textContent=text;b.append(n,tx);
+      b.onclick=()=>selectChoice(i);choices.append(b);
+    });
+    card.append(choices);
+  }else if(mode==="subjective"){
+    const input=document.createElement("input");input.className="quiz-answer";input.value=quizSession.draft||"";input.placeholder="답 입력";
+    if(quizSession.answered)input.classList.add(norm(input.value)===norm(item.answer)?"correct":"wrong");
+    input.oninput=e=>quizSession.draft=e.target.value;
+    bindSafeEnter(input,()=>checkSubjective(input));
+    card.append(input);
+  }else{
+    const ta=document.createElement("textarea");ta.className="write-answer";ta.value=quizSession.draft||"";ta.placeholder="내 답 작성";ta.oninput=e=>quizSession.draft=e.target.value;card.append(ta);
+  }
+  if(quizSession.showAnswer&&item.answer){const ans=document.createElement("div");ans.className="answer-panel";ans.textContent=item.answer+(item.memo?`\n\n${item.memo}`:"");card.append(ans)}
+  const actions=document.createElement("div");actions.className="quiz-actions";
+  const editQ=document.createElement("button");editQ.textContent="문제 수정";editQ.onclick=()=>toggleQuizInlineEdit(card,item);actions.append(editQ);
+  if(mode==="subjective"){
+    const check=document.createElement("button");check.textContent="확인";check.onclick=()=>checkSubjective(card.querySelector(".quiz-answer"));actions.append(check);
+  }
+  const dont=document.createElement("button");dont.textContent="모름";dont.onclick=()=>{if(!quizSession.answered){recordQuiz(item,false);quizSession.answered=true}quizSession.showAnswer=true;renderQuizQuestion()};actions.append(dont);
+  if(mode==="write"){
+    const show=document.createElement("button");show.textContent="답 보기";show.onclick=()=>{quizSession.showAnswer=true;renderQuizQuestion()};actions.append(show);
+    if(item.answer){
+      const ok=document.createElement("button");ok.textContent="맞음";ok.onclick=()=>{recordQuiz(item,true);quizSession.answered=true;nextQuiz()};
+      const bad=document.createElement("button");bad.textContent="틀림";bad.onclick=()=>{recordQuiz(item,false);quizSession.answered=true;nextQuiz()};actions.append(ok,bad);
+    }else{
+      const done=document.createElement("button");done.textContent="완료";done.onclick=nextQuiz;actions.append(done);
+    }
+  }
+  if(quizSession.answered||quizSession.showAnswer){
+    const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=nextQuiz;actions.append(next);
+  }
+  card.append(actions);area.append(card);
+}
+function selectChoice(i){
+  if(!quizSession||quizSession.answered)return;
+  const item=currentQuizItem(),text=quizSession.choices[i],ok=norm(text)===norm(item.answer);
+  quizSession.selected=i;quizSession.answered=true;quizSession.showAnswer=!ok;recordQuiz(item,ok);renderQuizQuestion();
+}
+function checkSubjective(input){
+  if(!quizSession||quizSession.answered||!quizSession.draft.trim())return;
+  const item=currentQuizItem(),ok=norm(quizSession.draft)===norm(item.answer);
+  quizSession.answered=true;quizSession.showAnswer=!ok;recordQuiz(item,ok);renderQuizQuestion();
+}
+document.addEventListener("keydown",e=>{
+  if(app.study.mode!=="quiz"||!quizSession)return;
+  const tag=document.activeElement?.tagName;if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
+  if(app.ui.quiz.mode==="choice"&&["1","2","3","4"].includes(e.key)){e.preventDefault();selectChoice(Number(e.key)-1)}
+  else if(e.key==="Enter"&&(quizSession.answered||quizSession.showAnswer)){e.preventDefault();nextQuiz()}
+});
+function wrongItems(){
+  const byId=new Map(bankQuestions(true).map(i=>[i.id,i]));
+  const out=[];
+  for(const [id,st] of Object.entries(app.bank.stats)){if(st.needsReview&&byId.has(id))out.push({...byId.get(id),stat:st})}
+  app.bank.sheets.filter(s=>s.legacyWrong).forEach(s=>s.items.forEach(i=>{if(!out.some(x=>x.id===i.id))out.push({...i,sheetId:s.id,sheetName:s.name,source:s.source,stat:getStat(i.id)})}));
+  return out.sort((a,b)=>(b.stat.lastWrongAt||0)-(a.stat.lastWrongAt||0));
+}
+function renderWrong(){
+  const area=document.getElementById("wrongArea"),items=wrongItems();area.innerHTML="";
+  if(!items.length){area.innerHTML='<div class="bank-empty">현재 오답이 없습니다.</div>';return}
+  const top=document.createElement("div");top.className="bank-toolbar";
+  const row=document.createElement("div");row.className="bank-toolbar-row";
+  const start=document.createElement("button");start.className="primary";start.textContent=`오답 ${items.length}개 풀기`;start.onclick=()=>{app.ui.quiz.mode="subjective";app.ui.workspace="bank";app.ui.bankMode="quiz";quizSession=null;renderMode();startQuiz(items)};
+  row.append(start);top.append(row);area.append(top);
+  const list=document.createElement("div");list.className="wrong-list";
+  items.forEach(i=>{
+    const box=document.createElement("div");box.className="wrong-item";
+    const t=document.createElement("div");t.className="wrong-item-top";
+    const q=document.createElement("div");q.className="wrong-q";q.textContent=i.question;
+    const st=document.createElement("div");st.className="wrong-stat";st.textContent=i.stat.wrong?`${i.stat.wrong}회`:"엑셀";
+    const clear=document.createElement("button");clear.className="more";clear.textContent="×";clear.title="오답 해제";clear.onclick=()=>clearWrong(i);
+    t.append(q,st,clear);
+    const meta=document.createElement("div");meta.className="wrong-meta";meta.textContent=[i.source,i.sheetName,i.category].filter(Boolean).join(" · ");
+    box.append(t,meta);list.append(box);
+  });area.append(list);
+}
+
+
+function touchBankSheet(sheet){
+  sheet.updatedAt=Date.now();app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankSheetCloud(sheet);
+}
+let bankSheetTimer=null,bankSheetPending=null;
+function scheduleBankSheetCloud(sheet){
+  bankSheetPending=sheet;if(!cloudUser)return;
+  clearTimeout(bankSheetTimer);bankSheetTimer=setTimeout(async()=>{try{await setDoc(bankSheetDoc(cloudUser.uid,bankSheetPending.id),bankSheetPending);await saveBankIndexCloud();updateSync("✓",true)}catch(e){console.error(e);updateSync("!",false)}},700);
+}
+function currentBankEditSheet(){
+  let id=app.ui.bankEditSheetId;
+  let sheet=app.bank.sheets.find(s=>s.id===id&&!s.legacyWrong);
+  if(!sheet){sheet=app.bank.sheets.find(s=>!s.legacyWrong);if(sheet)app.ui.bankEditSheetId=sheet.id}
+  return sheet;
+}
+function addBankQuestion(sheet){
+  const item=makeBankItem(sheet.id,(sheet.items.at(-1)?.row||1)+1,{category:"",section:"",question:"",answer:"",memo:"",excelCheck:false,excelCheck2:false,tag:"",legacyWrong:false});
+  item.id=sheet.id+"_"+uid();sheet.items.push(item);touchBankSheet(sheet);renderBankEditor();
+  setTimeout(()=>document.querySelector(`[data-bank-id="${CSS.escape(item.id)}"] .bank-question`)?.focus(),30);
+}
+function renderBankEditor(){
+  const tb=document.getElementById("bankEditToolbar"),area=document.getElementById("bankEditArea");if(!tb||!area)return;tb.innerHTML="";area.innerHTML="";
+  const row=document.createElement("div");row.className="bank-toolbar-row";
+  const importBtn=document.createElement("button");importBtn.textContent="엑셀 가져오기";importBtn.onclick=()=>document.getElementById("bankExcelFiles").click();
+  const sel=document.createElement("select");
+  app.bank.sheets.filter(s=>!s.legacyWrong).forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=`${s.source} · ${s.name}`;sel.append(o)});
+  const sheet=currentBankEditSheet();if(sheet)sel.value=sheet.id;
+  sel.onchange=()=>{app.ui.bankEditSheetId=sel.value;saveLocal();renderBankEditor()};
+  const add=document.createElement("button");add.className="primary";add.textContent="＋ 문제";add.onclick=()=>{const x=currentBankEditSheet();if(x)addBankQuestion(x)};
+  row.append(importBtn,sel,add);tb.append(row);
+  if(!sheet){area.innerHTML='<div class="bank-empty">문제은행 엑셀을 가져오거나 새 문제은행을 만들어 주세요.<br><button id="bankEditorImport">엑셀 가져오기</button></div>';document.getElementById("bankEditorImport").onclick=()=>document.getElementById("bankExcelFiles").click();return}
+  const wrap=document.createElement("div");wrap.className="bank-editor table-wrap";
+  const table=document.createElement("table");table.className="bank-edit-table";
+  table.innerHTML='<thead><tr><th style="width:15%">카테고리</th><th style="width:35%">문제</th><th style="width:25%">정답</th><th>메모</th><th></th></tr></thead>';
+  const body=document.createElement("tbody");
+  sheet.items.forEach((item,index)=>{
+    const tr=document.createElement("tr");tr.dataset.bankId=item.id;
+    const makeCell=(field,cls,textarea=false)=>{
+      const td=document.createElement("td"),el=document.createElement(textarea?"textarea":"input");el.className=cls;el.value=item[field]||"";
+      el.oninput=e=>{item[field]=e.target.value;saveLocal()};el.onchange=()=>touchBankSheet(sheet);td.append(el);return td;
+    };
+    const act=document.createElement("td");act.className="bank-row-actions";
+    const more=document.createElement("button");more.textContent="•••";more.onclick=e=>{
+      e.stopPropagation();
+      const choice=prompt("1 위로 이동\\n2 아래로 이동\\n3 복제\\n4 삭제");
+      if(choice==="1"&&index>0){reorderArray(sheet.items,index,index-1);touchBankSheet(sheet);renderBankEditor()}
+      else if(choice==="2"&&index<sheet.items.length-1){reorderArray(sheet.items,index,index+1);touchBankSheet(sheet);renderBankEditor()}
+      else if(choice==="3"){const cp={...item,id:sheet.id+"_"+uid(),row:(sheet.items.at(-1)?.row||1)+1};sheet.items.splice(index+1,0,cp);touchBankSheet(sheet);renderBankEditor()}
+      else if(choice==="4"&&confirm("이 문제를 삭제할까요?")){sheet.items.splice(index,1);delete app.bank.stats[item.id];touchBankSheet(sheet);markBankStatsCloud();renderBankEditor()}
+    };act.append(more);
+    tr.append(makeCell("category","bank-category"),makeCell("question","bank-question",true),makeCell("answer","bank-answer",true),makeCell("memo","bank-memo",true),act);body.append(tr);
+  });
+  table.append(body);wrap.append(table);area.append(wrap);
+}
+function toggleQuizInlineEdit(card,item){
+  const old=card.querySelector(".quiz-inline-edit");if(old){old.remove();return}
+  const sheet=app.bank.sheets.find(s=>s.id===item.sheetId);if(!sheet)return;
+  const real=sheet.items.find(x=>x.id===item.id);if(!real)return;
+  const box=document.createElement("div");box.className="quiz-inline-edit";
+  const cat=document.createElement("input");cat.value=real.category||"";cat.placeholder="카테고리";
+  const q=document.createElement("textarea");q.value=real.question||"";q.placeholder="문제";
+  const a=document.createElement("textarea");a.value=real.answer||"";a.placeholder="정답";
+  const m=document.createElement("textarea");m.value=real.memo||"";m.placeholder="메모";
+  const save=document.createElement("button");save.className="primary";save.textContent="수정 저장";
+  save.onclick=()=>{real.category=cat.value;real.question=q.value;real.answer=a.value;real.memo=m.value;Object.assign(item,real);touchBankSheet(sheet);buildChoices();renderQuizQuestion();toast("수정됨")};
+  box.append(cat,q,a,m,save);card.append(box);q.focus();
+}
+/* mode */
+function renderMode(){
+  const ws=app.ui.workspace||"memory";
+  const memory=ws==="memory";
+  document.getElementById("memoryHeader").classList.toggle("hidden",!memory);
+  document.getElementById("memoryModebar").classList.toggle("hidden",!memory);
+  document.getElementById("bankModebar").classList.toggle("hidden",memory);
+  document.getElementById("memorySpace").classList.toggle("active",memory);
+  document.getElementById("bankSpace").classList.toggle("active",!memory);
+  if(memory){
+    const mode=app.study.mode==="edit"?"edit":"study";
+    document.getElementById("studyView").classList.toggle("hidden",mode!=="study");
+    document.getElementById("editView").classList.toggle("hidden",mode!=="edit");
+    document.getElementById("quizView").classList.add("hidden");document.getElementById("bankEditView").classList.add("hidden");
+    document.getElementById("studyBtn").classList.toggle("active",mode==="study");
+    document.getElementById("editBtn").classList.toggle("active",mode==="edit");
+    document.getElementById("flagBtn").classList.toggle("hidden",mode!=="study");
+  }else{
+    document.getElementById("studyView").classList.add("hidden");document.getElementById("editView").classList.add("hidden");
+    const bm=app.ui.bankMode||"quiz";
+    document.getElementById("quizView").classList.toggle("hidden",bm!=="quiz");
+    document.getElementById("bankEditView").classList.toggle("hidden",bm!=="edit");
+    document.getElementById("quizBtn").classList.toggle("active",bm==="quiz");
+    document.getElementById("bankEditBtn").classList.toggle("active",bm==="edit");
+    if(bm==="quiz")renderQuiz();else renderBankEditor();
+  }
+}
+function render(){renderSubjects();renderSheets();renderStudy();renderEdit();renderMode()}
+
+/* cloud: transient study answer text/user UI are NOT synchronized */
+function cloudStudyPayload(){
+  const copy=JSON.parse(JSON.stringify(app.study));
+  delete copy.mode;delete copy.subjectId;
+  copy.subjects.forEach(s=>{delete s.currentId;s.sheets.forEach(sh=>sh.rows.forEach(r=>{if(r.type!=="section"){delete r.user;delete r.last;delete r.revealed}}))});
+  return copy;
+}
+function mergeCloudStudy(remote){
+  const localTransient=new Map();
+  app.study.subjects.forEach(s=>s.sheets.forEach(sh=>sh.rows.forEach(r=>{if(r.type!=="section")localTransient.set(r.id,{user:r.user||"",last:r.last||"",revealed:!!r.revealed})})));
+  const localSubjectId=app.study.subjectId,localMode=app.study.mode;
+  const localCurrent=new Map(app.study.subjects.map(s=>[s.id,s.currentId]));
+  const incoming=JSON.parse(JSON.stringify(remote));
+  incoming.subjects?.forEach(s=>{s.currentId=localCurrent.get(s.id)||s.sheets?.[0]?.id;s.sheets?.forEach(sh=>sh.rows?.forEach(r=>{if(r.type!=="section"){const t=localTransient.get(r.id)||{};r.user=t.user||"";r.last=t.last||"";r.revealed=!!t.revealed}}))});
+  incoming.subjectId=incoming.subjects?.some(s=>s.id===localSubjectId)?localSubjectId:incoming.subjects?.[0]?.id;
+  incoming.mode=localMode;
+  app.study=incoming;cleanup();saveLocal();
+}
+function studyDoc(u){return doc(db,"users",u,"study","state")}
+function bankIndexDoc(u){return doc(db,"users",u,"bank","index")}
+function bankSheetDoc(u,id){return doc(db,"users",u,"bankSheets",id)}
+function bankStatsDoc(u){return doc(db,"users",u,"quiz","stats")}
+function updateSync(text,signed=false){const b=document.getElementById("syncBtn");if(!b)return;b.textContent=text;b.classList.toggle("signed",signed)}
 async function startLogin(){
   try{await signInWithPopup(auth,provider)}
-  catch(e){
-    if(["auth/popup-blocked","auth/cancelled-popup-request","auth/operation-not-supported-in-this-environment"].includes(e.code)){
-      await signInWithRedirect(auth,provider);
-    }else{console.error(e);toast("로그인 실패")}
-  }
+  catch(e){console.error(e);toast(e.code==="auth/popup-blocked"?"팝업 차단 해제 후 다시 로그인":"로그인 실패")}
 }
-function scheduleCloudSave(){
+function scheduleStudyCloud(){
   if(!cloudUser||applyingRemote)return;
   clearTimeout(cloudTimer);cloudTimer=setTimeout(async()=>{
-    try{
-      await setDoc(cloudDoc(cloudUser.uid),{state,updatedAt:state._updatedAt||Date.now()});
-      updateSyncLabel("동기화됨",true);
-    }catch(e){
-      console.error(e);
-      updateSyncLabel(e.code==="permission-denied"?"규칙 필요":"오프라인",false);
-    }
-  },650);
+    try{await setDoc(studyDoc(cloudUser.uid),{study:cloudStudyPayload(),updatedAt:app.study.updatedAt||Date.now()});updateSync("✓",true)}
+    catch(e){console.error(e);updateSync(e.code==="permission-denied"?"규칙":"!",false)}
+  },850);
+}
+let statsTimer=null;
+function scheduleBankStatsCloud(){
+  if(!cloudUser||applyingRemote)return;
+  clearTimeout(statsTimer);statsTimer=setTimeout(async()=>{
+    try{await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt||Date.now()});updateSync("✓",true)}
+    catch(e){console.error(e);updateSync("!",false)}
+  },700);
+}
+async function saveBankIndexCloud(){
+  if(!cloudUser)return;
+  app.bank.contentUpdatedAt=Date.now();saveLocal();
+  await setDoc(bankIndexDoc(cloudUser.uid),{sheets:app.bank.sheets.map(s=>({id:s.id,source:s.source,name:s.name,legacyWrong:!!s.legacyWrong,updatedAt:s.updatedAt||0})),updatedAt:app.bank.contentUpdatedAt});
+}
+async function syncImportedBankSheets(sheets,deleted=[]){
+  if(!cloudUser)return;
+  try{
+    await Promise.all(sheets.map(s=>setDoc(bankSheetDoc(cloudUser.uid,s.id),s)));
+    await Promise.all(deleted.map(id=>deleteDoc(bankSheetDoc(cloudUser.uid,id))));
+    await saveBankIndexCloud();updateSync("✓",true);
+  }catch(e){console.error(e);toast("문제은행은 로컬 저장됨");updateSync("!",false)}
+}
+async function deleteBankSheetsCloud(ids){if(!cloudUser)return;try{await Promise.all(ids.map(id=>deleteDoc(bankSheetDoc(cloudUser.uid,id))))}catch(e){console.error(e)}}
+async function loadBankFromCloud(u,index){
+  if(!index?.sheets)return;
+  const docs=await Promise.all(index.sheets.map(async x=>{const snap=await getDoc(bankSheetDoc(u,x.id));return snap.exists()?snap.data():null}));
+  app.bank.sheets=docs.filter(Boolean);app.bank.contentUpdatedAt=index.updatedAt||app.bank.contentUpdatedAt;saveLocal();renderQuiz();renderBankEditor();
 }
 onAuthStateChanged(auth,async user=>{
-  cloudUser=user;
-  if(cloudUnsub){cloudUnsub();cloudUnsub=null}
-  renderSubjects();
-  if(!user)return;
-  updateSyncLabel("동기화 중",true);
+  cloudUser=user;if(studyUnsub){studyUnsub();studyUnsub=null}if(bankIndexUnsub){bankIndexUnsub();bankIndexUnsub=null}
+  renderSubjects();if(!user)return;
+  updateSync("…",true);
   try{
-    const ref=cloudDoc(user.uid),snap=await getDoc(ref);
-    if(snap.exists()){
-      const remote=snap.data(),remoteState=remote.state;
-      if(remoteState&&(remote.updatedAt||remoteState._updatedAt||0)>(state._updatedAt||0)){
-        applyingRemote=true;state=remoteState;cleanupState();localSave(false);applyingRemote=false;render();
-      }else scheduleCloudSave();
-    }else scheduleCloudSave();
-    cloudUnsub=onSnapshot(ref,snap=>{
-      if(!snap.exists())return;const d=snap.data(),remoteState=d.state,rt=d.updatedAt||remoteState?._updatedAt||0;
-      if(remoteState&&rt>(state._updatedAt||0)){
-        applyingRemote=true;state=remoteState;cleanupState();localSave(false);applyingRemote=false;render();
-      }
-    },e=>{console.error(e);updateSyncLabel(e.code==="permission-denied"?"규칙 필요":"오프라인",false)});
-  }catch(e){
-    console.error(e);updateSyncLabel(e.code==="permission-denied"?"규칙 필요":"오프라인",false);
-  }
+    const sref=studyDoc(user.uid),ss=await getDoc(sref);
+    if(ss.exists()){
+      const d=ss.data();if((d.updatedAt||0)>(app.study.updatedAt||0)&&d.study){applyingRemote=true;mergeCloudStudy(d.study);applyingRemote=false;render()}
+      else scheduleStudyCloud();
+    }else scheduleStudyCloud();
+    studyUnsub=onSnapshot(sref,snap=>{if(!snap.exists())return;const d=snap.data();if(d.study&&(d.updatedAt||0)>(app.study.updatedAt||0)){applyingRemote=true;mergeCloudStudy(d.study);applyingRemote=false;render()}});
+    const bref=bankIndexDoc(user.uid),bi=await getDoc(bref);
+    if(bi.exists()){const d=bi.data();if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d)}
+    else if(app.bank.sheets.length)await syncImportedBankSheets(app.bank.sheets);
+    bankIndexUnsub=onSnapshot(bref,async snap=>{if(!snap.exists())return;const d=snap.data();if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d)});
+    const stat=await getDoc(bankStatsDoc(user.uid));
+    if(stat.exists()){const d=stat.data();if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){app.bank.stats=d.stats||{};app.bank.statsUpdatedAt=d.updatedAt||0;saveLocal();renderQuiz();}}
+    updateSync("✓",true);
+  }catch(e){console.error(e);updateSync(e.code==="permission-denied"?"규칙":"!",false)}
 });
 
 /* controls */
-document.getElementById("studyBtn").onclick=()=>{state.mode="study";save();renderMode()};
-document.getElementById("editBtn").onclick=()=>{state.mode="edit";save();renderMode()};
-document.getElementById("flagBtn").onclick=e=>{flaggedOnly=!flaggedOnly;e.target.classList.toggle("active",flaggedOnly);renderStudy()};
+document.getElementById("memorySpace").onclick=()=>{app.ui.workspace="memory";saveLocal();renderMode()};
+document.getElementById("bankSpace").onclick=()=>{app.ui.workspace="bank";saveLocal();renderMode()};
+document.getElementById("studyBtn").onclick=()=>{app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode()};
+document.getElementById("editBtn").onclick=()=>{app.study.mode="edit";app.ui.workspace="memory";saveLocal();renderMode()};
+document.getElementById("quizBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="quiz";saveLocal();renderMode()};
+document.getElementById("bankEditBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="edit";saveLocal();renderMode()};
+document.getElementById("flagBtn").onclick=e=>{app.ui.flaggedOnly=!app.ui.flaggedOnly;e.target.classList.toggle("active",app.ui.flaggedOnly);saveLocal();renderStudy()};
 document.getElementById("studyMenuBtn").onclick=e=>{e.stopPropagation();document.getElementById("studyMenu").classList.toggle("hidden")};
-document.getElementById("clearSheetReview").onclick=e=>{
-  e.stopPropagation();if(!confirm(`'${sh().name}'의 복습기록을 전부 삭제할까요?`))return;
-  sh().rows.forEach(clearReviewRow);save();renderStudy();
-};
-document.getElementById("clearSheetStars").onclick=e=>{e.stopPropagation();sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});save();renderStudy()};
-document.getElementById("addSheet").onclick=()=>{
-  const n=prompt("시트 이름");if(!n)return;const name=n.trim();if(!name||sub().sheets.some(s=>s.name===name))return;
-  sub().sheets.push(sheet(name));sub().current=name;save();render();
-};
-document.getElementById("deleteSheet").onclick=()=>{
-  if(sub().sheets.length<=1)return alert("시트는 하나 이상 있어야 합니다.");
-  const cur=sh();if(!confirm(`'${cur.name}' 시트를 삭제할까요?`))return;
-  const i=sub().sheets.indexOf(cur);sub().sheets.splice(i,1);sub().current=sub().sheets[Math.min(i,sub().sheets.length-1)].name;save();render();
-};
-document.getElementById("sheetName").onchange=e=>{
-  const name=e.target.value.trim();if(!name)return;
-  const cur=sh();if(sub().sheets.some(s=>s!==cur&&s.name===name))return alert("같은 이름의 시트가 있습니다.");
-  cur.name=name;sub().current=name;save();render();
-};
-document.getElementById("addSection").onclick=()=>{sh().rows.push(sectionRow());save();renderEdit()};
+document.getElementById("clearSheetReview").onclick=e=>{e.stopPropagation();if(!confirm(`'${sh().name}'의 복습기록을 전부 삭제할까요?`))return;sh().rows.forEach(clearReviewRow);markStudyCloud();renderStudy()};
+document.getElementById("clearSheetStars").onclick=e=>{e.stopPropagation();sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});markStudyCloud();renderStudy()};
+document.getElementById("addSheet").onclick=()=>{const n=prompt("시트 이름");if(!n)return;const name=n.trim();if(!name||sub().sheets.some(s=>s.name===name))return;const x=studySheet(name);sub().sheets.push(x);sub().currentId=x.id;markStudyCloud();render()};
+document.getElementById("deleteSheet").onclick=()=>{if(sub().sheets.length<=1)return alert("시트는 하나 이상 있어야 합니다.");const cur=sh();if(!confirm(`'${cur.name}' 시트를 삭제할까요?`))return;const i=sub().sheets.indexOf(cur);sub().sheets.splice(i,1);sub().currentId=sub().sheets[Math.min(i,sub().sheets.length-1)].id;markStudyCloud();render()};
+document.getElementById("sheetName").onchange=e=>{const name=e.target.value.trim();if(!name)return;const cur=sh();if(sub().sheets.some(s=>s!==cur&&s.name===name))return alert("같은 이름의 시트가 있습니다.");cur.name=name;markStudyCloud();render()};
+document.getElementById("addSection").onclick=()=>{sh().rows.push(sectionRow());markStudyCloud();renderEdit()};
 document.getElementById("subjectModalCancel").onclick=()=>document.getElementById("subjectModal").classList.add("hidden");
 document.getElementById("subjectModal").onclick=e=>{if(e.target.id==="subjectModal")e.currentTarget.classList.add("hidden")};
-document.getElementById("newSubjectChoice").onclick=()=>{
-  document.getElementById("subjectModal").classList.add("hidden");
-  const n=prompt("과목 이름");if(!n)return;const name=n.trim();if(!name)return;
-  if(state.subjects.some(s=>s.name===name))return alert("같은 이름의 과목이 있습니다.");
-  state.subjects.push(subject(name));state.subject=name;save();render();
-};
-document.getElementById("excelSubjectChoice").onclick=()=>document.getElementById("excelFiles").click();
-document.getElementById("excelFiles").onchange=async e=>{
-  const files=[...e.target.files];e.target.value="";document.getElementById("subjectModal").classList.add("hidden");
-  if(files.length)await importExcelFiles(files);
-};
+document.getElementById("newSubjectChoice").onclick=()=>{document.getElementById("subjectModal").classList.add("hidden");const n=prompt("과목 이름");if(!n)return;const name=n.trim();if(!name)return;if(app.study.subjects.some(s=>s.name===name))return alert("같은 이름의 과목이 있습니다.");const x=studySubject(name);x.currentId=x.sheets[0].id;app.study.subjects.push(x);app.study.subjectId=x.id;markStudyCloud();render()};
+document.getElementById("excelSubjectChoice").onclick=()=>document.getElementById("studyExcelFiles").click();
+document.getElementById("studyExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";document.getElementById("subjectModal").classList.add("hidden");if(files.length)await importStudyFiles(files)};
+document.getElementById("bankExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";if(files.length)await importBankFiles(files)};
 
+window.addEventListener("resize",()=>renderSubjects());
 render();
 </script>
 </body>
