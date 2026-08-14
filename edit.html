@@ -661,7 +661,7 @@ function renderSubjects(){
   el.innerHTML="";tools.innerHTML="";global.innerHTML="";
   app.study.subjects.forEach(s=>{
     const b=document.createElement("button");b.className="chip"+(s.id===app.study.subjectId?" active":"");
-    b.textContent=isPhone()&&s.id!==app.study.subjectId?(s.name||"?").slice(0,1):s.name;b.title=s.name;
+    b.textContent=isPhone()&&s.id!==app.study.subjectId?(s.name||"?").normalize("NFC").slice(0,1):s.name;b.title=s.name;
     b.onclick=()=>{if(b.dataset.skipClick)return;app.study.subjectId=s.id;saveLocal();render()};
     el.append(b);
     bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>app.study.subjects.indexOf(s),(from,to)=>{reorderArray(app.study.subjects,from,to);markStudyCloud();render()});
