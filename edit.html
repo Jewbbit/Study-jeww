@@ -210,7 +210,6 @@ th{
   font-weight:600;
   background:#fafafa;
 }
-td:first-child,th:first-child,
 td:last-child,th:last-child{
   width:42px;
   text-align:center;
@@ -247,6 +246,45 @@ td:last-child,th:last-child{
   font-size:13px;
   padding:16px 4px;
 }
+
+.section-title{
+  margin:12px 2px 4px;
+  padding:8px 2px 5px;
+  font-size:14px;
+  font-weight:800;
+  color:#444;
+  border-bottom:1px solid var(--line);
+}
+.section-edit{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 6px;
+  background:#fafafa;
+  border-bottom:1px solid var(--line);
+}
+.section-edit input{
+  flex:1;
+  border:0;
+  background:transparent;
+  outline:none;
+  font-weight:800;
+  font-size:14px;
+}
+.adds{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  border-top:1px solid var(--line);
+}
+.adds button{
+  border:0;
+  background:#fafafa;
+  color:var(--accent);
+  padding:11px;
+  font-weight:700;
+}
+.adds button + button{border-left:1px solid var(--line)}
+
 </style>
 </head>
 <body>
@@ -277,7 +315,6 @@ td:last-child,th:last-child{
         <table>
           <thead>
             <tr>
-              <th></th>
               <th>카테고리</th>
               <th>정답</th>
               <th>메모</th>
@@ -287,14 +324,18 @@ td:last-child,th:last-child{
           <tbody id="editRows"></tbody>
         </table>
       </div>
-      <button class="add" id="addRow">＋ 추가</button>
+      <div class="adds">
+        <button id="addRow">＋ 항목</button>
+        <button id="addSection">＋ 소제목</button>
+      </div>
     </div>
   </section>
 </main>
 
 <script>
 const KEY="study-min-v1";
-function row(){return {category:"",correct:"",memo:"",user:"",attempts:0,wrong:0,flagged:false,last:""}}
+function row(){return {type:"item",category:"",correct:"",memo:"",user:"",attempts:0,wrong:0,flagged:false,last:""}}
+function sectionRow(){return {type:"section",title:""}}
 function sheet(name){return {name,rows:Array.from({length:8},row)}}
 function subject(name){return {name,current:"기본",sheets:[sheet("기본")]}}
 function init(){return {subject:"국어",mode:"study",subjects:[subject("국어")]}}
@@ -345,12 +386,31 @@ function renderSheets(){
 function renderStudy(){
   document.getElementById("studyTitle").textContent=sh().name;
   const list=document.getElementById("studyList");list.innerHTML="";
-  let rows=sh().rows.filter(r=>r.correct||r.category||r.memo);
-  if(flaggedOnly)rows=rows.filter(r=>r.flagged);
+  let rows=sh().rows.filter(r=>r.type==="section" ? (r.title||"").trim() : (r.correct||r.category||r.memo));
+  if(flaggedOnly){
+    const filtered=[];
+    let pendingSection=null;
+    rows.forEach(r=>{
+      if(r.type==="section"){
+        pendingSection=r;
+      }else if(r.flagged){
+        if(pendingSection){filtered.push(pendingSection);pendingSection=null;}
+        filtered.push(r);
+      }
+    });
+    rows=filtered;
+  }
   if(!rows.length){
     const e=document.createElement("div");e.className="empty";e.textContent="";list.appendChild(e);return;
   }
   rows.forEach(r=>{
+    if(r.type==="section"){
+      const sec=document.createElement("div");
+      sec.className="section-title";
+      sec.textContent=r.title||"";
+      list.appendChild(sec);
+      return;
+    }
     const card=document.createElement("div");card.className="card"+(r.flagged?" flagged":"");
 
     const meta=document.createElement("div");meta.className="meta";
@@ -365,6 +425,7 @@ function renderStudy(){
 
     const line=document.createElement("div");line.className="answerline";
     const input=document.createElement("input");input.className="answer";input.value=r.user||"";input.placeholder="";
+    input.dataset.studyIndex=String(idx);
     const result=document.createElement("div");result.className="result empty";result.textContent="";
 
     function refresh(){
@@ -380,12 +441,31 @@ function renderStudy(){
       result.className="result empty";result.textContent="";
       input.classList.remove("correct","wrong");
     };
-    input.onchange=()=>{
+    const submitAnswer=()=>{
       if(!r.user)return;
       const ok=norm(r.user)===norm(r.correct);
       r.attempts=(r.attempts||0)+1;
       if(!ok)r.wrong=(r.wrong||0)+1;
-      r.last=r.user;save();refresh();renderStudy();
+      r.last=r.user;
+      save();
+      refresh();
+      const pct=r.attempts?Math.round((r.wrong/r.attempts)*100):0;
+      rate.textContent=r.attempts?`${pct}%`:"";
+    };
+    input.onchange=submitAnswer;
+    input.onkeydown=e=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        submitAnswer();
+        const inputs=[...document.querySelectorAll(".answer")];
+        const pos=inputs.indexOf(input);
+        if(pos>=0 && pos<inputs.length-1){
+          inputs[pos+1].focus();
+          inputs[pos+1].select();
+        }else{
+          input.blur();
+        }
+      }
     };
 
     line.append(input,result);
@@ -405,34 +485,110 @@ function renderEdit(){
   document.getElementById("sheetName").value=sh().name;
   const tbody=document.getElementById("editRows");tbody.innerHTML="";
   sh().rows.forEach((r,i)=>{
+    if(!r.type) r.type="item";
+
+    if(r.type==="section"){
+      const tr=document.createElement("tr");
+      const td=document.createElement("td");
+      td.colSpan=4;
+      td.style.padding="0";
+
+      const wrap=document.createElement("div");
+      wrap.className="section-edit";
+
+      const input=document.createElement("input");
+      input.value=r.title||"";
+      input.placeholder="소제목";
+      input.oninput=e=>{r.title=e.target.value;save()};
+      input.onkeydown=e=>{
+        if(e.key==="Enter"){
+          e.preventDefault();
+          const next=row();
+          sh().rows.splice(i+1,0,next);
+          save();
+          renderEdit();
+          requestAnimationFrame(()=>{
+            const corrects=[...document.querySelectorAll(".edit-correct")];
+            const target=corrects.find(x=>Number(x.dataset.rowIndex)===i+1);
+            if(target)target.focus();
+          });
+        }
+      };
+
+      const del=document.createElement("button");
+      del.className="delete";
+      del.textContent="×";
+      del.onclick=()=>{sh().rows.splice(i,1);save();renderEdit()};
+
+      wrap.append(input,del);
+      td.appendChild(wrap);
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+      return;
+    }
+
     const tr=document.createElement("tr");
 
-    const starTd=document.createElement("td");
-    const star=document.createElement("button");star.className="star"+(r.flagged?" on":"");star.textContent=r.flagged?"★":"☆";
-    star.onclick=()=>{r.flagged=!r.flagged;save();renderEdit()};
-    starTd.appendChild(star);
-
     const catTd=document.createElement("td");
-    const cat=document.createElement("input");cat.className="edit-input";cat.value=r.category||"";
+    const cat=document.createElement("input");
+    cat.className="edit-input";
+    cat.value=r.category||"";
     cat.oninput=e=>{r.category=e.target.value;save()};
+    cat.onkeydown=e=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        cor.focus();
+        cor.select();
+      }
+    };
     catTd.appendChild(cat);
 
     const corTd=document.createElement("td");
-    const cor=document.createElement("input");cor.className="edit-input";cor.value=r.correct||"";
+    const cor=document.createElement("input");
+    cor.className="edit-input edit-correct";
+    cor.dataset.rowIndex=String(i);
+    cor.value=r.correct||"";
     cor.oninput=e=>{r.correct=e.target.value;save()};
+    cor.onkeydown=e=>{
+      if(e.key==="Enter"){
+        e.preventDefault();
+        const currentIndex=sh().rows.indexOf(r);
+        let nextIndex=currentIndex+1;
+        while(nextIndex<sh().rows.length && sh().rows[nextIndex].type==="section"){
+          nextIndex++;
+        }
+        if(nextIndex>=sh().rows.length){
+          sh().rows.push(row());
+          nextIndex=sh().rows.length-1;
+          save();
+          renderEdit();
+          requestAnimationFrame(()=>{
+            const target=[...document.querySelectorAll(".edit-correct")].find(x=>Number(x.dataset.rowIndex)===nextIndex);
+            if(target)target.focus();
+          });
+        }else{
+          const target=[...document.querySelectorAll(".edit-correct")].find(x=>Number(x.dataset.rowIndex)===nextIndex);
+          if(target){target.focus();target.select();}
+        }
+      }
+    };
     corTd.appendChild(cor);
 
     const memoTd=document.createElement("td");
-    const memo=document.createElement("textarea");memo.className="edit-memo";memo.value=r.memo||"";
+    const memo=document.createElement("textarea");
+    memo.className="edit-memo";
+    memo.value=r.memo||"";
     memo.oninput=e=>{r.memo=e.target.value;save()};
     memoTd.appendChild(memo);
 
     const delTd=document.createElement("td");
-    const del=document.createElement("button");del.className="delete";del.textContent="×";
+    const del=document.createElement("button");
+    del.className="delete";
+    del.textContent="×";
     del.onclick=()=>{sh().rows.splice(i,1);save();renderEdit()};
     delTd.appendChild(del);
 
-    tr.append(starTd,catTd,corTd,memoTd,delTd);
+    tr.append(catTd,corTd,memoTd,delTd);
     tbody.appendChild(tr);
   });
 }
@@ -455,6 +611,7 @@ document.getElementById("flagBtn").onclick=e=>{
   renderStudy();
 };
 document.getElementById("addRow").onclick=()=>{sh().rows.push(row());save();renderEdit()};
+document.getElementById("addSection").onclick=()=>{sh().rows.push(sectionRow());save();renderEdit()};
 document.getElementById("addSheet").onclick=()=>{
   const n=prompt("시트");
   if(!n)return;
