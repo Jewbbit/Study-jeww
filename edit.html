@@ -652,6 +652,105 @@ header{box-shadow:none!important;border-bottom:1px solid #ededf0!important}
   #studyView .study-head{justify-content:flex-end}
 }
 
+
+/* 암기판 즉시 정오답 피드백 */
+.study-answer.correct,.section-memory-input.correct{
+  border-color:#78b892!important;
+  background:#f2faf5!important;
+}
+.study-answer.wrong,.section-memory-input.wrong{
+  border-color:#d98d86!important;
+  background:#fff4f3!important;
+}
+
+
+/* 암기판 입력칸: 고정 한 줄 */
+.study-answer,.section-memory-input{
+  height:31px!important;
+  min-height:31px!important;
+  max-height:31px!important;
+  line-height:19px!important;
+  overflow:hidden!important;
+  white-space:nowrap!important;
+}
+
+
+/* 암기판 좌우 여백 복원 */
+#studyView{
+  padding-left:6px;
+  padding-right:6px;
+}
+@media(max-width:640px){
+  #studyView{
+    margin-left:0!important;
+    margin-right:0!important;
+    padding-left:8px!important;
+    padding-right:8px!important;
+  }
+  #studyView .study-head{
+    margin-left:-2px;
+    margin-right:-2px;
+  }
+}
+
+
+/* 2026-08 visual system: color + shape, e-ink safe */
+:root{
+  --ink:#222226;
+  --muted-ink:#6f7076;
+  --hair:#e8e8eb;
+  --ok-soft:#edf8f1;
+  --ok-ink:#2f7d50;
+  --bad-soft:#fff0ee;
+  --bad-ink:#b75f56;
+  --star-soft:#fff8df;
+  --star-ink:#9a6900;
+}
+body{color:var(--ink)}
+.study-field{position:relative;min-width:0}
+.study-field .study-answer,.study-field .section-memory-input{padding-right:27px!important}
+.answer-status{
+  position:absolute;right:7px;top:50%;transform:translateY(-50%);
+  width:16px;height:16px;display:flex;align-items:center;justify-content:center;
+  font-size:12px;font-weight:850;line-height:1;color:transparent;pointer-events:none
+}
+.answer-status.correct{color:var(--ok-ink)}
+.answer-status.wrong{color:var(--bad-ink)}
+.study-answer.correct,.section-memory-input.correct{
+  border:2px solid var(--ok-ink)!important;background:var(--ok-soft)!important
+}
+.study-answer.wrong,.section-memory-input.wrong{
+  border:2px dashed var(--bad-ink)!important;background:var(--bad-soft)!important
+}
+.study-row.flagged{
+  background:var(--star-soft)!important;border-left:2px solid var(--star-ink);padding-left:5px
+}
+.star.on,.quiz-star.on{color:var(--star-ink)!important}
+.revealed-answer{border-left:2px solid #76777d;background:#f6f6f7!important}
+.choice{position:relative;border-color:var(--hair)!important}
+.choice.correct{border:2px solid var(--ok-ink)!important;background:var(--ok-soft)!important}
+.choice.wrong{border:2px dashed var(--bad-ink)!important;background:var(--bad-soft)!important}
+.choice-text{flex:1;min-width:0}
+.choice-mark{margin-left:auto;min-width:18px;text-align:center;font-weight:850;font-size:15px;line-height:1.4}
+.choice.correct .choice-mark{color:var(--ok-ink)}
+.choice.wrong .choice-mark{color:var(--bad-ink)}
+.quiz-answer.correct{border:2px solid var(--ok-ink)!important;background:var(--ok-soft)!important}
+.quiz-answer.wrong{border:2px dashed var(--bad-ink)!important;background:var(--bad-soft)!important}
+.workspace-btn,.modebar button{transition:none!important}
+@media (prefers-reduced-motion: reduce){
+  *{scroll-behavior:auto!important;animation:none!important;transition:none!important}
+}
+@media (monochrome){
+  .study-answer.correct,.section-memory-input.correct,.choice.correct,.quiz-answer.correct{
+    border:2px solid #111!important;background:#fff!important
+  }
+  .study-answer.wrong,.section-memory-input.wrong,.choice.wrong,.quiz-answer.wrong{
+    border:2px dashed #111!important;background:#fff!important
+  }
+  .answer-status.correct,.answer-status.wrong,.choice-mark,.star.on,.quiz-star.on{color:#111!important}
+  .study-row.flagged{background:#fff!important;border-left:3px solid #111!important}
+}
+
 </style>
 </head>
 <body>
@@ -1099,14 +1198,6 @@ function submitStudyAnswer(r,input){
   const ok=norm(r.user)===norm(r.correct);r.last=r.user;r.revealed=false;
   input.classList.toggle("correct",ok);input.classList.toggle("wrong",!ok);
 }
-function autoGrowStudyAnswer(el){
-  if(!el)return;
-  el.style.height="0px";
-  const cs=getComputedStyle(el),lh=parseFloat(cs.lineHeight)||19;
-  const one=lh+12,two=lh*2+12;
-  el.style.height=Math.min(Math.max(one,el.scrollHeight),two)+"px";
-  el.style.overflowY=el.scrollHeight>two?"auto":"hidden";
-}
 function focusStudyField(el){
   if(!el)return;
   el.focus();
@@ -1146,19 +1237,27 @@ function renderStudy(){
       const head=document.createElement("div");head.className="section-study-head"+(hiddenBySection?" collapsed":"");
       const content=document.createElement("div");content.className="section-title";
       if(r.memorize){
-        const input=document.createElement("textarea");input.className="section-memory-input";input.rows=1;input.value=r.user||"";input.placeholder="소제목 입력";
-        if(r.user&&r.last===r.user)input.classList.add(norm(r.user)===norm(r.title)?"correct":"wrong");
-        input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;input.classList.remove("correct","wrong");autoGrowStudyAnswer(input)};
-        bindSafeEnter(input,()=>{
-          if(!r.user)return;
-          const ok=norm(r.user)===norm(r.title);r.last=r.user;input.classList.toggle("correct",ok);input.classList.toggle("wrong",!ok);
-          focusNextStudyField(input);
-        });
-        requestAnimationFrame(()=>autoGrowStudyAnswer(input));
+        const field=document.createElement("div");field.className="study-field section-field";
+        const input=document.createElement("input");input.className="section-memory-input";input.type="text";input.value=r.user||"";input.placeholder="소제목 입력";
+        const status=document.createElement("span");status.className="answer-status";status.setAttribute("aria-hidden","true");
+        const paintSectionState=()=>{
+          input.classList.remove("correct","wrong");status.classList.remove("correct","wrong");status.textContent="";
+          if(r.user&&r.last===r.user){
+            const ok=norm(r.user)===norm(r.title);
+            input.classList.add(ok?"correct":"wrong");status.classList.add(ok?"correct":"wrong");status.textContent=ok?"✓":"×";
+          }
+        };
+        paintSectionState();
+        input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;paintSectionState()};
+        const checkSectionAnswer=()=>{if(!r.user)return;r.last=r.user;paintSectionState()};
+        input.onchange=checkSectionAnswer;
+        bindSafeEnter(input,()=>{checkSectionAnswer();focusNextStudyField(input)});
+        field.append(input,status);
+
         const reveal=document.createElement("button");reveal.className="section-memory-reveal";
         reveal.textContent=(r.revealed||app.ui.showAllStudyAnswers)?(r.title||"답"):"답";
         reveal.onclick=e=>{e.stopPropagation();r.revealed=!r.revealed;renderStudy()};
-        content.append(input,reveal);
+        content.append(field,reveal);
       }else{
         content.textContent=r.title||"";
         content.onclick=()=>toggleSectionCollapsed(r.id);
@@ -1186,11 +1285,21 @@ function renderStudy(){
     meta.append(star);
 
     const line=document.createElement("div");line.className="answer-line";
-    const input=document.createElement("textarea");input.className="study-answer";input.rows=1;input.value=r.user||"";input.autocomplete="off";input.spellcheck=false;
-    if(r.user&&r.last===r.user)input.classList.add(norm(r.user)===norm(r.correct)?"correct":"wrong");
-    input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;input.classList.remove("correct","wrong");autoGrowStudyAnswer(input)};
-    bindSafeEnter(input,()=>{submitStudyAnswer(r,input);focusNextStudyField(input)});
-    requestAnimationFrame(()=>autoGrowStudyAnswer(input));
+    const field=document.createElement("div");field.className="study-field";
+    const input=document.createElement("input");input.className="study-answer";input.type="text";input.value=r.user||"";input.autocomplete="off";input.spellcheck=false;
+    const status=document.createElement("span");status.className="answer-status";status.setAttribute("aria-hidden","true");
+    const paintState=()=>{
+      input.classList.remove("correct","wrong");status.classList.remove("correct","wrong");status.textContent="";
+      if(r.user&&r.last===r.user){
+        const ok=norm(r.user)===norm(r.correct);
+        input.classList.add(ok?"correct":"wrong");status.classList.add(ok?"correct":"wrong");status.textContent=ok?"✓":"×";
+      }
+    };
+    paintState();
+    input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;paintState()};
+    input.onchange=()=>{submitStudyAnswer(r,input);paintState()};
+    bindSafeEnter(input,()=>{submitStudyAnswer(r,input);paintState();focusNextStudyField(input)});
+    field.append(input,status);
 
     const reveal=document.createElement("button");reveal.className="study-action answer-toggle";reveal.textContent="답";
     reveal.setAttribute("aria-label","정답 보기");
@@ -1203,9 +1312,9 @@ function renderStudy(){
       memoButton.onclick=e=>{e.stopPropagation();memo.classList.toggle("show");memoButton.classList.toggle("active",memo.classList.contains("show"))};
     }
     const clear=document.createElement("button");clear.className="study-action clear-answer";clear.textContent="×";clear.setAttribute("aria-label","현재 입력 지우기");
-    clear.onclick=e=>{e.stopPropagation();r.user="";r.last="";r.revealed=false;input.value="";input.classList.remove("correct","wrong");autoGrowStudyAnswer(input);focusStudyField(input)};
+    clear.onclick=e=>{e.stopPropagation();r.user="";r.last="";r.revealed=false;input.value="";paintState();focusStudyField(input)};
 
-    line.append(input,reveal);if(memoButton)line.append(memoButton);line.append(clear);
+    line.append(field,reveal);if(memoButton)line.append(memoButton);line.append(clear);
     row.append(meta,line);
     if(r.revealed||app.ui.showAllStudyAnswers){
       const a=document.createElement("div");a.className="revealed-answer";a.textContent=r.correct||"";row.append(a);
@@ -1213,7 +1322,7 @@ function renderStudy(){
     if(memo)row.append(memo);
 
     row.onclick=e=>{
-      if(e.target.closest("button,textarea,.memo"))return;
+      if(e.target.closest("button,input,textarea,.memo"))return;
       focusStudyField(input);
     };
     list.append(row);
@@ -1737,7 +1846,13 @@ function renderQuizQuestion(){
         else if(i===quizSession.selected)b.classList.add("wrong");
       }
       const n=document.createElement("span");n.className="num";n.textContent=i+1;
-      const tx=document.createElement("span");tx.textContent=text;b.append(n,tx);
+      const tx=document.createElement("span");tx.className="choice-text";tx.textContent=text;
+      const mark=document.createElement("span");mark.className="choice-mark";
+      if(quizSession.answered){
+        if(norm(text)===norm(item.answer))mark.textContent="✓";
+        else if(i===quizSession.selected)mark.textContent="×";
+      }
+      b.append(n,tx,mark);
       b.onclick=()=>selectChoice(i);choices.append(b);
     });
     card.append(choices);
