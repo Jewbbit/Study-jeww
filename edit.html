@@ -509,6 +509,149 @@ body.quiz-running #bankToolbar,.quiz-running #bankModebar,.quiz-running .workspa
   .quiz-setup-summary{padding-left:6px;padding-right:6px}
 }
 
+
+/* 2026-08 mobile-first refinement */
+.summary-sep{display:none!important}
+.header-toggle{display:none!important}
+.workspace-line{min-height:44px;padding-top:5px!important;padding-bottom:5px!important}
+.workspace-switch{flex:0 0 auto}
+.workspace-btn{padding:6px 9px!important}
+.compact-summary{min-width:0;flex:1}
+.summary-btn{
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  padding:6px 4px!important;background:transparent!important;border:0!important;
+  font-weight:650;text-align:left
+}
+#memoryHeader{border-top:1px solid #f2f2f3}
+#memoryHeader.collapsed{display:none}
+.study-head{min-height:32px;margin-bottom:2px!important;padding:0 1px}
+.sheet-title{font-size:14px!important;font-weight:680!important}
+.study-all-answer{
+  border:0;background:transparent;color:#68686e;font-size:11px;padding:5px 6px;white-space:nowrap
+}
+#studyView .list{gap:0!important}
+.study-row{
+  padding:4px 1px 5px;
+  border-bottom:1px solid #efeff1;
+  background:transparent;
+}
+.study-row.flagged{background:#fffdf5}
+.study-row-meta{
+  min-height:13px;display:flex;align-items:center;gap:4px;margin-bottom:1px
+}
+.study-row-meta .category{
+  flex:1;font-size:9.5px;line-height:1.25;color:#8a8a90;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+.study-row-meta .star{
+  margin:0 2px 0 auto!important;padding:0 2px!important;
+  height:17px;line-height:17px;font-size:14px
+}
+.study-row-meta:has(.star:only-child){min-height:0;margin-bottom:0}
+.answer-line{display:grid!important;grid-template-columns:minmax(0,1fr) 29px 29px 29px;gap:2px!important;align-items:start}
+.answer-line:not(:has(.memo-inline)){grid-template-columns:minmax(0,1fr) 29px 29px}
+.study-answer,.section-memory-input{
+  width:100%;box-sizing:border-box;resize:none;
+  min-height:31px;max-height:50px;
+  padding:5px 7px!important;
+  border:1px solid #e1e1e4!important;border-radius:6px!important;
+  background:#fff;font:inherit;font-size:14px!important;line-height:19px!important;
+  outline:none
+}
+.study-answer:focus,.section-memory-input:focus{border-color:#a9a9af!important}
+.study-action{
+  width:29px;height:31px;min-height:31px!important;padding:0!important;
+  border:0!important;border-radius:6px!important;background:transparent!important;
+  color:#68686e!important;font-size:10px!important
+}
+.study-action:active{background:#f0f0f2!important}
+.clear-answer{font-size:17px!important;color:#9a9aa0!important;margin-left:0!important}
+.memo-inline.active{background:#f0f0f2!important;color:#252529!important}
+.revealed-answer{
+  margin:3px 0 0!important;padding:5px 7px!important;
+  border-radius:5px!important;background:#f6f6f7!important;
+  font-size:12px!important;line-height:1.45
+}
+.memo{
+  margin:3px 0 0!important;padding:5px 7px!important;
+  border-radius:5px!important;background:#fafafa!important;
+  font-size:11px!important;line-height:1.45
+}
+.section-study-head{
+  min-height:28px;margin:2px 0 0!important;padding:3px 1px 2px;
+  border-bottom:1px solid #e8e8ea;gap:3px!important
+}
+.section-title{
+  padding:2px 1px!important;font-size:12.5px!important;font-weight:720!important;
+  cursor:pointer;min-width:0
+}
+.section-study-head.collapsed .section-title{color:#67676d}
+.section-more{
+  opacity:.28;font-size:12px!important;padding:3px!important;min-width:26px
+}
+.section-study-head:hover .section-more,.section-more:focus{opacity:.65}
+.section-memory-reveal{
+  border:0;background:transparent;padding:5px;font-size:10px;color:#727278
+}
+.section-title:has(.section-memory-input){display:flex;align-items:flex-start;gap:2px}
+#studyView .card{border:0!important}
+.modebar{margin-bottom:4px!important;gap:1px!important}
+.modebar button{
+  padding:6px 8px!important;border-radius:6px!important;background:transparent!important;font-size:11px
+}
+.modebar button.active{background:#ededf0!important;color:#202024!important;font-weight:650}
+main{padding-top:5px!important}
+header{box-shadow:none!important;border-bottom:1px solid #ededf0!important}
+.menu{border-color:#e4e4e7!important;box-shadow:0 10px 28px rgba(0,0,0,.09)!important}
+.menu button{font-size:12px}
+#subjects,#sheets{scrollbar-width:none}
+
+@media(max-width:640px){
+  header{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.97);backdrop-filter:blur(10px)}
+  .navline{padding:5px 7px!important}
+  #memoryHeader .navline{align-items:flex-start}
+  #memoryHeader .scrolltabs{
+    display:grid!important;
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:4px!important;overflow:visible!important
+  }
+  #memoryHeader .chip{
+    width:100%;min-width:0;padding:7px 5px!important;border-radius:6px!important;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px
+  }
+  #memoryHeader .right-tools{align-self:flex-start}
+  .study-head{position:sticky;top:44px;z-index:20;background:rgba(255,255,255,.96);backdrop-filter:blur(8px)}
+  .sheet-title{font-size:12.5px!important}
+  #studyView{margin-left:-2px;margin-right:-2px}
+  .study-row{padding-top:3px;padding-bottom:4px}
+  .study-row-meta .category{font-size:9px}
+  .study-answer,.section-memory-input{font-size:16px!important;line-height:19px!important} /* iOS zoom 방지 */
+  .answer-line{grid-template-columns:minmax(0,1fr) 28px 28px 28px}
+  .answer-line:not(:has(.memo-inline)){grid-template-columns:minmax(0,1fr) 28px 28px}
+  .study-action{width:28px}
+  .section-study-head{min-height:26px}
+  .section-title{font-size:12px!important}
+  .study-all-answer{font-size:10.5px}
+}
+
+
+@media(max-width:640px){
+  body.quiz-running main{padding-bottom:64px!important}
+  body.quiz-running .quiz-actions{
+    position:sticky;bottom:0;z-index:25;
+    margin:10px -6px -12px!important;padding:7px 6px max(7px,env(safe-area-inset-bottom))!important;
+    background:rgba(255,255,255,.97);
+    border-top:1px solid #ececef;
+    backdrop-filter:blur(10px);
+  }
+}
+
+
+@media(max-width:640px){
+  #studyView .study-head .sheet-title{display:none}
+  #studyView .study-head{justify-content:flex-end}
+}
+
 </style>
 </head>
 <body>
@@ -519,10 +662,9 @@ body.quiz-running #bankToolbar,.quiz-running #bankModebar,.quiz-running .workspa
       <button id="bankSpace" class="workspace-btn">문제은행</button>
     </div>
     <div class="compact-summary" id="memorySummary">
-      <span class="summary-sep">·</span>
       <button id="memorySummaryBtn" class="summary-btn" title="과목/시트 선택"></button>
     </div>
-    <button id="headerToggle" class="header-toggle">선택</button>
+    <button id="headerToggle" class="header-toggle hidden" aria-hidden="true" tabindex="-1">선택</button>
     <div class="right-tools" id="globalTools"></div>
   </div>
   <div id="memoryHeader" class="collapsed">
@@ -550,6 +692,7 @@ body.quiz-running #bankToolbar,.quiz-running #bankModebar,.quiz-running .workspa
   <section id="studyView">
     <div class="study-head">
       <div class="sheet-title" id="studyTitle"></div>
+      <button class="study-all-answer" id="toggleAllAnswers">답 전체 보기</button>
       <div class="study-menu-wrap">
         <button class="icon" id="studyMenuBtn">•••</button>
         <div class="menu hidden" id="studyMenu">
@@ -789,7 +932,16 @@ function cleanup(){
 cleanup();
 cleanExistingBankData();
 
-function saveLocal(){localStorage.setItem(KEY,JSON.stringify(app))}
+function localStoragePayload(){
+  const study=JSON.parse(JSON.stringify(app.study));
+  study.subjects?.forEach(subject=>subject.sheets?.forEach(sheet=>sheet.rows?.forEach(r=>{
+    delete r.user;delete r.last;delete r.revealed;
+  })));
+  return {...app,study};
+}
+function saveLocal(){localStorage.setItem(KEY,JSON.stringify(localStoragePayload()))}
+function flushTypingSave(){}
+window.addEventListener("pagehide",()=>{});
 function markStudyCloud(){app.study.updatedAt=Date.now();saveLocal();scheduleStudyCloud()}
 function markBankStatsCloud(){app.bank.statsUpdatedAt=Date.now();saveLocal();scheduleBankStatsCloud()}
 function sub(){return app.study.subjects.find(x=>x.id===app.study.subjectId)||app.study.subjects[0]}
@@ -847,9 +999,9 @@ function bindSafeEnter(el,handler){
   el.addEventListener("compositionstart",()=>composing=true);
   el.addEventListener("compositionend",()=>{composing=false;if(queued){queued=false;setTimeout(handler,120)}});
   el.addEventListener("keydown",e=>{
-    if(e.key!=="Enter")return;
+    if(e.key!=="Enter"||e.shiftKey)return;
     if(composing||e.isComposing||e.keyCode===229){queued=true;return}
-    e.preventDefault();setTimeout(handler,100);
+    e.preventDefault();setTimeout(handler,40);
   });
 }
 function reorderArray(arr,from,to){if(from===to||from<0||to<0||from>=arr.length||to>=arr.length)return;const x=arr.splice(from,1)[0];arr.splice(to,0,x)}
@@ -893,12 +1045,12 @@ function setHeaderCollapsed(collapsed){
 function renderSubjects(){
   const el=document.getElementById("subjects"),tools=document.getElementById("subjectTools"),global=document.getElementById("globalTools");
   el.innerHTML="";tools.innerHTML="";global.innerHTML="";
-  app.study.subjects.forEach(s=>{
-    const b=document.createElement("button");b.className="chip"+(s.id===app.study.subjectId?" active":"");
-    b.textContent=isPhone()&&s.id!==app.study.subjectId?(s.name||"?").normalize("NFC").slice(0,1):s.name;b.title=s.name;
-    b.onclick=()=>{if(b.dataset.skipClick)return;app.study.subjectId=s.id;saveLocal();render()};
+  app.study.subjects.forEach(subject=>{
+    const b=document.createElement("button");b.className="chip"+(subject.id===app.study.subjectId?" active":"");
+    b.textContent=subject.name;b.title=subject.name;
+    b.onclick=()=>{if(b.dataset.skipClick)return;app.study.subjectId=subject.id;saveLocal();render()};
     el.append(b);
-    bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>app.study.subjects.indexOf(s),(from,to)=>{reorderArray(app.study.subjects,from,to);markStudyCloud();render()});
+    if(!isPhone())bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>app.study.subjects.indexOf(subject),(from,to)=>{reorderArray(app.study.subjects,from,to);markStudyCloud();render()});
   });
   const plus=document.createElement("button");plus.className="icon";plus.textContent="＋";plus.title="과목 추가";
   plus.onclick=e=>{e.stopPropagation();document.getElementById("subjectModal").classList.remove("hidden")};
@@ -906,11 +1058,12 @@ function renderSubjects(){
   const more=document.createElement("button");more.className="icon";more.textContent="•••";
   const menu=document.createElement("div");menu.className="menu hidden";
   const rename=document.createElement("button");rename.textContent="이름 변경";
-  rename.onclick=e=>{e.stopPropagation();const cur=sub(),n=prompt("과목 이름",cur.name);if(!n)return;const name=n.trim();if(!name||name===cur.name)return;if(app.study.subjects.some(s=>s!==cur&&s.name===name))return alert("같은 이름의 과목이 있습니다.");cur.name=name;markStudyCloud();render()};
+  rename.onclick=e=>{e.stopPropagation();const cur=sub(),n=prompt("과목 이름",cur.name);if(!n)return;const name=n.trim();if(!name||name===cur.name)return;if(app.study.subjects.some(x=>x!==cur&&x.name===name))return alert("같은 이름의 과목이 있습니다.");cur.name=name;markStudyCloud();render()};
   const del=document.createElement("button");del.className="danger";del.textContent="삭제";
   del.onclick=e=>{e.stopPropagation();if(app.study.subjects.length<=1)return alert("과목은 하나 이상 있어야 합니다.");const cur=sub();if(!confirm(`'${cur.name}' 과목을 전부 삭제할까요?`))return;const i=app.study.subjects.indexOf(cur);app.study.subjects.splice(i,1);app.study.subjectId=app.study.subjects[Math.min(i,app.study.subjects.length-1)].id;markStudyCloud();render()};
   menu.append(rename,del);more.onclick=e=>{e.stopPropagation();menu.classList.toggle("hidden")};wrap.append(more,menu);
   tools.append(plus,wrap);
+
   const syncWrap=document.createElement("div");syncWrap.className="sync-wrap";
   const sync=document.createElement("button");sync.id="syncBtn";sync.className="icon sync-btn"+(cloudUser?" signed":"");sync.textContent=cloudUser?"✓":"로그인";sync.title=cloudUser?"자동 동기화 중":"Google 로그인";
   if(cloudUser){
@@ -929,11 +1082,11 @@ function renderSubjects(){
 }
 function renderSheets(){
   const el=document.getElementById("sheets");el.innerHTML="";
-  sub().sheets.forEach(s=>{
-    const b=document.createElement("button");b.className="chip"+(s.id===sub().currentId?" active":"");b.textContent=s.name;
-    b.onclick=()=>{if(b.dataset.skipClick)return;sub().currentId=s.id;saveLocal();render()};
+  sub().sheets.forEach(sheet=>{
+    const b=document.createElement("button");b.className="chip"+(sheet.id===sub().currentId?" active":"");b.textContent=sheet.name;
+    b.onclick=()=>{if(b.dataset.skipClick)return;sub().currentId=sheet.id;setHeaderCollapsed(true);saveLocal();render()};
     el.append(b);
-    bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>sub().sheets.indexOf(s),(from,to)=>{reorderArray(sub().sheets,from,to);markStudyCloud();render()});
+    if(!isPhone())bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>sub().sheets.indexOf(sheet),(from,to)=>{reorderArray(sub().sheets,from,to);markStudyCloud();render()});
   });
 }
 function clearReviewRow(r){
@@ -944,10 +1097,40 @@ function sectionRange(rows,i){let end=rows.length;for(let x=i+1;x<rows.length;x+
 function submitStudyAnswer(r,input){
   if(!r.user||r.last===r.user)return;
   const ok=norm(r.user)===norm(r.correct);r.last=r.user;r.revealed=false;
-  saveLocal();input.classList.toggle("correct",ok);input.classList.toggle("wrong",!ok);
+  input.classList.toggle("correct",ok);input.classList.toggle("wrong",!ok);
+}
+function autoGrowStudyAnswer(el){
+  if(!el)return;
+  el.style.height="0px";
+  const cs=getComputedStyle(el),lh=parseFloat(cs.lineHeight)||19;
+  const one=lh+12,two=lh*2+12;
+  el.style.height=Math.min(Math.max(one,el.scrollHeight),two)+"px";
+  el.style.overflowY=el.scrollHeight>two?"auto":"hidden";
+}
+function focusStudyField(el){
+  if(!el)return;
+  el.focus();
+  requestAnimationFrame(()=>{
+    const r=el.getBoundingClientRect();
+    const vh=window.visualViewport?.height||window.innerHeight;
+    if(r.bottom>vh-14||r.top<62)el.scrollIntoView({block:"center",behavior:"auto"});
+  });
+}
+function focusNextStudyField(current){
+  const fields=[...document.querySelectorAll(".study-answer,.section-memory-input")];
+  const i=fields.indexOf(current);
+  if(i>=0&&i<fields.length-1){const next=fields[i+1];focusStudyField(next);if(next.select)next.select()}
+  else current.blur();
+}
+function toggleSectionCollapsed(sectionId){
+  app.ui.collapsedSections[sectionId]=!app.ui.collapsedSections[sectionId];
+  saveLocal();renderStudy();
 }
 function renderStudy(){
   document.getElementById("studyTitle").textContent=sh().name;
+  const allBtn=document.getElementById("toggleAllAnswers");
+  if(allBtn)allBtn.textContent=app.ui.showAllStudyAnswers?"답 전체 숨기기":"답 전체 보기";
+
   const list=document.getElementById("studyList");list.innerHTML="";
   let rows=sh().rows.filter(r=>r.type==="section"?(r.title||"").trim():(r.correct||r.category||r.memo));
   if(app.ui.flaggedOnly){
@@ -955,63 +1138,85 @@ function renderStudy(){
     rows.forEach(r=>{if(r.type==="section")sec=r;else if(r.flagged){if(sec){out.push(sec);sec=null}out.push(r)}});
     rows=out;
   }
+
   let hiddenBySection=false;
   rows.forEach(r=>{
     if(r.type==="section"){
-      const original=sh().rows.indexOf(r);
       hiddenBySection=!!app.ui.collapsedSections[r.id];
-      const head=document.createElement("div");head.className="section-study-head";
-      const tog=document.createElement("button");tog.className="section-toggle";tog.textContent=hiddenBySection?"▸":"▾";
-      tog.onclick=()=>{app.ui.collapsedSections[r.id]=!app.ui.collapsedSections[r.id];saveLocal();renderStudy()};
+      const head=document.createElement("div");head.className="section-study-head"+(hiddenBySection?" collapsed":"");
       const content=document.createElement("div");content.className="section-title";
       if(r.memorize){
-        const input=document.createElement("input");input.className="section-memory-input";input.value=r.user||"";input.placeholder="소제목 입력";
+        const input=document.createElement("textarea");input.className="section-memory-input";input.rows=1;input.value=r.user||"";input.placeholder="소제목 입력";
         if(r.user&&r.last===r.user)input.classList.add(norm(r.user)===norm(r.title)?"correct":"wrong");
-        input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;input.classList.remove("correct","wrong");saveLocal()};
-        bindSafeEnter(input,()=>{if(!r.user)return;const ok=norm(r.user)===norm(r.title);r.last=r.user;input.classList.toggle("correct",ok);input.classList.toggle("wrong",!ok);saveLocal()});
-        const reveal=document.createElement("button");reveal.className="section-memory-reveal";reveal.textContent=r.revealed?(r.title||"답"):"답";
-        reveal.onclick=e=>{e.stopPropagation();r.revealed=!r.revealed;saveLocal();renderStudy()};
+        input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;input.classList.remove("correct","wrong");autoGrowStudyAnswer(input)};
+        bindSafeEnter(input,()=>{
+          if(!r.user)return;
+          const ok=norm(r.user)===norm(r.title);r.last=r.user;input.classList.toggle("correct",ok);input.classList.toggle("wrong",!ok);
+          focusNextStudyField(input);
+        });
+        requestAnimationFrame(()=>autoGrowStudyAnswer(input));
+        const reveal=document.createElement("button");reveal.className="section-memory-reveal";
+        reveal.textContent=(r.revealed||app.ui.showAllStudyAnswers)?(r.title||"답"):"답";
+        reveal.onclick=e=>{e.stopPropagation();r.revealed=!r.revealed;renderStudy()};
         content.append(input,reveal);
-      }else content.textContent=r.title||"";
+      }else{
+        content.textContent=r.title||"";
+        content.onclick=()=>toggleSectionCollapsed(r.id);
+      }
       const w=document.createElement("div");w.className="section-menu-wrap";
-      const b=document.createElement("button");b.className="more";b.textContent="•••";
+      const b=document.createElement("button");b.className="more section-more";b.textContent="•••";
       const m=document.createElement("div");m.className="menu hidden";
-      const clear=document.createElement("button");clear.textContent="이 구간 입력내용 초기화";
-      clear.onclick=e=>{e.stopPropagation();if(!confirm(`'${r.title||"이 구간"}'의 현재 입력내용을 지울까요?`))return;clearReviewRow(r);const [a,z]=sectionRange(sh().rows,original);for(let i=a;i<z;i++)clearReviewRow(sh().rows[i]);saveLocal();renderStudy()};
-      m.append(clear);b.onclick=e=>{e.stopPropagation();m.classList.toggle("hidden")};w.append(b,m);head.append(tog,content,w);list.append(head);return;
+      const collapse=document.createElement("button");collapse.textContent=hiddenBySection?"펼치기":"접기";collapse.onclick=e=>{e.stopPropagation();toggleSectionCollapsed(r.id)};
+      const clear=document.createElement("button");clear.textContent="이 구간 입력 지우기";
+      clear.onclick=e=>{e.stopPropagation();const original=sh().rows.indexOf(r);clearReviewRow(r);const [a,z]=sectionRange(sh().rows,original);for(let i=a;i<z;i++)clearReviewRow(sh().rows[i]);renderStudy()};
+      m.append(collapse,clear);b.onclick=e=>{e.stopPropagation();m.classList.toggle("hidden")};w.append(b,m);
+      head.append(content,w);list.append(head);return;
     }
     if(hiddenBySection)return;
-    const card=document.createElement("div");card.className="card"+(r.flagged?" flagged":"");
-    const meta=document.createElement("div");meta.className="meta";
-    const cat=document.createElement("div");cat.className="category";cat.textContent=r.category||"";
+
+    const row=document.createElement("div");row.className="study-row"+(r.flagged?" flagged":"");
+    const meta=document.createElement("div");meta.className="study-row-meta";
+    if(r.category){
+      const cat=document.createElement("div");cat.className="category";cat.textContent=r.category;meta.append(cat);
+    }
     const star=document.createElement("button");star.className="star"+(r.flagged?" on":"");
     star.textContent=r.flagCount?`★${r.flagCount}`:"★";
     star.title=r.flagCount?`헷갈림 ${r.flagCount}회`:"헷갈리면 표시";
-    star.onclick=()=>{
-      if(!r.flagged){r.flagged=true;r.flagCount=(r.flagCount||0)+1}else r.flagged=false;
-      markStudyCloud();renderStudy();
-    };
-    meta.append(cat,star);
+    star.onclick=e=>{e.stopPropagation();if(!r.flagged){r.flagged=true;r.flagCount=(r.flagCount||0)+1}else r.flagged=false;markStudyCloud();renderStudy()};
+    meta.append(star);
+
     const line=document.createElement("div");line.className="answer-line";
-    const input=document.createElement("input");input.className="answer";input.value=r.user||"";input.autocomplete="off";
+    const input=document.createElement("textarea");input.className="study-answer";input.rows=1;input.value=r.user||"";input.autocomplete="off";input.spellcheck=false;
     if(r.user&&r.last===r.user)input.classList.add(norm(r.user)===norm(r.correct)?"correct":"wrong");
-    input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;input.classList.remove("correct","wrong");saveLocal()};
-    input.onchange=()=>submitStudyAnswer(r,input);
-    bindSafeEnter(input,()=>{submitStudyAnswer(r,input);const inputs=[...document.querySelectorAll(".answer,.section-memory-input")];const i=inputs.indexOf(input);if(i>=0&&i<inputs.length-1){inputs[i+1].focus();inputs[i+1].select()}else input.blur()});
-    const reveal=document.createElement("button");reveal.className="answer-action";reveal.textContent=r.revealed?"숨기기":"답";
-    reveal.onclick=()=>{r.revealed=!r.revealed;saveLocal();renderStudy()};
-    let mb=null,memo=null;
+    input.oninput=e=>{r.user=e.target.value;r.last="";r.revealed=false;input.classList.remove("correct","wrong");autoGrowStudyAnswer(input)};
+    bindSafeEnter(input,()=>{submitStudyAnswer(r,input);focusNextStudyField(input)});
+    requestAnimationFrame(()=>autoGrowStudyAnswer(input));
+
+    const reveal=document.createElement("button");reveal.className="study-action answer-toggle";reveal.textContent="답";
+    reveal.setAttribute("aria-label","정답 보기");
+    reveal.onclick=e=>{e.stopPropagation();r.revealed=!r.revealed;renderStudy()};
+
+    let memoButton=null,memo=null;
     if(r.memo){
-      mb=document.createElement("button");mb.className="answer-action memo-inline";mb.textContent="메모";
+      memoButton=document.createElement("button");memoButton.className="study-action memo-inline";memoButton.textContent="M";memoButton.setAttribute("aria-label","메모");
       memo=document.createElement("div");memo.className="memo";memo.textContent=r.memo;
-      mb.onclick=()=>{memo.classList.toggle("show");mb.classList.toggle("active",memo.classList.contains("show"));mb.textContent=memo.classList.contains("show")?"닫기":"메모"};
+      memoButton.onclick=e=>{e.stopPropagation();memo.classList.toggle("show");memoButton.classList.toggle("active",memo.classList.contains("show"))};
     }
-    const clear=document.createElement("button");clear.className="answer-action clear-answer";clear.textContent="×";
-    clear.onclick=()=>{r.user="";r.last="";r.revealed=false;saveLocal();input.value="";input.classList.remove("correct","wrong");input.focus()};
-    line.append(input,reveal);if(mb)line.append(mb);line.append(clear);card.append(meta,line);
-    if(r.revealed){const a=document.createElement("div");a.className="revealed-answer";a.textContent=r.correct||"";card.append(a)}
-    if(memo)card.append(memo);
-    list.append(card);
+    const clear=document.createElement("button");clear.className="study-action clear-answer";clear.textContent="×";clear.setAttribute("aria-label","현재 입력 지우기");
+    clear.onclick=e=>{e.stopPropagation();r.user="";r.last="";r.revealed=false;input.value="";input.classList.remove("correct","wrong");autoGrowStudyAnswer(input);focusStudyField(input)};
+
+    line.append(input,reveal);if(memoButton)line.append(memoButton);line.append(clear);
+    row.append(meta,line);
+    if(r.revealed||app.ui.showAllStudyAnswers){
+      const a=document.createElement("div");a.className="revealed-answer";a.textContent=r.correct||"";row.append(a);
+    }
+    if(memo)row.append(memo);
+
+    row.onclick=e=>{
+      if(e.target.closest("button,textarea,.memo"))return;
+      focusStudyField(input);
+    };
+    list.append(row);
   });
 }
 function insertAt(index,type){sh().rows.splice(index,0,type==="section"?sectionRow():studyRow());markStudyCloud();renderEdit()}
@@ -1930,6 +2135,7 @@ document.getElementById("editBtn").onclick=()=>{app.study.mode="edit";app.ui.wor
 document.getElementById("quizBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="quiz";saveLocal();renderMode()};
 document.getElementById("bankEditBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="edit";saveLocal();renderMode()};
 document.getElementById("flagBtn").onclick=e=>{app.ui.flaggedOnly=!app.ui.flaggedOnly;e.target.classList.toggle("active",app.ui.flaggedOnly);saveLocal();renderStudy()};
+document.getElementById("toggleAllAnswers").onclick=()=>{app.ui.showAllStudyAnswers=!app.ui.showAllStudyAnswers;renderStudy()};
 document.getElementById("studyMenuBtn").onclick=e=>{e.stopPropagation();document.getElementById("studyMenu").classList.toggle("hidden")};
 document.getElementById("clearSheetReview").onclick=e=>{e.stopPropagation();if(!confirm(`'${sh().name}'의 현재 입력내용을 전부 지울까요?`))return;sh().rows.forEach(clearReviewRow);saveLocal();renderStudy()};
 document.getElementById("clearSheetStars").onclick=e=>{e.stopPropagation();sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});markStudyCloud();renderStudy()};
