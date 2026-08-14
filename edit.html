@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Study</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#f6f6f7;
@@ -309,7 +310,9 @@ td:last-child,th:last-child{
     <div class="edit-wrap">
       <div class="edit-head">
         <input id="sheetName">
-        <button class="icon" id="addSheet">＋</button>
+        <button class="icon" id="excelImport" title="엑셀 가져오기">↥</button>
+        <button class="icon" id="addSheet" title="시트 추가">＋</button>
+        <input id="excelFile" class="hidden" type="file" accept=".xlsx,.xlsm,.xls,.xlsb">
       </div>
       <div class="table-wrap">
         <table>
@@ -600,6 +603,182 @@ function renderMode(){
   document.getElementById("studyBtn").classList.toggle("active",study);
   document.getElementById("editBtn").classList.toggle("active",!study);
 }
+
+function cellValue(ws, addr){
+  const c=ws[addr];
+  if(!c || c.v==null)return "";
+  return String(c.w!=null?c.w:c.v).trim();
+}
+function colHidden(ws, colIndex){
+  return !!(ws["!cols"] && ws["!cols"][colIndex] && ws["!cols"][colIndex].hidden);
+}
+function refsFromFormula(formula, row1){
+  const out=[];
+  const re=/(?:'[^']+'!|[A-Za-z0-9_가-힣]+!)?\$?([A-Z]{1,3})\$?(\d+)/g;
+  let m;
+  while((m=re.exec(formula||""))){
+    const rr=Number(m[2]);
+    if(rr!==row1)continue;
+    const col=XLSX.utils.decode_col(m[1]);
+    out.push({col,row:rr-1,addr:XLSX.utils.encode_cell({r:rr-1,c:col})});
+  }
+  return out;
+}
+function detectFormulaRow(ws, r, range){
+  let best=null;
+  for(let c=range.s.c;c<=range.e.c;c++){
+    const addr=XLSX.utils.encode_cell({r,c});
+    const cell=ws[addr];
+    if(!cell || !cell.f)continue;
+
+    const refs=refsFromFormula(cell.f,r+1).filter(x=>x.addr!==addr);
+    if(refs.length<2)continue;
+
+    const counts=new Map();
+    refs.forEach(x=>counts.set(x.addr,(counts.get(x.addr)||0)+1));
+    const uniq=[...counts.keys()].map(a=>{
+      const pos=XLSX.utils.decode_cell(a);
+      const val=cellValue(ws,a);
+      let score=(counts.get(a)||0);
+      if(val)score+=5;
+      if(colHidden(ws,pos.c))score+=8;
+      if(pos.c>c)score+=2;
+      score+=Math.min(3,Math.abs(pos.c-c)/4);
+      return {addr:a,col:pos.c,val,score,count:counts.get(a)||0};
+    }).sort((a,b)=>b.score-a.score);
+
+    const answer=uniq[0];
+    if(!answer || !answer.val)continue;
+
+    // input = the other heavily-referenced cell, useful for locating a nearby memo column
+    const input=uniq.slice(1).sort((a,b)=>{
+      if(b.count!==a.count)return b.count-a.count;
+      return Math.abs(a.col-c)-Math.abs(b.col-c);
+    })[0];
+
+    let memo="";
+    if(input){
+      const rightAddr=XLSX.utils.encode_cell({r,c:input.col+1});
+      const right=ws[rightAddr];
+      if(right && !right.f && input.col+1!==answer.col){
+        memo=cellValue(ws,rightAddr);
+      }
+    }
+
+    // If the guessed memo is just the same answer duplicated elsewhere, drop it.
+    if(norm(memo)===norm(answer.val))memo="";
+
+    const candidate={answer:answer.val,memo,formulaCol:c,inputCol:input?input.col:null,answerCol:answer.col};
+    if(!best || answer.score>(best._score||-1)){
+      candidate._score=answer.score;
+      best=candidate;
+    }
+  }
+  return best;
+}
+function headingAt(ws,r,range){
+  const preferred=[0,1,11,13]; // A, B, L, N are common heading locations in existing sheets
+  const candidates=[];
+  preferred.forEach(c=>{
+    if(c<range.s.c || c>range.e.c)return;
+    const addr=XLSX.utils.encode_cell({r,c});
+    const cell=ws[addr];
+    if(!cell || cell.f)return;
+    const v=cellValue(ws,addr);
+    if(v)candidates.push(v);
+  });
+  if(!candidates.length){
+    for(let c=range.s.c;c<=range.e.c;c++){
+      const addr=XLSX.utils.encode_cell({r,c});
+      const cell=ws[addr];
+      if(!cell || cell.f)continue;
+      const v=cellValue(ws,addr);
+      if(v && v.length<=40)candidates.push(v);
+    }
+  }
+  return candidates.find(v=>!/^hint$/i.test(v) && v!=="정답" && v!=="오답")||"";
+}
+function convertWorksheet(ws,name){
+  if(!ws["!ref"])return null;
+  const range=XLSX.utils.decode_range(ws["!ref"]);
+  const detected=new Map();
+  for(let r=range.s.r;r<=range.e.r;r++){
+    const d=detectFormulaRow(ws,r,range);
+    if(d)detected.set(r,d);
+  }
+  const formulaRows=[...detected.keys()].sort((a,b)=>a-b);
+  if(!formulaRows.length)return null;
+
+  const rows=[];
+  let prev=null;
+  let lastSection="";
+  formulaRows.forEach((r,idx)=>{
+    // Look immediately above the new run for a section heading.
+    const runBreak=prev==null || r>prev+1;
+    if(runBreak){
+      const start=prev==null?Math.max(range.s.r,r-2):prev+1;
+      let heading="";
+      for(let rr=r-1;rr>=start;rr--){
+        if(detected.has(rr))continue;
+        const h=headingAt(ws,rr,range);
+        if(h){heading=h;break;}
+      }
+      if(heading && heading!==lastSection){
+        rows.push({type:"section",title:heading});
+        lastSection=heading;
+      }
+    }
+
+    const d=detected.get(r);
+    rows.push({
+      type:"item",
+      category:"",
+      correct:d.answer,
+      memo:d.memo||"",
+      user:"",
+      attempts:0,
+      wrong:0,
+      flagged:false,
+      last:""
+    });
+    prev=r;
+  });
+
+  return {name,rows};
+}
+function uniqueSubjectName(base){
+  let n=base||"가져온 자료";
+  if(!state.subjects.some(s=>s.name===n))return n;
+  let i=2;
+  while(state.subjects.some(s=>s.name===`${n} ${i}`))i++;
+  return `${n} ${i}`;
+}
+async function importWorkbook(file){
+  if(typeof XLSX==="undefined"){
+    alert("엑셀 읽기 기능을 불러오지 못했습니다.");
+    return;
+  }
+  const ab=await file.arrayBuffer();
+  const wb=XLSX.read(ab,{cellFormula:true,cellStyles:true});
+  const sheets=[];
+  wb.SheetNames.forEach(name=>{
+    const converted=convertWorksheet(wb.Sheets[name],name);
+    if(converted && converted.rows.some(r=>r.type==="item"))sheets.push(converted);
+  });
+  if(!sheets.length){
+    alert("판정 수식에서 정답 위치를 찾지 못했습니다.");
+    return;
+  }
+  const base=file.name.replace(/\.(xlsx|xlsm|xlsb|xls)$/i,"");
+  const subjectName=uniqueSubjectName(base);
+  const ns={name:subjectName,current:sheets[0].name,sheets};
+  state.subjects.push(ns);
+  state.subject=subjectName;
+  state.mode="edit";
+  save();
+  render();
+}
+
 function render(){
   renderSubjects();renderSheets();renderStudy();renderEdit();renderMode();
 }
@@ -612,6 +791,18 @@ document.getElementById("flagBtn").onclick=e=>{
 };
 document.getElementById("addRow").onclick=()=>{sh().rows.push(row());save();renderEdit()};
 document.getElementById("addSection").onclick=()=>{sh().rows.push(sectionRow());save();renderEdit()};
+document.getElementById("excelImport").onclick=()=>document.getElementById("excelFile").click();
+document.getElementById("excelFile").onchange=async e=>{
+  const file=e.target.files[0];
+  if(!file)return;
+  try{
+    await importWorkbook(file);
+  }catch(err){
+    console.error(err);
+    alert("엑셀을 읽는 중 오류가 났습니다.");
+  }
+  e.target.value="";
+};
 document.getElementById("addSheet").onclick=()=>{
   const n=prompt("시트");
   if(!n)return;
