@@ -58,6 +58,8 @@ header{
   border-radius:10px;
   flex:0 0 auto;
 }
+.sheet-delete{color:#aaa;font-size:20px}
+.sheet-delete:active{color:#c94b45}
 main{
   max-width:820px;
   margin:0 auto;
@@ -277,6 +279,7 @@ td:last-child,th:last-child{
   grid-template-columns:1fr 1fr;
   border-top:1px solid var(--line);
 }
+.adds.single{grid-template-columns:1fr}
 .adds button{
   border:0;
   background:#fafafa;
@@ -285,6 +288,25 @@ td:last-child,th:last-child{
   font-weight:700;
 }
 .adds button + button{border-left:1px solid var(--line)}
+
+
+.action-cell{position:relative;width:42px;text-align:center}
+.more{
+  border:0;background:transparent;width:32px;height:32px;border-radius:8px;
+  font-size:17px;color:#a0a0a6;line-height:1
+}
+.more:active{background:#efeff2;color:#555}
+.menu{
+  position:absolute;right:6px;top:34px;z-index:50;
+  min-width:108px;background:#fff;border:1px solid var(--line);border-radius:11px;
+  padding:4px;box-shadow:0 8px 24px rgba(0,0,0,.12)
+}
+.menu button{
+  display:block;width:100%;border:0;background:transparent;text-align:left;
+  padding:9px 10px;border-radius:8px;font-size:13px;color:#333
+}
+.menu button:active{background:#f2f2f4}
+.menu button.danger{color:var(--bad)}
 
 </style>
 </head>
@@ -312,6 +334,7 @@ td:last-child,th:last-child{
         <input id="sheetName">
         <button class="icon" id="excelImport" title="엑셀 가져오기">↥</button>
         <button class="icon" id="addSheet" title="시트 추가">＋</button>
+        <button class="icon sheet-delete" id="deleteSheet" title="시트 삭제">×</button>
         <input id="excelFile" class="hidden" type="file" accept=".xlsx,.xlsm,.xls,.xlsb">
       </div>
       <div class="table-wrap">
@@ -327,8 +350,7 @@ td:last-child,th:last-child{
           <tbody id="editRows"></tbody>
         </table>
       </div>
-      <div class="adds">
-        <button id="addRow">＋ 항목</button>
+      <div class="adds single">
         <button id="addSection">＋ 소제목</button>
       </div>
     </div>
@@ -339,7 +361,7 @@ td:last-child,th:last-child{
 const KEY="study-min-v1";
 function row(){return {type:"item",category:"",correct:"",memo:"",user:"",attempts:0,wrong:0,flagged:false,last:""}}
 function sectionRow(){return {type:"section",title:""}}
-function sheet(name){return {name,rows:Array.from({length:8},row)}}
+function sheet(name){return {name,rows:[row()]}}
 function subject(name){return {name,current:"기본",sheets:[sheet("기본")]}}
 function init(){return {subject:"국어",mode:"study",subjects:[subject("국어")]}}
 let state;
@@ -350,6 +372,15 @@ function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 function sub(){return state.subjects.find(x=>x.name===state.subject)||state.subjects[0]}
 function sh(){return sub().sheets.find(x=>x.name===sub().current)||sub().sheets[0]}
 function norm(s){return (s||"").trim().replace(/\s/g,"").replace(/[·,]/g,"").toLowerCase()}
+function isBlankItem(r){
+  return r && r.type!=="section" && !(r.category||"").trim() && !(r.correct||"").trim() && !(r.memo||"").trim();
+}
+function ensureTrailingBlank(){
+  const rows=sh().rows;
+  if(!rows.length || rows[rows.length-1].type==="section" || !isBlankItem(rows[rows.length-1])){
+    rows.push(row());
+  }
+}
 function grade(u,c){
   if(!u)return["","empty"];
   if(!c)return["","empty"];
@@ -406,7 +437,7 @@ function renderStudy(){
   if(!rows.length){
     const e=document.createElement("div");e.className="empty";e.textContent="";list.appendChild(e);return;
   }
-  rows.forEach(r=>{
+  rows.forEach((r,idx)=>{
     if(r.type==="section"){
       const sec=document.createElement("div");
       sec.className="section-title";
@@ -484,7 +515,63 @@ function renderStudy(){
   });
 }
 
+
+function moveRow(index,delta){
+  const rows=sh().rows;
+  const target=index+delta;
+  if(target<0 || target>=rows.length)return;
+  const item=rows.splice(index,1)[0];
+  rows.splice(target,0,item);
+  save();
+  renderEdit();
+}
+function makeActionMenu(index){
+  const td=document.createElement("td");
+  td.className="action-cell";
+
+  const more=document.createElement("button");
+  more.className="more";
+  more.textContent="•••";
+  more.title="항목 메뉴";
+
+  const menu=document.createElement("div");
+  menu.className="menu hidden";
+
+  const up=document.createElement("button");
+  up.textContent="위로";
+  up.disabled=index===0;
+  up.onclick=e=>{e.stopPropagation();moveRow(index,-1)};
+
+  const down=document.createElement("button");
+  down.textContent="아래로";
+  down.disabled=index>=sh().rows.length-1;
+  down.onclick=e=>{e.stopPropagation();moveRow(index,1)};
+
+  const del=document.createElement("button");
+  del.className="danger";
+  del.textContent="삭제";
+  del.onclick=e=>{
+    e.stopPropagation();
+    sh().rows.splice(index,1);
+    ensureTrailingBlank();
+    save();
+    renderEdit();
+  };
+
+  menu.append(up,down,del);
+  more.onclick=e=>{
+    e.stopPropagation();
+    document.querySelectorAll(".menu").forEach(m=>{if(m!==menu)m.classList.add("hidden")});
+    menu.classList.toggle("hidden");
+  };
+
+  td.append(more,menu);
+  return td;
+}
+document.addEventListener("click",()=>document.querySelectorAll(".menu").forEach(m=>m.classList.add("hidden")));
+
 function renderEdit(){
+  ensureTrailingBlank();
   document.getElementById("sheetName").value=sh().name;
   const tbody=document.getElementById("editRows");tbody.innerHTML="";
   sh().rows.forEach((r,i)=>{
@@ -493,7 +580,7 @@ function renderEdit(){
     if(r.type==="section"){
       const tr=document.createElement("tr");
       const td=document.createElement("td");
-      td.colSpan=4;
+      td.colSpan=3;
       td.style.padding="0";
 
       const wrap=document.createElement("div");
@@ -518,14 +605,9 @@ function renderEdit(){
         }
       };
 
-      const del=document.createElement("button");
-      del.className="delete";
-      del.textContent="×";
-      del.onclick=()=>{sh().rows.splice(i,1);save();renderEdit()};
-
-      wrap.append(input,del);
+      wrap.append(input);
       td.appendChild(wrap);
-      tr.appendChild(td);
+      tr.append(td,makeActionMenu(i));
       tbody.appendChild(tr);
       return;
     }
@@ -536,7 +618,20 @@ function renderEdit(){
     const cat=document.createElement("input");
     cat.className="edit-input";
     cat.value=r.category||"";
-    cat.oninput=e=>{r.category=e.target.value;save()};
+    cat.oninput=e=>{
+      r.category=e.target.value;
+      const rows=sh().rows;
+      if(rows.indexOf(r)===rows.length-1 && !isBlankItem(r)){
+        rows.push(row());
+        save();
+        renderEdit();
+        requestAnimationFrame(()=>{
+          const current=[...document.querySelectorAll("#editRows tr")][rows.length-2];
+          const input=current?.querySelector(".edit-input");
+          if(input){input.focus();input.setSelectionRange(input.value.length,input.value.length);}
+        });
+      }else save();
+    };
     cat.onkeydown=e=>{
       if(e.key==="Enter"){
         e.preventDefault();
@@ -551,7 +646,20 @@ function renderEdit(){
     cor.className="edit-input edit-correct";
     cor.dataset.rowIndex=String(i);
     cor.value=r.correct||"";
-    cor.oninput=e=>{r.correct=e.target.value;save()};
+    cor.oninput=e=>{
+      r.correct=e.target.value;
+      const rows=sh().rows;
+      if(rows.indexOf(r)===rows.length-1 && !isBlankItem(r)){
+        rows.push(row());
+        save();
+        renderEdit();
+        requestAnimationFrame(()=>{
+          const target=[...document.querySelectorAll(".edit-correct")]
+            .find(x=>Number(x.dataset.rowIndex)===rows.length-2);
+          if(target){target.focus();target.setSelectionRange(target.value.length,target.value.length);}
+        });
+      }else save();
+    };
     cor.onkeydown=e=>{
       if(e.key==="Enter"){
         e.preventDefault();
@@ -581,17 +689,20 @@ function renderEdit(){
     const memo=document.createElement("textarea");
     memo.className="edit-memo";
     memo.value=r.memo||"";
-    memo.oninput=e=>{r.memo=e.target.value;save()};
+    memo.oninput=e=>{
+      r.memo=e.target.value;
+      const rows=sh().rows;
+      if(rows.indexOf(r)===rows.length-1 && !isBlankItem(r)){
+        rows.push(row());
+        save();
+        renderEdit();
+      }else save();
+    };
     memoTd.appendChild(memo);
 
-    const delTd=document.createElement("td");
-    const del=document.createElement("button");
-    del.className="delete";
-    del.textContent="×";
-    del.onclick=()=>{sh().rows.splice(i,1);save();renderEdit()};
-    delTd.appendChild(del);
+    const actionTd=makeActionMenu(i);
 
-    tr.append(catTd,corTd,memoTd,delTd);
+    tr.append(catTd,corTd,memoTd,actionTd);
     tbody.appendChild(tr);
   });
 }
@@ -789,8 +900,18 @@ document.getElementById("flagBtn").onclick=e=>{
   e.target.classList.toggle("active",flaggedOnly);
   renderStudy();
 };
-document.getElementById("addRow").onclick=()=>{sh().rows.push(row());save();renderEdit()};
-document.getElementById("addSection").onclick=()=>{sh().rows.push(sectionRow());save();renderEdit()};
+document.getElementById("addSection").onclick=()=>{
+  ensureTrailingBlank();
+  const rows=sh().rows;
+  const insertAt=rows.length-1;
+  rows.splice(insertAt,0,sectionRow());
+  save();
+  renderEdit();
+  requestAnimationFrame(()=>{
+    const sections=[...document.querySelectorAll(".section-edit input")];
+    if(sections.length)sections[sections.length-1].focus();
+  });
+};
 document.getElementById("excelImport").onclick=()=>document.getElementById("excelFile").click();
 document.getElementById("excelFile").onchange=async e=>{
   const file=e.target.files[0];
@@ -802,6 +923,21 @@ document.getElementById("excelFile").onchange=async e=>{
     alert("엑셀을 읽는 중 오류가 났습니다.");
   }
   e.target.value="";
+};
+document.getElementById("deleteSheet").onclick=()=>{
+  const s=sub();
+  if(s.sheets.length<=1){
+    alert("시트는 하나 이상 있어야 합니다.");
+    return;
+  }
+  const current=sh();
+  if(!confirm(`'${current.name}' 시트를 삭제할까요?`))return;
+  const index=s.sheets.indexOf(current);
+  s.sheets.splice(index,1);
+  const next=s.sheets[Math.min(index,s.sheets.length-1)];
+  s.current=next.name;
+  save();
+  render();
 };
 document.getElementById("addSheet").onclick=()=>{
   const n=prompt("시트");
