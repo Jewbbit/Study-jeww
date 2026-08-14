@@ -207,6 +207,17 @@ td input:focus,td textarea:focus{background:#f7f7f9}
   .bank-row-actions{position:absolute;right:4px;top:4px;width:32px}
 }
 
+
+.compact-summary{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
+.summary-btn{border:0;background:transparent;padding:5px 4px;font-size:13px;font-weight:650;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
+.summary-sep{color:#aaa;font-size:11px}
+#memoryHeader.collapsed .navline{display:none}
+#bankControlsWrap.collapsed{display:none}
+.quiz-running #bankControlsWrap{display:none!important}
+.quiz-running #bankEditBtn{display:none}
+.header-toggle{border:0;background:var(--card);border-radius:9px;padding:6px 8px;font-size:11px;color:#666;white-space:nowrap}
+@media(max-width:640px){.summary-btn{font-size:12px}.header-toggle{padding:5px 7px}}
+
 </style>
 </head>
 <body>
@@ -216,9 +227,14 @@ td input:focus,td textarea:focus{background:#f7f7f9}
       <button id="memorySpace" class="workspace-btn active">암기</button>
       <button id="bankSpace" class="workspace-btn">문제은행</button>
     </div>
+    <div class="compact-summary" id="memorySummary">
+      <span class="summary-sep">·</span>
+      <button id="memorySummaryBtn" class="summary-btn" title="과목/시트 선택"></button>
+    </div>
+    <button id="headerToggle" class="header-toggle">선택</button>
     <div class="right-tools" id="globalTools"></div>
   </div>
-  <div id="memoryHeader">
+  <div id="memoryHeader" class="collapsed">
     <div class="navline">
       <div class="scrolltabs" id="subjects"></div>
       <div class="right-tools" id="subjectTools"></div>
@@ -275,7 +291,9 @@ td input:focus,td textarea:focus{background:#f7f7f9}
     <div class="page-head">
       <div class="page-title">문제은행</div>
     </div>
-    <div class="bank-toolbar" id="bankToolbar"></div>
+    <div id="bankControlsWrap">
+      <div class="bank-toolbar" id="bankToolbar"></div>
+    </div>
     <div id="quizArea"></div>
   </section>
 
@@ -455,6 +473,16 @@ function bindLongPressReorder(button,getButtons,getIndex,onMove){
 }
 document.addEventListener("click",()=>document.querySelectorAll(".menu").forEach(m=>m.classList.add("hidden")));
 
+function updateMemorySummary(){
+  const b=document.getElementById("memorySummaryBtn"); if(!b)return;
+  b.textContent=`${sub()?.name||""} › ${sh()?.name||""}`;
+  b.title=b.textContent;
+}
+function setHeaderCollapsed(collapsed){
+  const h=document.getElementById("memoryHeader"); if(!h)return;
+  h.classList.toggle("collapsed",collapsed);
+  const t=document.getElementById("headerToggle"); if(t)t.textContent=collapsed?"선택":"접기";
+}
 function renderSubjects(){
   const el=document.getElementById("subjects"),tools=document.getElementById("subjectTools"),global=document.getElementById("globalTools");
   el.innerHTML="";tools.innerHTML="";global.innerHTML="";
@@ -729,17 +757,19 @@ function startQuiz(customItems=null){
   const items=customItems||quizPool();
   if(!items.length)return toast("출제할 문제가 없습니다");
   quizSession={items:[...items],index:0,answered:false,selected:null,showAnswer:false,draft:"",choices:[],round:1,nextRound:[],mastery:!!app.ui.quiz.mastery};
+  document.body.classList.add("quiz-running");
   buildChoices();renderQuizQuestion();
 }
 function currentQuizItem(){return quizSession?.items[quizSession.index]}
 function buildChoices(){
   if(!quizSession||app.ui.quiz.mode!=="choice")return;
-  const item=currentQuizItem(),same=bankQuestions(false).filter(x=>x.answer&&x.id!==item.id&&norm(x.answer)!==norm(item.answer));
+  const item=currentQuizItem();
+  const same=bankQuestions(false).filter(x=>x.sheetId===item.sheetId&&x.answer&&x.id!==item.id&&norm(x.answer)!==norm(item.answer));
   const sameCat=same.filter(x=>x.category&&x.category===item.category);
-  const candidates=[...sameCat,...shuffled(same.filter(x=>!sameCat.includes(x)))];
+  const rest=same.filter(x=>!sameCat.includes(x));
+  const candidates=[...shuffled(sameCat),...shuffled(rest)];
   const distract=[];const seen=new Set([norm(item.answer)]);
   for(const x of candidates){const n=norm(x.answer);if(!n||seen.has(n))continue;seen.add(n);distract.push(x.answer);if(distract.length===3)break}
-  while(distract.length<3)distract.push(`보기 ${distract.length+2}`);
   quizSession.choices=shuffled([item.answer,...distract]);
 }
 function nextQuiz(){
@@ -751,7 +781,7 @@ function nextQuiz(){
       quizSession.index=0;quizSession.round++;quizSession.nextRound=[];quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";
       buildChoices();toast(`${quizSession.round}회차 · ${quizSession.items.length}문제 남음`);renderQuizQuestion();return;
     }
-    toast(quizSession.mastery?"전부 맞혔습니다 ✓":"끝");quizSession=null;renderQuiz();return;
+    toast(quizSession.mastery?"전부 맞혔습니다 ✓":"끝");quizSession=null;document.body.classList.remove("quiz-running");renderQuiz();return;
   }
   quizSession.index++;quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";buildChoices();renderQuizQuestion();
 }
@@ -760,7 +790,7 @@ function renderBankToolbar(){
   const row=document.createElement("div");row.className="bank-toolbar-row";
   const importBtn=document.createElement("button");importBtn.textContent="엑셀 가져오기";importBtn.onclick=()=>document.getElementById("bankExcelFiles").click();
   const sheetSel=document.createElement("select");sheetSel.innerHTML='<option value="all">전체 시트</option>';
-  app.bank.sheets.filter(s=>!s.legacyWrong).forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=`${s.source} · ${s.name}`;sheetSel.append(o)});
+  app.bank.sheets.filter(s=>!s.legacyWrong).forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=s.name;sheetSel.append(o)});
   sheetSel.value=app.ui.quiz.sheetId||"all";sheetSel.onchange=()=>{app.ui.quiz.sheetId=sheetSel.value;saveLocal()};
   const mode=document.createElement("select");
   [["choice","객관식"],["subjective","주관식"],["write","글쓰기"]].forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;mode.append(o)});
@@ -776,16 +806,8 @@ function renderBankToolbar(){
   mastery.value=app.ui.quiz.mastery?"yes":"no";mastery.onchange=()=>{app.ui.quiz.mastery=mastery.value==="yes";saveLocal()};
   const start=document.createElement("button");start.className="primary";start.textContent="시작";start.onclick=()=>startQuiz();
   row.append(importBtn,sheetSel,mode,filter,order,mastery,start);box.append(row);
-  const sources=[...new Set(app.bank.sheets.map(s=>s.source))];
-  if(sources.length){
-    const chips=document.createElement("div");chips.className="bank-source-list";
-    sources.forEach(src=>{
-      const c=document.createElement("button");c.className="bank-source-chip";c.textContent=`${src} ×`;
-      c.onclick=async()=>{if(!confirm(`'${src}' 문제은행을 삭제할까요?`))return;const doomed=app.bank.sheets.filter(s=>s.source===src);const ids=doomed.map(s=>s.id);doomed.forEach(s=>s.items.forEach(i=>delete app.bank.stats[i.id]));app.bank.sheets=app.bank.sheets.filter(s=>s.source!==src);app.bank.contentUpdatedAt=Date.now();saveLocal();await deleteBankSheetsCloud(ids);await saveBankIndexCloud();renderQuiz();renderBankEditor()};
-      chips.append(c);
-    });box.append(chips);
-  }
-}function renderQuiz(){
+}
+function renderQuiz(){
   renderBankToolbar();
   const area=document.getElementById("quizArea");
   if(!app.bank.sheets.length){area.innerHTML='<div class="bank-empty">문제은행 엑셀을 올리면 A=카테고리, B=문제, C=정답, D=메모 구조를 자동으로 읽습니다.<br><button id="emptyBankImport">문제은행 불러오기</button></div>';document.getElementById("emptyBankImport").onclick=()=>document.getElementById("bankExcelFiles").click();return}
@@ -797,7 +819,7 @@ function renderQuizQuestion(){
   const item=currentQuizItem();if(!item)return;
   const card=document.createElement("div");card.className="question-card";
   const top=document.createElement("div");top.className="q-top";
-  const tag=document.createElement("div");tag.className="q-tag";tag.textContent=[item.source,item.sheetName,item.section||item.category].filter(Boolean).join(" · ");
+  const tag=document.createElement("div");tag.className="q-tag";tag.textContent=[item.sheetName,item.section||item.category].filter(Boolean).join(" · ");
   const prog=document.createElement("div");prog.className="q-progress";prog.textContent=`${quizSession.index+1}/${quizSession.items.length}`;
   top.append(tag,prog);
   const q=document.createElement("div");q.className="question";q.textContent=item.question;
@@ -842,27 +864,35 @@ function renderQuizQuestion(){
       const done=document.createElement("button");done.textContent="완료";done.onclick=nextQuiz;actions.append(done);
     }
   }
-  if(quizSession.answered||quizSession.showAnswer){
+  if((quizSession.answered||quizSession.showAnswer)&&mode!=="choice"){
     const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=nextQuiz;actions.append(next);
   }
   card.append(actions);area.append(card);
 }
 function selectChoice(i){
-  if(!quizSession||quizSession.answered)return;
+  if(!quizSession||quizSession.answered||i<0||i>=quizSession.choices.length)return;
   const item=currentQuizItem(),text=quizSession.choices[i],ok=norm(text)===norm(item.answer);
   quizSession.selected=i;quizSession.answered=true;quizSession.showAnswer=!ok;recordQuiz(item,ok);renderQuizQuestion();
+  setTimeout(()=>{if(quizSession?.answered)nextQuiz()}, ok?120:280);
 }
 function checkSubjective(input){
   if(!quizSession||quizSession.answered||!quizSession.draft.trim())return;
   const item=currentQuizItem(),ok=norm(quizSession.draft)===norm(item.answer);
   quizSession.answered=true;quizSession.showAnswer=!ok;recordQuiz(item,ok);renderQuizQuestion();
 }
-document.addEventListener("keydown",e=>{
-  if(app.study.mode!=="quiz"||!quizSession)return;
-  const tag=document.activeElement?.tagName;if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
-  if(app.ui.quiz.mode==="choice"&&["1","2","3","4"].includes(e.key)){e.preventDefault();selectChoice(Number(e.key)-1)}
-  else if(e.key==="Enter"&&(quizSession.answered||quizSession.showAnswer)){e.preventDefault();nextQuiz()}
-});
+window.addEventListener("keydown",e=>{
+  if(app.ui.workspace!=="bank"||app.ui.bankMode!=="quiz"||!quizSession)return;
+  const tag=document.activeElement?.tagName;
+  if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
+  if(app.ui.quiz.mode==="choice"){
+    let n=null;
+    if(["1","2","3","4"].includes(e.key))n=Number(e.key);
+    else if(/^Digit[1-4]$/.test(e.code||""))n=Number(e.code.slice(-1));
+    else if(/^Numpad[1-4]$/.test(e.code||""))n=Number(e.code.slice(-1));
+    if(n){e.preventDefault();e.stopPropagation();selectChoice(n-1);return}
+  }
+  if(e.key==="Enter"&&(quizSession.answered||quizSession.showAnswer)){e.preventDefault();nextQuiz()}
+},true);
 function wrongItems(){
   const byId=new Map(bankQuestions(true).map(i=>[i.id,i]));
   const out=[];
@@ -885,7 +915,7 @@ function renderWrong(){
     const st=document.createElement("div");st.className="wrong-stat";st.textContent=i.stat.wrong?`${i.stat.wrong}회`:"엑셀";
     const clear=document.createElement("button");clear.className="more";clear.textContent="×";clear.title="오답 해제";clear.onclick=()=>clearWrong(i);
     t.append(q,st,clear);
-    const meta=document.createElement("div");meta.className="wrong-meta";meta.textContent=[i.source,i.sheetName,i.category].filter(Boolean).join(" · ");
+    const meta=document.createElement("div");meta.className="wrong-meta";meta.textContent=[i.sheetName,i.category].filter(Boolean).join(" · ");
     box.append(t,meta);list.append(box);
   });area.append(list);
 }
@@ -915,7 +945,7 @@ function renderBankEditor(){
   const row=document.createElement("div");row.className="bank-toolbar-row";
   const importBtn=document.createElement("button");importBtn.textContent="엑셀 가져오기";importBtn.onclick=()=>document.getElementById("bankExcelFiles").click();
   const sel=document.createElement("select");
-  app.bank.sheets.filter(s=>!s.legacyWrong).forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=`${s.source} · ${s.name}`;sel.append(o)});
+  app.bank.sheets.filter(s=>!s.legacyWrong).forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=s.name;sel.append(o)});
   const sheet=currentBankEditSheet();if(sheet)sel.value=sheet.id;
   sel.onchange=()=>{app.ui.bankEditSheetId=sel.value;saveLocal();renderBankEditor()};
   const add=document.createElement("button");add.className="primary";add.textContent="＋ 문제";add.onclick=()=>{const x=currentBankEditSheet();if(x)addBankQuestion(x)};
@@ -966,6 +996,8 @@ function renderMode(){
   document.getElementById("bankModebar").classList.toggle("hidden",memory);
   document.getElementById("memorySpace").classList.toggle("active",memory);
   document.getElementById("bankSpace").classList.toggle("active",!memory);
+  document.getElementById("memorySummary").classList.toggle("hidden",!memory);
+  document.getElementById("headerToggle").classList.toggle("hidden",!memory);
   if(memory){
     const mode=app.study.mode==="edit"?"edit":"study";
     document.getElementById("studyView").classList.toggle("hidden",mode!=="study");
@@ -984,7 +1016,7 @@ function renderMode(){
     if(bm==="quiz")renderQuiz();else renderBankEditor();
   }
 }
-function render(){renderSubjects();renderSheets();renderStudy();renderEdit();renderMode()}
+function render(){renderSubjects();renderSheets();updateMemorySummary();renderStudy();renderEdit();renderMode()}
 
 /* cloud: transient study answer text/user UI are NOT synchronized */
 function cloudStudyPayload(){
@@ -1069,6 +1101,8 @@ onAuthStateChanged(auth,async user=>{
 });
 
 /* controls */
+document.getElementById("headerToggle").onclick=()=>{const h=document.getElementById("memoryHeader");setHeaderCollapsed(!h.classList.contains("collapsed"))};
+document.getElementById("memorySummaryBtn").onclick=()=>setHeaderCollapsed(false);
 document.getElementById("memorySpace").onclick=()=>{app.ui.workspace="memory";saveLocal();renderMode()};
 document.getElementById("bankSpace").onclick=()=>{app.ui.workspace="bank";saveLocal();renderMode()};
 document.getElementById("studyBtn").onclick=()=>{app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode()};
