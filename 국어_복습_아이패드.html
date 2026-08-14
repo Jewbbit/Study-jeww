@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>국어 복습</title>
+<style>
+:root {
+  --bg:#f5f5f7; --card:#fff; --line:#d9d9df; --text:#1d1d1f;
+  --sub:#6e6e73; --ok:#16784a; --bad:#b42318; --accent:#2f5fb3;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
+header{position:sticky;top:0;z-index:20;background:rgba(245,245,247,.94);backdrop-filter:blur(14px);padding:12px 14px 10px;border-bottom:1px solid var(--line)}
+h1{font-size:20px;margin:0 0 10px}
+.tabs{display:flex;gap:7px;overflow:auto;padding-bottom:3px}
+.tab{border:1px solid var(--line);background:#fff;padding:8px 11px;border-radius:999px;white-space:nowrap;font-size:14px}
+.tab.active{background:#1d1d1f;color:#fff;border-color:#1d1d1f}
+.toolbar{display:flex;gap:7px;overflow:auto;margin-top:9px}
+button{font:inherit}
+.action{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;white-space:nowrap}
+main{max-width:1100px;margin:0 auto;padding:12px 10px 80px}
+.sheet-title{font-size:18px;font-weight:700;margin:4px 4px 10px}
+.group{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:12px;overflow:hidden}
+.group-head{width:100%;display:flex;align-items:center;justify-content:space-between;border:0;background:#fff;padding:12px 14px;font-weight:700;font-size:16px;text-align:left}
+.group-head .meta{font-size:12px;font-weight:500;color:var(--sub)}
+.group.collapsed .rows{display:none}
+.row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(180px,1.35fr) 76px;gap:8px;align-items:start;padding:9px 10px;border-top:1px solid #ececf0}
+.answer-wrap{min-width:0}
+input.answer{width:100%;border:1px solid #c9c9cf;border-radius:9px;padding:10px 11px;font-size:16px;background:#fff}
+input.answer:focus{outline:2px solid rgba(47,95,179,.2);border-color:var(--accent)}
+input.answer.correct{border-color:var(--ok);background:#f2fbf6}
+input.answer.wrong{border-color:var(--bad);background:#fff5f4}
+.hint{font-size:14px;line-height:1.45;color:#333;white-space:pre-wrap;word-break:keep-all;padding:8px 4px}
+.note{font-size:12px;color:var(--sub);margin-top:5px;line-height:1.4}
+.status{font-size:13px;font-weight:700;text-align:center;padding-top:11px}
+.status.ok{color:var(--ok)} .status.bad{color:var(--bad)} .status.empty{color:#aaa}
+.revealed{font-size:13px;color:var(--accent);margin-top:6px;display:none}
+.show-answers .revealed{display:block}
+.small-btn{border:1px solid var(--line);background:#fafafa;border-radius:8px;padding:5px 8px;font-size:12px;margin-top:6px}
+.footer-note{color:var(--sub);font-size:12px;padding:4px 5px 18px}
+@media(max-width:720px){
+  .row{grid-template-columns:1fr 66px}
+  .hint{grid-column:1 / -1;grid-row:2}
+  .status{grid-column:2;grid-row:1}
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>국어 복습</h1>
+  <div class="tabs" id="tabs"></div>
+  <div class="toolbar">
+    <button class="action" id="clearBtn">입력 전체 지우기</button>
+    <button class="action" id="fillBtn">정답 한꺼번에 채우기</button>
+    <button class="action" id="toggleAnswerBtn">정답 보기</button>
+    <button class="action" id="foldBtn">전체 접기</button>
+  </div>
+</header>
+<main id="app"></main>
+<script>
+const DATA = {"sheets": [{"name": "국어 내용체계표", "groups": [{"title": "듣기 말하기", "rows": [{"row": 4, "answer": "듣기·말하기 맥락", "hint": "듣기·말하기 맥락", "note": "상황 맥락/사회·문화적맥락", "left": ""}, {"row": 5, "answer": "담화 유형", "hint": "담화 유형", "note": "대화/발표/토의/면담(진로연계교육, 구체적이고 실제적인 질문)/토론", "left": ""}, {"row": 6, "answer": "내용 확인·추론·평가", "hint": "내용 확인·추론·평가", "note": "사실적 듣기/추론적 듣기/비판적 듣기/감상적 듣기/공감적 듣기", "left": ""}, {"row": 7, "answer": "내용 생성·조직·표현과 전달", "hint": "내용 생성·조직·표현과 전달", "note": "계획하기/내용생성하기/내용조직하기/표현하기", "left": ""}, {"row": 8, "answer": "상호 작용", "hint": "상호 작용", "note": "말차례 지키기(말차례 교환 신호)/감정 나누기/예의를 지키며 듣고 말하기", "left": ""}, {"row": 9, "answer": "점검과 조정", "hint": "점검과 조정", "note": "", "left": ""}]}, {"title": "읽기", "rows": [{"row": 11, "answer": "읽기 맥락", "hint": "읽기 맥락", "note": "상황 맥락/사회·문화적맥락/상호 텍스트적 맥락", "left": ""}, {"row": 12, "answer": "글의 유형", "hint": "글의 유형", "note": "", "left": ""}, {"row": 13, "answer": "읽기의 기초", "hint": "읽기의 기초", "note": "(해독, 읽기 유창성) 글자, 단어 읽기/문장, 짧은 글 소리내어 읽기/알맞게 띄어 읽기/유창하게 읽기", "left": ""}, {"row": 14, "answer": "내용 확인과 추론", "hint": "내용 확인과 추론", "note": "(독해) 사실적 이해/추론적 이해", "left": ""}, {"row": 15, "answer": "평가와 창의", "hint": "평가와 창의", "note": "비판적 이해/감상적 이해/창의적 이해", "left": ""}, {"row": 16, "answer": "점검과 조정", "hint": "점검과 조정", "note": "", "left": ""}]}, {"title": "쓰기", "rows": [{"row": 18, "answer": "쓰기 맥락", "hint": "쓰기 맥락", "note": "상황 맥락/사회·문화적맥락/상호 텍스트적 맥락", "left": ""}, {"row": 19, "answer": "글의 유형", "hint": "글의 유형", "note": "설명하는 글(개념정의, 부연상술, 예시, 열거, 인용, 비교와 대조)/주장하는 글(인용, 출처)/감상을 나타내는 글", "left": ""}, {"row": 20, "answer": "쓰기의 기초", "hint": "쓰기의 기초", "note": "(기초문식성 강화) 글자→ 단어→ 문장→ 문단", "left": ""}, {"row": 21, "answer": "계획하기", "hint": "계획하기", "note": "목적, 주제 고려하기/독자, 매체 고려하기", "left": ""}, {"row": 22, "answer": "내용 생성하기", "hint": "내용 생성하기", "note": "브레인스토밍, 마인드맵/열거하기/생각그물만들기/이야기나누기/관련 자료 읽기", "left": ""}, {"row": 23, "answer": "내용 조직하기", "hint": "내용 조직하기", "note": "다발짓기/얼개짜기", "left": ""}, {"row": 24, "answer": "표현하기", "hint": "표현하기", "note": "말로쓰기/얼른쓰기", "left": ""}, {"row": 25, "answer": "고쳐쓰기", "hint": "고쳐쓰기", "note": "훑어읽기/돌려읽기/비평집단 운영하기", "left": ""}, {"row": 26, "answer": "공유하기", "hint": "공유하기", "note": "", "left": ""}, {"row": 27, "answer": "점검과 조정", "hint": "점검과 조정", "note": "통일성/쓰기과정의 회귀적 특성", "left": ""}]}, {"title": "문법", "rows": [{"row": 29, "answer": "언어의 본질과 맥락", "hint": "언어의 본질과 맥락", "note": "", "left": ""}, {"row": 30, "answer": "언어 단위", "hint": "언어 단위", "note": "글과 담화의 높임 표현과 지시·접속 표현/어휘체계와 고유어/글과 담화의 시간 표현", "left": ""}, {"row": 31, "answer": "한글의 기초와 국어 규범", "hint": "한글의 기초와 국어 규범", "note": "(기초문식성 강화)", "left": ""}, {"row": 32, "answer": "국어의 분석과 활용", "hint": "국어의 분석과 활용", "note": "", "left": ""}, {"row": 33, "answer": "국어 실천의 성찰과 비판", "hint": "국어 실천의 성찰과 비판", "note": "", "left": ""}]}, {"title": "문학", "rows": [{"row": 35, "answer": "갈래", "hint": "갈래", "note": "서정 문학/서사 문학/극 문학/교술 문학", "left": ""}, {"row": 36, "answer": "맥락", "hint": "맥락", "note": "작가 맥락/독자 맥락/사회·문화적 맥락/문학사적 맥락/상호 텍스트적 맥락", "left": ""}, {"row": 37, "answer": "작품 읽기와 이해", "hint": "작품 읽기와 이해", "note": "", "left": ""}, {"row": 38, "answer": "해석과 감상", "hint": "해석과 감상", "note": "(수용)", "left": ""}, {"row": 39, "answer": "비평", "hint": "비평", "note": "(수용)", "left": ""}, {"row": 40, "answer": "창작", "hint": "창작", "note": "(생산) 복합양식텍스트성", "left": ""}]}, {"title": "매체", "rows": [{"row": 42, "answer": "매체 소통 맥락", "hint": "매체 소통 맥락", "note": "상황 맥락/사회·문화적맥락", "left": ""}, {"row": 43, "answer": "매체 자료 유형", "hint": "매체 자료 유형", "note": "", "left": ""}, {"row": 44, "answer": "접근과 선택", "hint": "접근과 선택", "note": "인터넷 자료 탐색·선택하기(비선형적 자료)", "left": ""}, {"row": 45, "answer": "해석과 평가", "hint": "해석과 평가", "note": "매체 자료의 신뢰성 평가하기", "left": ""}, {"row": 46, "answer": "제작과 공유", "hint": "제작과 공유", "note": "글과 그림으로 표현하기(그림일기)/복합양식 매체 자료 제작·공유하기", "left": ""}, {"row": 47, "answer": "점검과 조정", "hint": "점검과 조정", "note": "", "left": ""}]}]}, {"name": "국어가치태도", "groups": [{"title": "작은 세상", "rows": [{"row": 4, "answer": "듣기·말하기에 대한 흥미", "hint": "듣기·말하기에 대한 흥미", "note": "", "left": ""}, {"row": 5, "answer": "듣기·말하기 효능감", "hint": "듣기·말하기 효능감", "note": "", "left": ""}, {"row": 6, "answer": "듣기·말하기에 적극적 참여", "hint": "듣기·말하기에 적극적 참여", "note": "", "left": ""}, {"row": 7, "answer": "읽기에 대한 흥미", "hint": "읽기에 대한 흥미", "note": "", "left": ""}, {"row": 8, "answer": "읽기 효능감", "hint": "읽기 효능감", "note": "", "left": ""}, {"row": 9, "answer": "긍정적 읽기 동기", "hint": "긍정적 읽기 동기", "note": "", "left": ""}, {"row": 10, "answer": "읽기에 적극적 참여", "hint": "읽기에 적극적 참여", "note": "", "left": ""}, {"row": 11, "answer": "쓰기에 대한 흥미", "hint": "쓰기에대한 흥미", "note": "", "left": ""}, {"row": 12, "answer": "쓰기 효능감", "hint": "쓰기 효능감", "note": "", "left": ""}, {"row": 13, "answer": "쓰기에 적극적 참여", "hint": "쓰기에 적극적 참여", "note": "", "left": ""}, {"row": 14, "answer": "쓰기 윤리 준수", "hint": "쓰기 윤리 준수", "note": "", "left": ""}, {"row": 15, "answer": "한글에 대한 호기심", "hint": "한글에 대한 호기심", "note": "", "left": ""}, {"row": 16, "answer": "국어의 소중함 인식", "hint": "국어의 소중함 인식", "note": "", "left": ""}, {"row": 17, "answer": "국어 생활에 대한 민감성", "hint": "국어 생활에 대한 민감성", "note": "", "left": ""}, {"row": 18, "answer": "집단 사회의 언어와 나의 언어의 관계 인식", "hint": "집단 사회의 언어와 나의 언어의 관계 인식", "note": "", "left": ""}, {"row": 19, "answer": "문학에 대한 흥미", "hint": "문학에 대한 흥미", "note": "", "left": ""}, {"row": 20, "answer": "작품 감상의 즐거움", "hint": "작품 감상의 즐거움", "note": "", "left": ""}, {"row": 21, "answer": "문학을 통한 자아 성찰", "hint": "문학을 통한 자아 성찰", "note": "", "left": ""}, {"row": 22, "answer": "문학 소통의 즐거움", "hint": "문학 소통의 즐거움", "note": "", "left": ""}, {"row": 23, "answer": "매체 소통에 대한 흥미와 관심", "hint": "매체 소통에 대한 흥미와 관심", "note": "", "left": ""}, {"row": 24, "answer": "매체 소통 윤리", "hint": "매체 소통 윤리", "note": "", "left": ""}, {"row": 25, "answer": "매체 소통에 대한 성찰", "hint": "매체 소통에 대한 성찰", "note": "", "left": ""}]}]}, {"name": "국어 모형", "groups": [{"title": "국어 모형", "rows": [{"row": 3, "answer": "직접 교수 모형", "hint": "직접 교수 모형", "note": "책임 이양의 원리", "left": ""}, {"row": 4, "answer": "설명하기", "hint": "설명하기", "note": "(학생참여 최대로 유도)", "left": ""}, {"row": 5, "answer": "시범 보이기", "hint": "시범 보이기", "note": "(학생참여 최대로 유도)생각 구술법", "left": ""}, {"row": 6, "answer": "질문하기", "hint": "질문하기", "note": "", "left": ""}, {"row": 7, "answer": "활동하기", "hint": "활동하기", "note": "", "left": ""}, {"row": 8, "answer": "문제 해결 학습 모형", "hint": "문제 해결 학습 모형", "note": "개념의 단순한 수용이 아니라 학습자 나름의 재구성/이미 학습한 내용을 실제 상황에 적용하는 경우, 수준에 비해 쉬운 경우, 훈련이 잘되어있는 경우 사용", "left": ""}, {"row": 9, "answer": "문제 확인하기", "hint": "문제 확인하기", "note": "", "left": ""}, {"row": 10, "answer": "문제 해결 방법 찾기", "hint": "문제 해결 방법 찾기", "note": "", "left": ""}, {"row": 11, "answer": "문제 해결하기", "hint": "문제 해결하기", "note": "", "left": ""}, {"row": 12, "answer": "일반화하기", "hint": "일반화하기", "note": "", "left": ""}, {"row": 13, "answer": "창의성 계발 학습 모형", "hint": "창의성 계발 학습 모형", "note": "· 허용적 수업 분위기\n· 저학년은 생성, 고학년은 검증하고 다듬기 초점", "left": ""}, {"row": 14, "answer": "문제 발견하기", "hint": "문제 발견하기", "note": "", "left": ""}, {"row": 15, "answer": "아이디어 생성하기", "hint": "아이디어 생성하기", "note": "· 문제 다른 각도에서 검토\n· 다양한 아이디어 산출", "left": ""}, {"row": 16, "answer": "아이디어 선택하기", "hint": "아이디어 선택하기", "note": "· 아이디어 비교\n· 최선의 아이디어 선택", "left": ""}, {"row": 17, "answer": "아이디어 적용하기", "hint": "아이디어 적용하기", "note": "", "left": ""}, {"row": 18, "answer": "지식 탐구 학습 모형", "hint": "지식 탐구 학습 모형", "note": "교사는 답변을 하지 않고 함께 탐구하는 동료 역할. 무작정 기다리는것 x 적절한 자료를 제공하고 학습자가 적극적으로 참여할수 있도록 유도 필요", "left": ""}, {"row": 19, "answer": "문제 확인하기", "hint": "문제 확인하기", "note": "", "left": ""}, {"row": 20, "answer": "자료 탐색하기", "hint": "자료 탐색하기", "note": "일관성 있는 지식을 추출하도록 다양한 사례 제시+ 교사의 적극적 비계", "left": ""}, {"row": 21, "answer": "지식 발견하기", "hint": "지식 발견하기", "note": "자료 또는 사례 비교→공통점, 차이점 추출", "left": ""}, {"row": 22, "answer": "지식 적용하기", "hint": "지식 적용하기", "note": "", "left": ""}, {"row": 23, "answer": "반응 중심 학습 모형", "hint": "반응 중심 학습 모형", "note": "·수용이론\n·자기중심적 편협한 텍스트 이해, 해석의 무정부상태 위험 → 토의 토론 병행", "left": ""}, {"row": 24, "answer": "반응 준비하기", "hint": "반응 준비하기", "note": "", "left": ""}, {"row": 25, "answer": "반응 형성하기", "hint": "반응 형성하기", "note": "· 작품 읽기\n· 작품에 대한 개인 반응 정리", "left": ""}, {"row": 26, "answer": "반응 명료화하기", "hint": "반응 명료화하기", "note": "· 작품에 대한 개인 반응 공유 및 상호 작용\n· 자신의 반응 정교화 및 재정리", "left": ""}, {"row": 27, "answer": "반응 심화하기", "hint": "반응 심화하기", "note": "다른 작품과 관련 짓기(상호 텍스트성)", "left": ""}, {"row": 28, "answer": "역할 수행 학습 모형", "hint": "역할 수행 학습 모형", "note": "역할 수행 후 학습 목표 성취를 점검해야함\n역할놀이는 그자체가 목적이라기보다 대부분 목표에 달성하기 위한 수단", "left": ""}, {"row": 29, "answer": "상황 설정하기", "hint": "상황 설정하기", "note": "상황 분석 및 설정(제시된 상황을 분석)", "left": ""}, {"row": 30, "answer": "준비 및 연습하기", "hint": "준비 및 연습하기", "note": "역할 분석 및 설정(등장인물을 분석)", "left": ""}, {"row": 31, "answer": "실연하기", "hint": "실연하기", "note": "", "left": ""}, {"row": 32, "answer": "평가하기", "hint": "평가하기", "note": "", "left": ""}, {"row": 33, "answer": "가치 탐구 학습 모형", "hint": "가치 탐구 학습 모형", "note": "· 한 가지 가치 강요해서는 안됨\n· 다양한 가치 비판적 수용", "left": ""}, {"row": 34, "answer": "문제 분석하기", "hint": "문제 분석하기", "note": "", "left": ""}, {"row": 35, "answer": "가치 확인하기", "hint": "가치 확인하기", "note": "발견 또는 추출한 가치의 근거 확인", "left": ""}, {"row": 36, "answer": "가치 평가하기", "hint": "가치 평가하기", "note": "가치의 비교 및 평가", "left": ""}, {"row": 37, "answer": "가치 일반화하기", "hint": "가치 일반화하기", "note": "", "left": ""}, {"row": 38, "answer": "토의·토론 학습 모형", "hint": "토의·토론 학습 모형", "note": "", "left": ""}, {"row": 39, "answer": "주제 확인하기", "hint": "주제 확인하기", "note": "", "left": ""}, {"row": 40, "answer": "토의·토론 준비하기", "hint": "토의·토론 준비하기", "note": "", "left": ""}, {"row": 41, "answer": "토의·토론 하기", "hint": "토의·토론 하기", "note": "", "left": ""}, {"row": 42, "answer": "정리 및 평가하기", "hint": "정리 및 평가하기", "note": "", "left": ""}]}]}, {"name": "읽기 지도", "groups": [{"title": "읽기 전", "rows": [{"row": 4, "answer": "KW(H)L", "hint": "KW(H)L", "note": "", "left": ""}, {"row": 5, "answer": "연상하기", "hint": "연상하기", "note": "", "left": ""}, {"row": 6, "answer": "예측하기", "hint": "예측하기", "note": "", "left": ""}, {"row": 7, "answer": "읽는 목적 설정하기", "hint": "읽는 목적 설정하기", "note": "", "left": ""}, {"row": 8, "answer": "설문조사/질문표", "hint": "설문조사/질문표", "note": "", "left": ""}, {"row": 9, "answer": "미리보기", "hint": "미리보기", "note": "", "left": ""}, {"row": 10, "answer": "SQ3R", "hint": "SQ3R", "note": "", "left": ""}]}, {"title": "읽기 중", "rows": [{"row": 12, "answer": "메모하기", "hint": "메모하기", "note": "", "left": ""}, {"row": 13, "answer": "점검하기", "hint": "점검하기", "note": "", "left": ""}, {"row": 14, "answer": "구조 파악하기", "hint": "구조 파악하기", "note": "", "left": ""}, {"row": 15, "answer": "질문하기", "hint": "질문하기", "note": "", "left": ""}, {"row": 16, "answer": "추론하기", "hint": "추론하기", "note": "", "left": ""}, {"row": 17, "answer": "협의하기", "hint": "협의하기", "note": "", "left": ""}, {"row": 18, "answer": "중심 생각 찾기", "hint": "중심 생각 찾기", "note": "", "left": ""}]}, {"title": "읽기 후", "rows": [{"row": 20, "answer": "창의적으로 읽기", "hint": "창의적으로 읽기", "note": "", "left": ""}, {"row": 21, "answer": "비판적으로 읽기", "hint": "비판적으로 읽기", "note": "", "left": ""}, {"row": 22, "answer": "다른 장르로 바꾸기", "hint": "다른 장르로 바꾸기", "note": "", "left": ""}, {"row": 23, "answer": "의미 지도 그리기", "hint": "의미 지도 그리기", "note": "", "left": ""}, {"row": 24, "answer": "요약하기", "hint": "요약하기", "note": "", "left": ""}]}, {"title": "읽기 영역 평가", "rows": [{"row": 26, "answer": "선다형 검사", "hint": "선다형 검사", "note": "", "left": ""}, {"row": 27, "answer": "빈칸 메우기 검사", "hint": "빈칸 메우기 검사", "note": "", "left": ""}, {"row": 28, "answer": "중요도 평정", "hint": "중요도 평정", "note": "", "left": ""}, {"row": 29, "answer": "오독 분석법", "hint": "오독 분석법", "note": "", "left": ""}, {"row": 30, "answer": "자율적 수정", "hint": "자율적 수정", "note": "", "left": ""}, {"row": 31, "answer": "프로토콜 분석", "hint": "프로토콜 분석", "note": "", "left": ""}, {"row": 32, "answer": "자유 회상법", "hint": "자유 회상법", "note": "", "left": ""}, {"row": 33, "answer": "관찰법", "hint": "관찰법", "note": "", "left": ""}, {"row": 34, "answer": "포트폴리오법", "hint": "포트폴리오법", "note": "", "left": ""}]}]}, {"name": "쓰기 지도", "groups": [{"title": "쓰기를 보는 관점", "rows": [{"row": 4, "answer": "형식주의 작문 이론", "hint": "형식주의 작문 이론", "note": "", "left": ""}, {"row": 5, "answer": "결과중심 쓰기 지도", "hint": "결과중심 쓰기 지도", "note": "", "left": ""}, {"row": 6, "answer": "모범 글", "hint": "모범 글", "note": "", "left": ""}, {"row": 7, "answer": "모방·반복 연습", "hint": "모방·반복 연습", "note": "", "left": ""}, {"row": 8, "answer": "인지주의 작문 이론", "hint": "인지주의 작문 이론", "note": "", "left": ""}, {"row": 9, "answer": "과정 중심 쓰기 지도", "hint": "과정 중심 쓰기 지도", "note": "", "left": ""}, {"row": 10, "answer": "회귀성", "hint": "회귀성", "note": "", "left": ""}, {"row": 11, "answer": "능숙한 필자", "hint": "능숙한 필자", "note": "", "left": ""}, {"row": 12, "answer": "미숙한 필자", "hint": "미숙한 필자", "note": "", "left": ""}, {"row": 13, "answer": "사고 구술법", "hint": "사고 구술법", "note": "", "left": ""}, {"row": 14, "answer": "절차적 촉진법", "hint": "절차적 촉진법", "note": "", "left": ""}, {"row": 15, "answer": "사회구성주의 작문 이론", "hint": "사회구성주의 작문 이론", "note": "", "left": ""}, {"row": 16, "answer": "맥락중심 쓰기 지도", "hint": "맥락중심 쓰기 지도", "note": "", "left": ""}, {"row": 17, "answer": "담화공동체", "hint": "담화공동체", "note": "", "left": ""}, {"row": 18, "answer": "상호작용", "hint": "상호작용", "note": "", "left": ""}, {"row": 19, "answer": "사회적 행위", "hint": "사회적 행위", "note": "", "left": ""}, {"row": 20, "answer": "소집단 협동 작문 활동", "hint": "소집단 협동 작문 활동", "note": "", "left": ""}, {"row": 21, "answer": "협의", "hint": "협의", "note": "", "left": ""}, {"row": 22, "answer": "쓰기 워크숍", "hint": "쓰기 워크숍", "note": "", "left": ""}]}, {"title": "쓰기 지도 접근 방법", "rows": [{"row": 24, "answer": "과정 중심 쓰기 지도", "hint": "과정 중심 쓰기 지도", "note": "", "left": ""}, {"row": 25, "answer": "계획하기", "hint": "계획하기", "note": "", "left": ""}, {"row": 26, "answer": "독자 설정 및 분석하기", "hint": "독자 설정 및 분석하기", "note": "", "left": ""}, {"row": 27, "answer": "주제 분석 및 설정하기", "hint": "주제 분석 및 설정하기", "note": "", "left": ""}, {"row": 28, "answer": "목적 설정 및 분석하기", "hint": "목적 설정 및 분석하기", "note": "", "left": ""}, {"row": 29, "answer": "내용 생성하기", "hint": "내용 생성하기", "note": "", "left": ""}, {"row": 30, "answer": "브레인스토밍", "hint": "브레인스토밍", "note": "", "left": ""}, {"row": 31, "answer": "열거하기", "hint": "열거하기", "note": "", "left": ""}, {"row": 32, "answer": "생각그물 만들기", "hint": "생각그물 만들기", "note": "", "left": ""}, {"row": 33, "answer": "이야기 나누기", "hint": "이야기 나누기", "note": "", "left": ""}, {"row": 34, "answer": "관련자료 읽기", "hint": "관련자료 읽기", "note": "", "left": ""}, {"row": 35, "answer": "내용조직하기", "hint": "내용조직하기", "note": "", "left": ""}, {"row": 36, "answer": "다발짓기", "hint": "다발짓기", "note": "", "left": ""}, {"row": 37, "answer": "얼개짜기", "hint": "얼개짜기", "note": "", "left": ""}, {"row": 38, "answer": "표현하기", "hint": "표현하기", "note": "", "left": ""}, {"row": 39, "answer": "얼른 쓰기", "hint": "얼른 쓰기", "note": "", "left": ""}, {"row": 40, "answer": "말로 쓰기", "hint": "말로 쓰기", "note": "", "left": ""}, {"row": 41, "answer": "고쳐 쓰기", "hint": "고쳐 쓰기", "note": "", "left": ""}, {"row": 42, "answer": "훑어읽기", "hint": "훑어읽기", "note": "", "left": ""}, {"row": 43, "answer": "돌려읽기", "hint": "돌려읽기", "note": "", "left": ""}, {"row": 44, "answer": "비평 집단 운영하기", "hint": "비평 집단 운영하기", "note": "", "left": ""}, {"row": 45, "answer": "조정하기", "hint": "조정하기", "note": "", "left": ""}, {"row": 46, "answer": "자기 평가 전략", "hint": "자기 평가 전략", "note": "", "left": ""}, {"row": 47, "answer": "자기 기록 전략", "hint": "자기 기록 전략", "note": "", "left": ""}, {"row": 48, "answer": "자기 질문 전략", "hint": "자기 질문 전략", "note": "", "left": ""}, {"row": 49, "answer": "맥락 중심 쓰기 지도", "hint": "맥락 중심 쓰기 지도", "note": "", "left": ""}, {"row": 50, "answer": "담화 관습", "hint": "담화 관습", "note": "", "left": ""}, {"row": 51, "answer": "쓰기 워크숍", "hint": "쓰기 워크숍", "note": "", "left": ""}, {"row": 52, "answer": "미니 수업", "hint": "미니 수업", "note": "", "left": ""}, {"row": 53, "answer": "글쓰기", "hint": "글쓰기", "note": "", "left": ""}, {"row": 54, "answer": "협의", "hint": "협의", "note": "", "left": ""}, {"row": 55, "answer": "공유", "hint": "공유", "note": "", "left": ""}, {"row": 56, "answer": "장르 중심 쓰기 지도", "hint": "장르 중심 쓰기 지도", "note": "", "left": ""}, {"row": 57, "answer": "장르 지식", "hint": "장르 지식", "note": "", "left": ""}, {"row": 58, "answer": "책임 이양의 원리", "hint": "책임 이양의 원리", "note": "", "left": ""}, {"row": 59, "answer": "장르", "hint": "장르", "note": "", "left": ""}]}, {"title": "평가", "rows": [{"row": 61, "answer": "결과", "hint": "결과", "note": "", "left": ""}, {"row": 62, "answer": "분석적 평가법", "hint": "분석적 평가법", "note": "", "left": ""}, {"row": 63, "answer": "총체적 평가법", "hint": "총체적 평가법", "note": "", "left": ""}, {"row": 64, "answer": "주요 특질 평가", "hint": "주요 특질 평가", "note": "", "left": ""}, {"row": 65, "answer": "과정", "hint": "과정", "note": "", "left": ""}, {"row": 66, "answer": "오필 분석법", "hint": "오필 분석법", "note": "", "left": ""}, {"row": 67, "answer": "프로토콜 분석", "hint": "프로토콜 분석", "note": "", "left": ""}, {"row": 68, "answer": "관찰법", "hint": "관찰법", "note": "", "left": ""}, {"row": 69, "answer": "포트폴리오법", "hint": "포트폴리오법", "note": "", "left": ""}, {"row": 70, "answer": "자기평가", "hint": "자기평가", "note": "", "left": ""}, {"row": 71, "answer": "동료평가", "hint": "동료평가", "note": "", "left": ""}]}]}, {"name": "어휘 지도", "groups": [{"title": "구슬비", "rows": [{"row": 3, "answer": "도구적 관점", "hint": "도구적 관점", "note": "", "left": ""}, {"row": 4, "answer": "국어사전 찾기를 통한 지도", "hint": "국어사전 찾기를 통한 지도", "note": "", "left": ""}, {"row": 5, "answer": "문맥이나 상황등 맥락 활용 지도", "hint": "문맥이나 상황등 맥락 활용 지도", "note": "", "left": ""}, {"row": 6, "answer": "인지적 관점", "hint": "인지적 관점", "note": "", "left": ""}, {"row": 7, "answer": "의미 자질 분석법", "hint": "의미 자질 분석법", "note": "", "left": ""}, {"row": 8, "answer": "의미 구조도 그리기", "hint": "의미 구조도 그리기", "note": "", "left": ""}, {"row": 9, "answer": "의미 지도 그리기", "hint": "의미 지도 그리기", "note": "", "left": ""}, {"row": 10, "answer": "기타", "hint": "기타", "note": "", "left": ""}, {"row": 11, "answer": "말놀이", "hint": "말놀이", "note": "", "left": ""}, {"row": 12, "answer": "어휘망 그리기", "hint": "어휘망 그리기", "note": "", "left": ""}, {"row": 13, "answer": "단어 연상법", "hint": "단어 연상법", "note": "", "left": ""}, {"row": 14, "answer": "낱말 구조 분석을 통한 지도", "hint": "낱말 구조 분석을 통한 지도", "note": "", "left": ""}]}]}, {"name": "동화 유형", "groups": [{"title": "동화 유형 플롯", "rows": [{"row": 4, "answer": "동화 유형", "hint": "동화 유형", "note": "", "left": ""}, {"row": 5, "answer": "사실 동화", "hint": "사실 동화", "note": "", "left": ""}, {"row": 6, "answer": "환상 동화", "hint": "환상 동화", "note": "", "left": ""}, {"row": 7, "answer": "우의 동화", "hint": "우의 동화", "note": "", "left": ""}, {"row": 8, "answer": "몽환동화", "hint": "몽환동화", "note": "", "left": ""}, {"row": 9, "answer": "구성 형식", "hint": "구성 형식", "note": "", "left": ""}, {"row": 10, "answer": "단선", "hint": "단선적 형식", "note": "적형식", "left": ""}, {"row": 11, "answer": "누적", "hint": "누적적 형식", "note": "적형식", "left": ""}, {"row": 12, "answer": "연쇄", "hint": "연쇄적 형식", "note": "적형식", "left": ""}, {"row": 13, "answer": "순환", "hint": "순환적 형식", "note": "적형식", "left": ""}]}]}]};
+const STORE_KEY = "korean-review-v1";
+let state = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+let currentSheet = state.currentSheet || DATA.sheets[0].name;
+let showAnswers = false;
+let allFolded = false;
+
+function norm(s) {
+  return (s || "").trim().replace(/\s/g,"").replace(/[·,]/g,"").toLowerCase();
+}
+function key(sheet,row) { return sheet+"::"+row; }
+function save() { state.currentSheet=currentSheet; localStorage.setItem(STORE_KEY, JSON.stringify(state)); }
+
+function renderTabs() {
+  const tabs=document.getElementById("tabs"); tabs.innerHTML="";
+  DATA.sheets.forEach(s=>{
+    const b=document.createElement("button");
+    b.className="tab"+(s.name===currentSheet?" active":"");
+    b.textContent=s.name;
+    b.onclick=()=>{currentSheet=s.name; save(); render();};
+    tabs.appendChild(b);
+  });
+}
+
+function statusFor(value, answer) {
+  if (!value) return ["", "empty"];
+  return norm(value)===norm(answer) ? ["정답","ok"] : ["오답","bad"];
+}
+
+function render() {
+  renderTabs();
+  const root=document.getElementById("app"); root.innerHTML="";
+  root.classList.toggle("show-answers", showAnswers);
+  const sheet=DATA.sheets.find(s=>s.name===currentSheet);
+  const title=document.createElement("div"); title.className="sheet-title"; title.textContent=sheet.name; root.appendChild(title);
+
+  sheet.groups.forEach((g,gi)=>{
+    const box=document.createElement("section"); box.className="group"+(allFolded?" collapsed":"");
+    const head=document.createElement("button"); head.className="group-head";
+    head.innerHTML=`<span>${g.title}</span><span class="meta">${g.rows.length}개 · 접기/펴기</span>`;
+    head.onclick=()=>box.classList.toggle("collapsed");
+    box.appendChild(head);
+    const rows=document.createElement("div"); rows.className="rows";
+
+    g.rows.forEach(item=>{
+      const k=key(sheet.name,item.row);
+      const saved=(state.answers && state.answers[k]) || "";
+      const [st,cl]=statusFor(saved,item.answer);
+      const row=document.createElement("div"); row.className="row";
+      const aw=document.createElement("div"); aw.className="answer-wrap";
+      const inp=document.createElement("input"); inp.className="answer "+(cl==="ok"?"correct":cl==="bad"?"wrong":"");
+      inp.value=saved; inp.placeholder="답 입력"; inp.autocomplete="off"; inp.spellcheck=false;
+      const rv=document.createElement("div"); rv.className="revealed"; rv.textContent="정답: "+item.answer;
+      const one=document.createElement("button"); one.className="small-btn"; one.textContent="이 답 채우기";
+      one.onclick=()=>{ inp.value=item.answer; inp.dispatchEvent(new Event("input")); };
+      aw.append(inp,rv,one);
+
+      const hint=document.createElement("div"); hint.className="hint";
+      let hintText=item.hint || " ";
+      hint.textContent=hintText;
+      if(item.note) {
+        const note=document.createElement("div"); note.className="note"; note.textContent=item.note;
+        hint.appendChild(note);
+      }
+      const status=document.createElement("div"); status.className="status "+cl; status.textContent=st || "—";
+
+      inp.oninput=()=>{
+        state.answers ||= {};
+        state.answers[k]=inp.value; save();
+        const [nst,ncl]=statusFor(inp.value,item.answer);
+        inp.classList.toggle("correct",ncl==="ok"); inp.classList.toggle("wrong",ncl==="bad");
+        status.className="status "+ncl; status.textContent=nst || "—";
+      };
+      row.append(aw,hint,status); rows.appendChild(row);
+    });
+    box.appendChild(rows); root.appendChild(box);
+  });
+  const fn=document.createElement("div"); fn.className="footer-note";
+  fn.textContent="원본 Excel 채점 방식과 같이 공백·가운뎃점(·)·쉼표는 무시하여 비교합니다. 입력 내용은 이 기기의 브라우저에 자동 저장됩니다.";
+  root.appendChild(fn);
+}
+
+document.getElementById("clearBtn").onclick=()=>{
+  if(!confirm("현재 시트의 입력 답을 모두 지울까요?")) return;
+  state.answers ||= {};
+  const sheet=DATA.sheets.find(s=>s.name===currentSheet);
+  sheet.groups.flatMap(g=>g.rows).forEach(item=>delete state.answers[key(sheet.name,item.row)]);
+  save(); render();
+};
+document.getElementById("fillBtn").onclick=()=>{
+  state.answers ||= {};
+  const sheet=DATA.sheets.find(s=>s.name===currentSheet);
+  sheet.groups.flatMap(g=>g.rows).forEach(item=>state.answers[key(sheet.name,item.row)]=item.answer);
+  save(); render();
+};
+document.getElementById("toggleAnswerBtn").onclick=(e)=>{
+  showAnswers=!showAnswers; e.target.textContent=showAnswers?"정답 숨기기":"정답 보기"; render();
+};
+document.getElementById("foldBtn").onclick=(e)=>{
+  allFolded=!allFolded; e.target.textContent=allFolded?"전체 펴기":"전체 접기"; render();
+};
+render();
+</script>
+</body>
+</html>
