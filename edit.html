@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Study</title>
+<style>
+:root{
+  --bg:#f6f6f7;
+  --card:#fff;
+  --line:#e5e5e8;
+  --text:#171719;
+  --sub:#8e8e93;
+  --ok:#22865a;
+  --bad:#c94b45;
+  --accent:#6d5dfc;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;
+}
+button,input,textarea{font:inherit}
+header{
+  position:sticky;top:0;z-index:20;
+  background:rgba(246,246,247,.96);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--line);
+  padding:10px 12px 8px;
+}
+.row{
+  display:flex;
+  gap:6px;
+  overflow:auto;
+  scrollbar-width:none;
+}
+.row + .row{margin-top:7px}
+.chip{
+  border:0;
+  background:#fff;
+  color:#555;
+  padding:8px 11px;
+  border-radius:999px;
+  white-space:nowrap;
+}
+.chip.active{
+  background:#171719;
+  color:#fff;
+}
+.icon{
+  border:0;
+  background:#fff;
+  width:34px;
+  height:34px;
+  border-radius:10px;
+  flex:0 0 auto;
+}
+main{
+  max-width:820px;
+  margin:0 auto;
+  padding:12px 10px 60px;
+}
+.switch{
+  display:flex;
+  gap:6px;
+  margin-bottom:10px;
+}
+.switch button{
+  border:0;
+  background:transparent;
+  color:var(--sub);
+  padding:6px 8px;
+  border-radius:8px;
+}
+.switch button.active{
+  color:var(--text);
+  background:#fff;
+}
+.sheet-title{
+  font-size:22px;
+  font-weight:800;
+  margin:4px 2px 12px;
+}
+.list{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.card{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:14px;
+  padding:10px;
+}
+.card.flagged{
+  box-shadow:inset 3px 0 0 #d6b000;
+}
+.meta{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:8px;
+  min-height:20px;
+  margin-bottom:5px;
+}
+.category{
+  font-size:11px;
+  color:var(--sub);
+}
+.right{
+  display:flex;
+  align-items:center;
+  gap:4px;
+}
+.rate{
+  font-size:11px;
+  color:var(--sub);
+}
+.star{
+  border:0;
+  background:transparent;
+  width:28px;
+  height:28px;
+  padding:0;
+  font-size:18px;
+  color:#bbb;
+}
+.star.on{color:#d2a900}
+.answerline{
+  display:grid;
+  grid-template-columns:1fr 58px;
+  gap:8px;
+}
+.answer{
+  width:100%;
+  border:1px solid var(--line);
+  border-radius:11px;
+  padding:12px;
+  font-size:17px;
+  background:#fff;
+  outline:none;
+}
+.answer:focus{border-color:#cfcaff}
+.answer.correct{border-color:#b7dec9;background:#f7fcf9}
+.answer.wrong{border-color:#efc3c0;background:#fff8f7}
+.result{
+  text-align:center;
+  font-weight:800;
+  font-size:13px;
+  padding-top:13px;
+}
+.result.ok{color:var(--ok)}
+.result.bad{color:var(--bad)}
+.result.empty{color:#c3c3c7}
+.memo-btn{
+  border:0;
+  background:transparent;
+  color:#8d83dc;
+  font-size:11px;
+  padding:6px 0 0;
+}
+.memo{
+  display:none;
+  margin-top:6px;
+  font-size:12px;
+  line-height:1.45;
+  color:#555;
+  background:#f7f7f9;
+  border-radius:9px;
+  padding:8px;
+}
+.memo.show{display:block}
+.edit-wrap{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:14px;
+  overflow:hidden;
+}
+.edit-head{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:10px;
+  border-bottom:1px solid var(--line);
+}
+.edit-head input{
+  flex:1;
+  border:0;
+  outline:none;
+  font-weight:800;
+  font-size:19px;
+}
+.table-wrap{overflow:auto}
+table{
+  width:100%;
+  min-width:650px;
+  border-collapse:collapse;
+}
+th,td{
+  border-bottom:1px solid var(--line);
+  padding:6px;
+  vertical-align:middle;
+}
+th{
+  text-align:left;
+  font-size:11px;
+  color:var(--sub);
+  font-weight:600;
+  background:#fafafa;
+}
+td:first-child,th:first-child,
+td:last-child,th:last-child{
+  width:42px;
+  text-align:center;
+}
+.edit-input,.edit-memo{
+  width:100%;
+  border:0;
+  background:#f8f8fa;
+  border-radius:9px;
+  padding:9px;
+  outline:none;
+}
+.edit-memo{
+  min-height:40px;
+  resize:vertical;
+}
+.delete{
+  border:0;
+  background:transparent;
+  font-size:20px;
+  color:#aaa;
+}
+.add{
+  width:100%;
+  border:0;
+  background:#fafafa;
+  color:var(--accent);
+  padding:11px;
+  font-weight:700;
+}
+.hidden{display:none!important}
+.empty{
+  color:var(--sub);
+  font-size:13px;
+  padding:16px 4px;
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="row" id="subjects"></div>
+  <div class="row" id="sheets"></div>
+</header>
+
+<main>
+  <div class="switch">
+    <button id="studyBtn" class="active">복습</button>
+    <button id="editBtn">편집</button>
+    <button id="flagBtn">★만</button>
+  </div>
+
+  <section id="studyView">
+    <div class="sheet-title" id="studyTitle"></div>
+    <div class="list" id="studyList"></div>
+  </section>
+
+  <section id="editView" class="hidden">
+    <div class="edit-wrap">
+      <div class="edit-head">
+        <input id="sheetName">
+        <button class="icon" id="addSheet">＋</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th></th>
+              <th>카테고리</th>
+              <th>정답</th>
+              <th>메모</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="editRows"></tbody>
+        </table>
+      </div>
+      <button class="add" id="addRow">＋ 추가</button>
+    </div>
+  </section>
+</main>
+
+<script>
+const KEY="study-min-v1";
+function row(){return {category:"",correct:"",memo:"",user:"",attempts:0,wrong:0,flagged:false,last:""}}
+function sheet(name){return {name,rows:Array.from({length:8},row)}}
+function subject(name){return {name,current:"기본",sheets:[sheet("기본")]}}
+function init(){return {subject:"국어",mode:"study",subjects:[subject("국어")]}}
+let state;
+try{state=JSON.parse(localStorage.getItem(KEY))||init()}catch(e){state=init()}
+let flaggedOnly=false;
+
+function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function sub(){return state.subjects.find(x=>x.name===state.subject)||state.subjects[0]}
+function sh(){return sub().sheets.find(x=>x.name===sub().current)||sub().sheets[0]}
+function norm(s){return (s||"").trim().replace(/\s/g,"").replace(/[·,]/g,"").toLowerCase()}
+function grade(u,c){
+  if(!u)return["","empty"];
+  if(!c)return["","empty"];
+  return norm(u)===norm(c)?["정답","ok"]:["오답","bad"];
+}
+
+function renderSubjects(){
+  const el=document.getElementById("subjects");el.innerHTML="";
+  state.subjects.forEach(s=>{
+    const b=document.createElement("button");
+    b.className="chip"+(s.name===state.subject?" active":"");
+    b.textContent=s.name;
+    b.onclick=()=>{state.subject=s.name;save();render()};
+    el.appendChild(b);
+  });
+  const plus=document.createElement("button");
+  plus.className="icon";plus.textContent="＋";
+  plus.onclick=()=>{
+    const n=prompt("과목");
+    if(!n)return;
+    if(state.subjects.some(s=>s.name===n))return;
+    state.subjects.push(subject(n));state.subject=n;save();render();
+  };
+  el.appendChild(plus);
+}
+function renderSheets(){
+  const el=document.getElementById("sheets");el.innerHTML="";
+  sub().sheets.forEach(s=>{
+    const b=document.createElement("button");
+    b.className="chip"+(s.name===sub().current?" active":"");
+    b.textContent=s.name;
+    b.onclick=()=>{sub().current=s.name;save();render()};
+    el.appendChild(b);
+  });
+}
+
+function renderStudy(){
+  document.getElementById("studyTitle").textContent=sh().name;
+  const list=document.getElementById("studyList");list.innerHTML="";
+  let rows=sh().rows.filter(r=>r.correct||r.category||r.memo);
+  if(flaggedOnly)rows=rows.filter(r=>r.flagged);
+  if(!rows.length){
+    const e=document.createElement("div");e.className="empty";e.textContent="";list.appendChild(e);return;
+  }
+  rows.forEach(r=>{
+    const card=document.createElement("div");card.className="card"+(r.flagged?" flagged":"");
+
+    const meta=document.createElement("div");meta.className="meta";
+    const cat=document.createElement("div");cat.className="category";cat.textContent=r.category||"";
+    const right=document.createElement("div");right.className="right";
+    const rate=document.createElement("div");rate.className="rate";
+    const pct=r.attempts?Math.round((r.wrong/r.attempts)*100):0;
+    rate.textContent=r.attempts?`${pct}%`:"";
+    const star=document.createElement("button");star.className="star"+(r.flagged?" on":"");star.textContent=r.flagged?"★":"☆";
+    star.onclick=()=>{r.flagged=!r.flagged;save();renderStudy()};
+    right.append(rate,star);meta.append(cat,right);
+
+    const line=document.createElement("div");line.className="answerline";
+    const input=document.createElement("input");input.className="answer";input.value=r.user||"";input.placeholder="";
+    const result=document.createElement("div");result.className="result empty";result.textContent="";
+
+    function refresh(){
+      const [t,c]=grade(r.user,r.correct);
+      result.className="result "+c;result.textContent=t;
+      input.classList.toggle("correct",c==="ok");
+      input.classList.toggle("wrong",c==="bad");
+    }
+    if(r.last===r.user&&r.user)refresh();
+
+    input.oninput=e=>{
+      r.user=e.target.value;r.last="";save();
+      result.className="result empty";result.textContent="";
+      input.classList.remove("correct","wrong");
+    };
+    input.onchange=()=>{
+      if(!r.user)return;
+      const ok=norm(r.user)===norm(r.correct);
+      r.attempts=(r.attempts||0)+1;
+      if(!ok)r.wrong=(r.wrong||0)+1;
+      r.last=r.user;save();refresh();renderStudy();
+    };
+
+    line.append(input,result);
+    card.append(meta,line);
+
+    if(r.memo){
+      const mb=document.createElement("button");mb.className="memo-btn";mb.textContent="메모";
+      const memo=document.createElement("div");memo.className="memo";memo.textContent=r.memo;
+      mb.onclick=()=>{memo.classList.toggle("show");mb.textContent=memo.classList.contains("show")?"닫기":"메모"};
+      card.append(mb,memo);
+    }
+    list.appendChild(card);
+  });
+}
+
+function renderEdit(){
+  document.getElementById("sheetName").value=sh().name;
+  const tbody=document.getElementById("editRows");tbody.innerHTML="";
+  sh().rows.forEach((r,i)=>{
+    const tr=document.createElement("tr");
+
+    const starTd=document.createElement("td");
+    const star=document.createElement("button");star.className="star"+(r.flagged?" on":"");star.textContent=r.flagged?"★":"☆";
+    star.onclick=()=>{r.flagged=!r.flagged;save();renderEdit()};
+    starTd.appendChild(star);
+
+    const catTd=document.createElement("td");
+    const cat=document.createElement("input");cat.className="edit-input";cat.value=r.category||"";
+    cat.oninput=e=>{r.category=e.target.value;save()};
+    catTd.appendChild(cat);
+
+    const corTd=document.createElement("td");
+    const cor=document.createElement("input");cor.className="edit-input";cor.value=r.correct||"";
+    cor.oninput=e=>{r.correct=e.target.value;save()};
+    corTd.appendChild(cor);
+
+    const memoTd=document.createElement("td");
+    const memo=document.createElement("textarea");memo.className="edit-memo";memo.value=r.memo||"";
+    memo.oninput=e=>{r.memo=e.target.value;save()};
+    memoTd.appendChild(memo);
+
+    const delTd=document.createElement("td");
+    const del=document.createElement("button");del.className="delete";del.textContent="×";
+    del.onclick=()=>{sh().rows.splice(i,1);save();renderEdit()};
+    delTd.appendChild(del);
+
+    tr.append(starTd,catTd,corTd,memoTd,delTd);
+    tbody.appendChild(tr);
+  });
+}
+
+function renderMode(){
+  const study=state.mode!=="edit";
+  document.getElementById("studyView").classList.toggle("hidden",!study);
+  document.getElementById("editView").classList.toggle("hidden",study);
+  document.getElementById("studyBtn").classList.toggle("active",study);
+  document.getElementById("editBtn").classList.toggle("active",!study);
+}
+function render(){
+  renderSubjects();renderSheets();renderStudy();renderEdit();renderMode();
+}
+document.getElementById("studyBtn").onclick=()=>{state.mode="study";save();renderMode()};
+document.getElementById("editBtn").onclick=()=>{state.mode="edit";save();renderMode()};
+document.getElementById("flagBtn").onclick=e=>{
+  flaggedOnly=!flaggedOnly;
+  e.target.classList.toggle("active",flaggedOnly);
+  renderStudy();
+};
+document.getElementById("addRow").onclick=()=>{sh().rows.push(row());save();renderEdit()};
+document.getElementById("addSheet").onclick=()=>{
+  const n=prompt("시트");
+  if(!n)return;
+  if(sub().sheets.some(s=>s.name===n))return;
+  sub().sheets.push(sheet(n));sub().current=n;save();render();
+};
+document.getElementById("sheetName").onchange=e=>{
+  const n=e.target.value.trim();if(!n)return;
+  sh().name=n;sub().current=n;save();render();
+};
+render();
+</script>
+</body>
+</html>
