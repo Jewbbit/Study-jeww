@@ -59,6 +59,7 @@ header{
   flex:0 0 auto;
 }
 .sheet-delete{color:#aaa;font-size:20px}
+.subject-delete{color:#aaa;font-size:20px}
 .sheet-delete:active{color:#c94b45}
 main{
   max-width:820px;
@@ -331,7 +332,7 @@ td:last-child,th:last-child{
   <section id="editView" class="hidden">
     <div class="edit-wrap">
       <div class="edit-head">
-        <input id="sheetName">
+        <input id="sheetName" title="시트 이름 변경">
         <button class="icon" id="excelImport" title="엑셀 가져오기">↥</button>
         <button class="icon" id="addSheet" title="시트 추가">＋</button>
         <button class="icon sheet-delete" id="deleteSheet" title="시트 삭제">×</button>
@@ -397,14 +398,81 @@ function renderSubjects(){
     el.appendChild(b);
   });
   const plus=document.createElement("button");
-  plus.className="icon";plus.textContent="＋";
+  plus.className="icon";plus.textContent="＋";plus.title="과목 추가";
   plus.onclick=()=>{
-    const n=prompt("과목");
+    const n=prompt("과목 이름");
     if(!n)return;
-    if(state.subjects.some(s=>s.name===n))return;
-    state.subjects.push(subject(n));state.subject=n;save();render();
+    const name=n.trim();
+    if(!name)return;
+    if(state.subjects.some(s=>s.name===name)){
+      alert("같은 이름의 과목이 있습니다.");
+      return;
+    }
+    state.subjects.push(subject(name));
+    state.subject=name;
+    save();
+    render();
   };
-  el.appendChild(plus);
+
+  const manageWrap=document.createElement("div");
+  manageWrap.style.position="relative";
+  manageWrap.style.flex="0 0 auto";
+
+  const manage=document.createElement("button");
+  manage.className="icon";
+  manage.textContent="•••";
+  manage.title="과목 메뉴";
+
+  const menu=document.createElement("div");
+  menu.className="menu hidden";
+
+  const rename=document.createElement("button");
+  rename.textContent="이름 변경";
+  rename.onclick=e=>{
+    e.stopPropagation();
+    const current=sub();
+    const n=prompt("과목 이름",current.name);
+    if(!n)return;
+    const name=n.trim();
+    if(!name || name===current.name)return;
+    if(state.subjects.some(s=>s!==current && s.name===name)){
+      alert("같은 이름의 과목이 있습니다.");
+      return;
+    }
+    current.name=name;
+    state.subject=name;
+    save();
+    render();
+  };
+
+  const del=document.createElement("button");
+  del.className="danger";
+  del.textContent="삭제";
+  del.onclick=e=>{
+    e.stopPropagation();
+    if(state.subjects.length<=1){
+      alert("과목은 하나 이상 있어야 합니다.");
+      return;
+    }
+    const current=sub();
+    if(!confirm(`'${current.name}' 과목을 전부 삭제할까요?`))return;
+    const index=state.subjects.indexOf(current);
+    state.subjects.splice(index,1);
+    const next=state.subjects[Math.min(index,state.subjects.length-1)];
+    state.subject=next.name;
+    save();
+    render();
+  };
+
+  menu.append(rename,del);
+  manage.onclick=e=>{
+    e.stopPropagation();
+    document.querySelectorAll(".menu").forEach(m=>{if(m!==menu)m.classList.add("hidden")});
+    menu.classList.toggle("hidden");
+  };
+  manageWrap.append(manage,menu);
+
+  el.append(plus,manageWrap);
 }
 function renderSheets(){
   const el=document.getElementById("sheets");el.innerHTML="";
@@ -525,6 +593,34 @@ function moveRow(index,delta){
   save();
   renderEdit();
 }
+function insertAt(index,type){
+  const item=type==="section" ? sectionRow() : row();
+  sh().rows.splice(index,0,item);
+  ensureTrailingBlank();
+  save();
+  renderEdit();
+  requestAnimationFrame(()=>{
+    if(type==="section"){
+      const sectionInputs=[...document.querySelectorAll(".section-edit input")];
+      const target=sectionInputs.find(el=>Number(el.dataset.rowIndex)===index);
+      if(target)target.focus();
+    }else{
+      const target=[...document.querySelectorAll(".edit-correct")]
+        .find(el=>Number(el.dataset.rowIndex)===index);
+      if(target)target.focus();
+    }
+  });
+}
+function moveRow(index,delta){
+  const rows=sh().rows;
+  const target=index+delta;
+  if(target<0 || target>=rows.length)return;
+  const item=rows.splice(index,1)[0];
+  rows.splice(target,0,item);
+  ensureTrailingBlank();
+  save();
+  renderEdit();
+}
 function makeActionMenu(index){
   const td=document.createElement("td");
   td.className="action-cell";
@@ -537,13 +633,34 @@ function makeActionMenu(index){
   const menu=document.createElement("div");
   menu.className="menu hidden";
 
+  const addAbove=document.createElement("button");
+  addAbove.textContent="위에 항목 추가";
+  addAbove.onclick=e=>{e.stopPropagation();insertAt(index,"item")};
+
+  const addBelow=document.createElement("button");
+  addBelow.textContent="아래에 항목 추가";
+  addBelow.onclick=e=>{e.stopPropagation();insertAt(index+1,"item")};
+
+  const sectionAbove=document.createElement("button");
+  sectionAbove.textContent="위에 소제목";
+  sectionAbove.onclick=e=>{e.stopPropagation();insertAt(index,"section")};
+
+  const sectionBelow=document.createElement("button");
+  sectionBelow.textContent="아래에 소제목";
+  sectionBelow.onclick=e=>{e.stopPropagation();insertAt(index+1,"section")};
+
+  const divider=document.createElement("div");
+  divider.style.height="1px";
+  divider.style.background="var(--line)";
+  divider.style.margin="4px";
+
   const up=document.createElement("button");
-  up.textContent="위로";
+  up.textContent="위로 이동";
   up.disabled=index===0;
   up.onclick=e=>{e.stopPropagation();moveRow(index,-1)};
 
   const down=document.createElement("button");
-  down.textContent="아래로";
+  down.textContent="아래로 이동";
   down.disabled=index>=sh().rows.length-1;
   down.onclick=e=>{e.stopPropagation();moveRow(index,1)};
 
@@ -558,7 +675,7 @@ function makeActionMenu(index){
     renderEdit();
   };
 
-  menu.append(up,down,del);
+  menu.append(addAbove,addBelow,sectionAbove,sectionBelow,divider,up,down,del);
   more.onclick=e=>{
     e.stopPropagation();
     document.querySelectorAll(".menu").forEach(m=>{if(m!==menu)m.classList.add("hidden")});
@@ -588,6 +705,7 @@ function renderEdit(){
 
       const input=document.createElement("input");
       input.value=r.title||"";
+      input.dataset.rowIndex=String(i);
       input.placeholder="소제목";
       input.oninput=e=>{r.title=e.target.value;save()};
       input.onkeydown=e=>{
