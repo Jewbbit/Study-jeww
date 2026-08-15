@@ -1657,6 +1657,140 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   touch-action:manipulation!important;
 }
 
+
+/* ===== 문제풀이: 빠른 풀기 + 시트별 학습 경로 ===== */
+.quiz-home-tabs{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:2px 0 9px;padding:3px;background:#eeeeef;border-radius:9px}
+.quiz-home-tabs button{min-height:36px;border:0;background:transparent;border-radius:7px;color:#696a70;font-size:12px;font-weight:650}
+.quiz-home-tabs button.active{background:#fff;color:#202024;font-weight:750;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.quiz-setup-summary strong em{font-style:normal;font-size:11px;font-weight:650;color:#8a8b91;margin-left:4px}
+.subject-pills .mini-pill{display:inline-flex!important;align-items:center;gap:5px}
+.subject-pills .mini-pill small{font-size:9.5px;color:#92939a;font-weight:650}
+.subject-pills .mini-pill.active small{color:inherit;opacity:.7}
+.quick-core-options{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:8px 0}
+.quick-core-options select,.path-settings select{width:100%;min-height:38px;border:1px solid #dddde1;border-radius:7px;background:#fff;padding:6px 8px;font:inherit}
+.quiz-advanced{border-top:1px solid #ededee;border-bottom:1px solid #ededee;padding:5px 0;margin:5px 0}
+.quiz-advanced>summary{cursor:pointer;color:#77787e;font-size:11px;padding:6px 2px;list-style:none}
+.quiz-advanced>summary::-webkit-details-marker{display:none}
+.quiz-advanced[open]>summary{color:#34353a;font-weight:650}
+.quick-selection-count{font-size:11px;color:#65666c;padding:6px 2px}
+.path-intro{padding:12px 3px 14px;border-bottom:1px solid #ececef;margin-bottom:10px}
+.path-intro strong{display:block;font-size:16px;margin-bottom:4px}
+.path-intro span{display:block;font-size:11.5px;line-height:1.5;color:#787980}
+.path-sheet-group{margin:0 0 16px}
+.path-sheet-group-title{font-size:11px;font-weight:750;color:#77787d;margin:0 2px 5px}
+.path-sheet-list{display:grid;gap:5px}
+.path-sheet-card{position:relative;width:100%;text-align:left;border:1px solid #e2e2e5;background:#fff;border-radius:8px;padding:10px 38px 10px 11px;min-height:58px}
+.path-sheet-card:active{background:#f5f5f6}
+.path-sheet-name{display:block;font-size:13px;font-weight:720;color:#242428;margin-bottom:4px}
+.path-sheet-meta{display:block;font-size:10.5px;color:#85868c}
+.path-sheet-arrow{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:22px;color:#aaaab0}
+.path-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;margin:2px 0 10px}
+.path-back,.path-settings-btn{border:0;background:transparent;min-height:36px;padding:6px 8px;color:#686970;font-size:11px}
+.path-title{min-width:0;text-align:center}
+.path-title strong{display:block;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.path-title span{display:block;font-size:10.5px;color:#85868c;margin-top:2px}
+.path-settings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;padding:10px;margin-bottom:9px;border:1px solid #e5e5e8;border-radius:8px;background:#fafafa}
+.path-settings label span{display:block;font-size:9.5px;color:#85868c;margin:0 0 3px 2px}
+.path-settings-help{grid-column:1/-1;font-size:10px;color:#8a8b91;padding:2px}
+.path-progress-summary{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 2px 8px;padding-bottom:8px;border-bottom:1px solid #ececef;font-size:10.5px;color:#77787e}
+.path-progress-summary b{font-size:13px;color:#2d2e32}
+.adventure-path{position:relative;max-width:620px;margin:0 auto;padding:12px 14px 28px}
+.adventure-path::before{content:"";position:absolute;left:50%;top:20px;bottom:30px;width:2px;background:#e7e7ea;transform:translateX(-50%)}
+.path-node-row{position:relative;display:flex;align-items:center;gap:10px;min-height:86px;width:68%;z-index:1}
+.path-node-row.left{margin-right:auto;flex-direction:row-reverse;text-align:right}
+.path-node-row.right{margin-left:auto;text-align:left}
+.path-node-row.review{margin:1px auto;width:max-content;max-width:80%;text-align:left}
+.path-node{flex:0 0 58px;width:58px;height:58px;border:2px solid #d8d8dc;border-radius:50%;background:#fff;color:#74757b;font-size:17px;font-weight:800;box-shadow:0 3px 0 #dedee2}
+.path-node.current{border-color:#85868e;color:#292a2e;box-shadow:0 3px 0 #c4c5ca}
+.path-node.in-progress{border-color:#8a78b7;background:#f6f2ff;color:#66508f;box-shadow:0 3px 0 #d7cbea}
+.path-node.completed{border-color:#6d9d7e;background:#f0f8f3;color:#34704c;box-shadow:0 3px 0 #c7ddcf}
+.path-node.review-node{border-radius:18px;border-color:#b69b72;background:#fff9ef;color:#825f2d;box-shadow:0 3px 0 #ead9bd}
+.path-node:active{transform:translateY(2px);box-shadow:0 1px 0 #d6d6da}
+.path-node-text{min-width:105px;max-width:220px}
+.path-node-text strong{display:block;font-size:12px;color:#35363a}
+.path-node-text span{display:block;margin-top:3px;font-size:10px;line-height:1.35;color:#85868c}
+.quiz-progress-track{width:100%;height:5px;background:#ececef;border-radius:3px;overflow:hidden;margin:0 0 12px}
+.quiz-progress-track span{display:block;height:100%;background:#777981;border-radius:3px;transition:width .18s ease}
+.question-card .adventure-continue{margin-left:auto}
+@media(max-width:820px){
+  .path-settings{grid-template-columns:1fr}
+  .path-settings-help{grid-column:auto}
+  .adventure-path{padding-left:4px;padding-right:4px}
+  .path-node-row{width:78%}
+}
+@media(max-width:520px){
+  .path-node-row{width:88%;min-height:78px}
+  .path-node{flex-basis:52px;width:52px;height:52px}
+  .path-node-text{max-width:165px}
+}
+@media(monochrome){
+  .path-node.completed,.path-node.in-progress,.path-node.review-node{background:#fff!important;color:#111!important;border-color:#111!important}
+  .quiz-progress-track span{background:#111!important}
+}
+
+.advanced-recent{padding:7px 0 2px;margin-top:2px;border-top:1px solid #eeeeef}
+.advanced-recent button{font-size:10px!important}
+
+/* ===== 노래 지도 / 멜로디 메모 ===== */
+#songMapView{padding:4px 6px 24px}
+.song-map-head{display:flex;align-items:flex-end;justify-content:space-between;padding:8px 2px 10px;border-bottom:1px solid #e8e8eb;margin-bottom:12px}
+.song-map-head strong{display:block;font-size:16px}
+.song-map-head span{display:block;margin-top:3px;font-size:10.5px;color:#7d7e84}
+.song-map-group{margin-bottom:18px}
+.song-map-group-title{font-size:12px;font-weight:800;margin:0 2px 6px;color:#4d4e53}
+.song-map-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:6px}
+.song-card{position:relative;border:1px solid #e1e1e5;background:#fff;border-radius:7px;min-width:0}
+.song-card-main{display:block;width:100%;min-height:58px;border:0;background:transparent;text-align:left;padding:9px 36px 9px 10px}
+.song-card-main:active{background:#f5f5f6}
+.song-card-main strong{display:block;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.song-card-main span{display:block;margin-top:4px;font-size:10px;color:#88898f}
+.song-card-more{position:absolute;right:3px;top:50%;transform:translateY(-50%);width:32px;height:36px;border:0;background:transparent;color:#85868b}
+.song-card>.menu{right:4px;top:36px}
+.song-map-empty{padding:34px 10px;text-align:center;color:#77787d}
+.song-map-empty strong{display:block;font-size:14px;color:#44454a;margin-bottom:5px}
+.song-map-empty span{display:block;font-size:11px;line-height:1.5}
+.song-link-location{font-size:10.5px;color:#77787e;margin:-2px 0 10px}
+.song-new-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
+.song-new-row input{min-width:0;border:1px solid #dcdce0;border-radius:7px;padding:9px;font-size:16px}
+.song-new-row button{min-height:38px}
+.song-existing-title{font-size:10px;color:#88898f;margin:13px 0 5px}
+.song-existing-list{max-height:42vh;overflow:auto;border-top:1px solid #eeeeef}
+.song-existing-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px;align-items:center;border-bottom:1px solid #eeeeef}
+.song-existing-name{border:0;background:transparent;text-align:left;padding:8px 4px;min-width:0}
+.song-existing-name strong{display:block;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.song-existing-name span{display:block;margin-top:2px;font-size:9.5px;color:#919299}
+.song-link-toggle{border:1px solid #dddde1;background:#fff;border-radius:6px;padding:6px 8px;font-size:10px;white-space:nowrap}
+.song-link-toggle.linked{background:#f0f6f2;border-color:#bfd4c6;color:#39704b}
+.song-empty-small{padding:14px 4px;font-size:11px;color:#8b8c92}
+.song-dest-choices{display:grid;gap:4px;max-height:55vh;overflow:auto}
+.study-song-hint{
+  border:0!important;background:transparent!important;color:#7a6b92!important;
+  font-size:9.5px!important;line-height:1.25!important;padding:1px 3px!important;
+  text-align:left!important;max-width:52%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+.study-row>.study-song-hint{display:block;margin:0 0 2px 34px!important}
+.section-study-head>.study-song-hint{margin-left:auto!important;flex:0 1 auto}
+.song-jump-flash{animation:songJumpFlash 1.3s ease-out}
+@keyframes songJumpFlash{0%,30%{background:#fff5cf!important;box-shadow:inset 3px 0 #c59a2d}100%{background:inherit;box-shadow:none}}
+@media(max-width:820px){
+  .song-map-grid{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+}
+@media(max-width:520px){
+  #songMapView{padding-left:2px;padding-right:2px}
+  .song-map-grid{grid-template-columns:1fr}
+  .song-card-main{min-height:52px}
+  .study-row>.study-song-hint{max-width:78%}
+}
+@media(monochrome){
+  .study-song-hint{color:#111!important}
+  .song-link-toggle.linked{background:#fff!important;color:#111!important;border-color:#111!important}
+}
+
+#songMapView.hidden{display:none!important}
+
+.sheet-song-strip{display:flex;align-items:center;gap:5px;margin:0 2px 5px;padding:5px 7px;border-bottom:1px solid #ececef;color:#77688c;font-size:10px}
+.sheet-song-strip button{min-width:0;border:0;background:transparent;color:inherit;font:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;padding:2px}
+
 </style>
 </head>
 <body>
@@ -1688,6 +1822,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
     <div class="memory-tabs">
       <button id="studyBtn" class="active">복습</button>
       <button id="editBtn">편집</button>
+      <button id="songMapBtn">노래 지도</button>
     </div>
     <div class="memory-tools">
       <button class="study-all-answer" id="toggleAllAnswers">답 전체</button>
@@ -1695,6 +1830,8 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
       <div class="study-menu-wrap">
         <button class="icon" id="studyMenuBtn" aria-label="암기판 메뉴" aria-expanded="false">•••</button>
         <div class="menu hidden" id="studyMenu">
+          <button id="linkSheetSong">♪ 현재 시트 노래 연결</button>
+          <div class="menu-sep"></div>
           <button id="clearSheetReview">현재 입력 전체 지우기</button>
           <button id="clearSheetStars">★ 표시 전체 해제</button>
           <button id="clearSheetStarCounts">★ 횟수 초기화</button>
@@ -1730,6 +1867,16 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
       </div>
       <div class="adds"><button id="addSection">＋ 소제목</button></div>
     </div>
+  </section>
+
+  <section id="songMapView" class="hidden">
+    <div class="song-map-head">
+      <div>
+        <strong>노래 지도</strong>
+        <span>멜로디 이름을 누르면 연결한 암기 위치로 바로 이동합니다.</span>
+      </div>
+    </div>
+    <div id="songMapArea"></div>
   </section>
 
   <section id="quizView" class="hidden">
@@ -1810,6 +1957,28 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   </div>
 </div>
 
+
+<div class="modal-backdrop hidden" id="songLinkModal">
+  <div class="modal song-link-modal" role="dialog" aria-modal="true" aria-labelledby="songLinkTitle">
+    <div class="modal-title" id="songLinkTitle">노래 연결</div>
+    <div class="song-link-location" id="songLinkLocation"></div>
+    <div class="song-new-row">
+      <input id="songNameInput" type="text" placeholder="새 노래 이름">
+      <button class="primary" id="songCreateLink">추가·연결</button>
+    </div>
+    <div class="song-existing-title">기존 노래</div>
+    <div id="songExistingList" class="song-existing-list"></div>
+    <button class="modal-cancel" id="songLinkCancel">닫기</button>
+  </div>
+</div>
+
+<div class="modal-backdrop hidden" id="songDestModal">
+  <div class="modal song-dest-modal" role="dialog" aria-modal="true" aria-labelledby="songDestTitle">
+    <div class="modal-title" id="songDestTitle">이동할 위치</div>
+    <div id="songDestChoices" class="song-dest-choices"></div>
+    <button class="modal-cancel" id="songDestCancel">취소</button>
+  </div>
+</div>
 
 <div class="modal-backdrop hidden" id="quizStopModal">
   <div class="modal quiz-stop-modal" role="dialog" aria-modal="true" aria-labelledby="quizStopTitle">
@@ -1930,9 +2099,9 @@ function quizSessionSnapshot(){
     rangeLabel:quizSession.rangeLabel||quizRangeLabel(),
     mastery:!!quizSession.mastery,
     choices:[...(quizSession.choices||[])],
-    mode:app.ui.quiz.mode,
+    mode:activeQuizMode(),
     filter:app.ui.quiz.filter,
-    order:app.ui.quiz.order,
+    order:activeQuizOrder(),
     subject:app.ui.quiz.subject,
     areas:[...(app.ui.quiz.areas||[])],
     areaSelectionV2:!!app.ui.quiz.areaSelectionV2,
@@ -1941,12 +2110,23 @@ function quizSessionSnapshot(){
     correctCount:quizSession.correctCount||0,
     wrongCount:quizSession.wrongCount||0,
     initialCount:quizSession.initialCount||quizSession.items.length,
-    resumeSlotId:quizSession.resumeSlotId||""
+    resumeSlotId:quizSession.resumeSlotId||"",
+    adventure:quizSession.adventure?{...quizSession.adventure}:null
   };
 }
 function saveQuizSessionLocal(){
   if(!quizSession){delete app.ui.quizDraft;saveLocal();return}
-  app.ui.quizDraft=quizSessionSnapshot();
+  const snapshot=quizSessionSnapshot();
+  app.ui.quizDraft=snapshot;
+  if(quizSession.adventure){
+    const adv=quizSession.adventure;
+    const cfg=app.ui.quizAdventure?.configs?.[adv.sheetId];
+    if(cfg){
+      if(!cfg.activeSessions||typeof cfg.activeSessions!=="object")cfg.activeSessions={};
+      cfg.activeSessions[adv.sessionKey]=snapshot;
+      cfg.lastTouchedAt=Date.now();
+    }
+  }
   saveLocal();
 }
 function clearSavedQuiz(){
@@ -2020,6 +2200,17 @@ function exitQuizAfterStop(){
 let pendingStopSnapshot=null;
 function requestQuizStop(){
   if(!quizSession)return;
+  if(quizSession.adventure){
+    saveQuizSessionLocal();
+    const sheetId=quizSession.adventure.sheetId;
+    quizSession=null;delete app.ui.quizDraft;
+    document.body.classList.remove("quiz-running");
+    app.ui.quizHomeMode="path";
+    if(sheetId)app.ui.quizAdventure.activeSheetId=sheetId;
+    markAdventureCloud();
+    renderQuiz();toast("진행 위치 저장됨");
+    return;
+  }
   document.getElementById("quizStopModal").classList.remove("hidden");
 }
 function openOverwriteSlotModal(snapshot){
@@ -2072,12 +2263,13 @@ function resumeQuiz(slotId){
     deferred:(saved.deferredIds||[]).map(id=>byId.get(id)).filter(Boolean),
     rangeLabel:saved.rangeLabel||quizRangeLabel(),
     mastery:saved.mastery!==false,
-    choices:Array.isArray(saved.choices)?saved.choices:[]
+    choices:Array.isArray(saved.choices)?saved.choices:[],
+    quizMode:saved.mode||app.ui.quiz.mode,quizOrder:saved.order||app.ui.quiz.order
   };
-  if(app.ui.quiz.mode==="choice"&&!quizSession.choices.length)buildChoices();
+  if(activeQuizMode()==="choice"&&!quizSession.choices.length)buildChoices();
   document.body.classList.add("quiz-running");
   saveLocal();renderQuizQuestion();
-  if(app.ui.quiz.mode==="choice"&&quizSession.answered)setTimeout(()=>{if(quizSession?.answered)nextQuiz()},700);
+  if(activeQuizMode()==="choice"&&quizSession.answered)setTimeout(()=>{if(quizSession?.answered)nextQuiz()},700);
 }
 function cleanup(){
   if(!app.study)app.study=initialApp().study;
@@ -2099,9 +2291,13 @@ function cleanup(){
   if(!app.ui.quiz.order)app.ui.quiz.order="sequence";
   if(!app.ui.quiz.subject)app.ui.quiz.subject="all";
   if(!Array.isArray(app.ui.quiz.areas))app.ui.quiz.areas=[];
-  if(![10,20,"all"].includes(app.ui.quiz.sessionSize))app.ui.quiz.sessionSize=20;
+  if(![10,20,30,50,"all"].includes(app.ui.quiz.sessionSize))app.ui.quiz.sessionSize=20;
   if(!app.ui.quiz.groupOrder)app.ui.quiz.groupOrder="grouped";
   if(!Array.isArray(app.ui.quiz.recentRanges))app.ui.quiz.recentRanges=[];
+  if(!["quick","path"].includes(app.ui.quizHomeMode))app.ui.quizHomeMode="quick";
+  if(!app.ui.quizAdventure||typeof app.ui.quizAdventure!=="object"||Array.isArray(app.ui.quizAdventure))app.ui.quizAdventure={activeSheetId:"",configs:{}};
+  if(typeof app.ui.quizAdventure.activeSheetId!=="string")app.ui.quizAdventure.activeSheetId="";
+  if(!app.ui.quizAdventure.configs||typeof app.ui.quizAdventure.configs!=="object"||Array.isArray(app.ui.quizAdventure.configs))app.ui.quizAdventure.configs={};
   if(!app.ui.quizResumeSlots||typeof app.ui.quizResumeSlots!=="object"||Array.isArray(app.ui.quizResumeSlots))app.ui.quizResumeSlots={};
   if(app.ui.savedQuiz&&!app.ui.resumeSlotsMigrated){
     const old=app.ui.savedQuiz;
@@ -2111,6 +2307,13 @@ function cleanup(){
     app.ui.quizResumeSlots[key]=arr.slice(0,2);
     delete app.ui.savedQuiz;app.ui.resumeSlotsMigrated=true;
   }
+  if(!Array.isArray(app.study.songs))app.study.songs=[];
+  app.study.songs=app.study.songs.filter(song=>song&&song.id&&typeof song.name==="string").map(song=>({
+    id:song.id,name:song.name,note:typeof song.note==="string"?song.note:"",
+    links:Array.isArray(song.links)?song.links.filter(link=>link&&link.subjectId&&link.sheetId).map(link=>({
+      subjectId:link.subjectId,sheetId:link.sheetId,rowId:link.rowId||""
+    })):[]
+  }));
   if(!Array.isArray(app.study.subjects)||!app.study.subjects.length){
     const s=studySubject("국어");s.currentId=s.sheets[0].id;app.study.subjects=[s];app.study.subjectId=s.id;
   }
@@ -2506,6 +2709,193 @@ function releaseActiveField(){
     try{a.blur()}catch{}
   }
 }
+let pendingSongLink=null;
+
+function songStore(){
+  if(!Array.isArray(app.study.songs))app.study.songs=[];
+  return app.study.songs;
+}
+function songLinkKey(link){return `${link.subjectId}::${link.sheetId}::${link.rowId||""}`}
+function songLocation(link){
+  const subject=app.study.subjects.find(x=>x.id===link?.subjectId);
+  const sheet=subject?.sheets?.find(x=>x.id===link?.sheetId);
+  const row=link?.rowId?sheet?.rows?.find(x=>x.id===link.rowId):null;
+  return {subject,sheet,row,missing:!subject||!sheet||(!!link?.rowId&&!row)};
+}
+function songLocationLabel(link,{short=false}={}){
+  const loc=songLocation(link);
+  if(loc.missing)return "연결 위치 삭제됨";
+  const rowLabel=loc.row?(loc.row.type==="section"?(loc.row.title||"소주제"):(loc.row.category||loc.row.correct||"항목")):"";
+  if(short)return rowLabel||loc.sheet.name;
+  return [loc.subject.name,loc.sheet.name,rowLabel].filter(Boolean).join(" › ");
+}
+function songsForLocation(subjectId,sheetId,rowId=""){
+  const key=songLinkKey({subjectId,sheetId,rowId});
+  return songStore().filter(song=>(song.links||[]).some(link=>songLinkKey(link)===key));
+}
+function songsForCurrentRow(rowId=""){return songsForLocation(sub().id,sh().id,rowId)}
+function currentSongLink(rowId=""){return {subjectId:sub().id,sheetId:sh().id,rowId:rowId||""}}
+
+function renderSongLinkModal(){
+  const modal=document.getElementById("songLinkModal"),list=document.getElementById("songExistingList");
+  if(!modal||!list||!pendingSongLink)return;
+  document.getElementById("songLinkLocation").textContent=songLocationLabel(pendingSongLink);
+  list.innerHTML="";
+  const songs=[...songStore()].sort((a,b)=>a.name.localeCompare(b.name,"ko"));
+  if(!songs.length){
+    const empty=document.createElement("div");empty.className="song-empty-small";empty.textContent="아직 등록된 노래가 없습니다.";
+    list.append(empty);return;
+  }
+  const targetKey=songLinkKey(pendingSongLink);
+  songs.forEach(song=>{
+    const row=document.createElement("div");row.className="song-existing-row";
+    const info=document.createElement("button");info.className="song-existing-name";
+    const linked=(song.links||[]).some(link=>songLinkKey(link)===targetKey);
+    info.innerHTML=`<strong>${escapeHtml(song.name)}</strong><span>${song.links?.length||0}곳 연결</span>`;
+    const toggle=document.createElement("button");toggle.className="song-link-toggle"+(linked?" linked":"");
+    toggle.textContent=linked?"연결됨 ✓":"연결";
+    toggle.onclick=()=>{
+      if(linked){
+        song.links=song.links.filter(link=>songLinkKey(link)!==targetKey);
+      }else{
+        song.links=[...(song.links||[]),{...pendingSongLink}];
+      }
+      markStudyCloud();renderSongLinkModal();renderStudy();
+    };
+    info.onclick=toggle.onclick;
+    row.append(info,toggle);list.append(row);
+  });
+}
+function openSongLinkModal(rowId=""){
+  pendingSongLink=currentSongLink(rowId);
+  document.getElementById("songNameInput").value="";
+  document.getElementById("songLinkModal").classList.remove("hidden");
+  renderSongLinkModal();
+  setTimeout(()=>document.getElementById("songNameInput")?.focus(),30);
+}
+function createAndLinkSong(){
+  if(!pendingSongLink)return;
+  const input=document.getElementById("songNameInput"),name=(input?.value||"").trim();
+  if(!name)return toast("노래 이름을 적어 주세요");
+  let song=songStore().find(x=>x.name.trim().toLowerCase()===name.toLowerCase());
+  if(!song){song={id:uid(),name,note:"",links:[]};songStore().push(song)}
+  const key=songLinkKey(pendingSongLink);
+  if(!(song.links||[]).some(link=>songLinkKey(link)===key))song.links.push({...pendingSongLink});
+  input.value="";markStudyCloud();renderSongLinkModal();renderStudy();toast("노래 연결됨");
+}
+function revealSongTarget(sheet,rowId){
+  if(!rowId)return;
+  const rows=sheet.rows||[],idx=rows.findIndex(r=>r.id===rowId);if(idx<0)return;
+  const row=rows[idx];
+  if(row.type==="section")app.ui.collapsedSections[row.id]=false;
+  for(let i=idx-1;i>=0;i--){
+    if(rows[i].type==="section"){app.ui.collapsedSections[rows[i].id]=false;break}
+  }
+}
+function navigateSongLink(link){
+  const loc=songLocation(link);
+  if(loc.missing)return toast("연결 위치가 삭제되었습니다");
+  app.ui.workspace="memory";app.study.mode="study";
+  app.study.subjectId=loc.subject.id;loc.subject.currentId=loc.sheet.id;
+  revealSongTarget(loc.sheet,link.rowId||"");
+  app.ui.songFocusRowId=link.rowId||"";
+  saveLocal();render();
+  requestAnimationFrame(()=>setTimeout(()=>{
+    const target=link.rowId?document.querySelector(`[data-study-row-id="${CSS.escape(link.rowId)}"]`):document.getElementById("studyView");
+    if(target){
+      target.scrollIntoView({block:link.rowId?"center":"start",behavior:"auto"});
+      target.classList.add("song-jump-flash");
+      setTimeout(()=>target.classList.remove("song-jump-flash"),1400);
+    }
+    app.ui.songFocusRowId="";
+  },40));
+}
+function openSongDestination(song){
+  const valid=(song.links||[]).filter(link=>!songLocation(link).missing);
+  if(!valid.length)return toast("이 노래의 연결 위치가 없습니다");
+  if(valid.length===1){navigateSongLink(valid[0]);return}
+  const box=document.getElementById("songDestChoices");box.innerHTML="";
+  document.getElementById("songDestTitle").textContent=song.name;
+  valid.forEach(link=>{
+    const b=document.createElement("button");b.className="modal-choice";
+    b.textContent=songLocationLabel(link);
+    b.onclick=()=>{document.getElementById("songDestModal").classList.add("hidden");navigateSongLink(link)};
+    box.append(b);
+  });
+  document.getElementById("songDestModal").classList.remove("hidden");
+}
+function editSong(song){
+  const next=prompt("노래 이름",song.name);if(next==null)return;
+  const name=next.trim();if(!name)return;
+  song.name=name;markStudyCloud();renderSongMap();renderStudy();
+}
+function deleteSong(song){
+  if(!confirm(`'${song.name}' 노래 메모를 삭제할까요?`))return;
+  app.study.songs=app.study.songs.filter(x=>x.id!==song.id);
+  markStudyCloud();renderSongMap();renderStudy();
+}
+function renderSongMap(){
+  const area=document.getElementById("songMapArea");if(!area)return;area.innerHTML="";
+  const songs=songStore();
+  if(!songs.length){
+    const empty=document.createElement("div");empty.className="song-map-empty";
+    empty.innerHTML="<strong>아직 노래가 없어요.</strong><span>암기판의 •••에서 ‘♪ 노래 연결’을 누르면 지도가 자동으로 채워집니다.</span>";
+    area.append(empty);return;
+  }
+  const groups=new Map();
+  app.study.subjects.forEach(subject=>groups.set(subject.id,{subject,songs:[]}));
+  const orphan=[];
+  songs.forEach(song=>{
+    const subjectIds=[...new Set((song.links||[]).map(x=>x.subjectId))];
+    let placed=false;
+    subjectIds.forEach(id=>{
+      const g=groups.get(id);if(g){g.songs.push(song);placed=true}
+    });
+    if(!placed)orphan.push(song);
+  });
+  const drawGroup=(title,list)=>{
+    if(!list.length)return;
+    const section=document.createElement("section");section.className="song-map-group";
+    const head=document.createElement("div");head.className="song-map-group-title";head.textContent=title;section.append(head);
+    const grid=document.createElement("div");grid.className="song-map-grid";
+    [...new Map(list.map(x=>[x.id,x])).values()].sort((a,b)=>a.name.localeCompare(b.name,"ko")).forEach(song=>{
+      const card=document.createElement("div");card.className="song-card";
+      const main=document.createElement("button");main.className="song-card-main";
+      const valid=(song.links||[]).filter(link=>!songLocation(link).missing),missing=(song.links||[]).length-valid.length;
+      main.innerHTML=`<strong>♪ ${escapeHtml(song.name)}</strong><span>${valid.length}곳 연결${missing?` · 끊김 ${missing}`:""}</span>`;
+      main.onclick=()=>openSongDestination(song);
+      const more=document.createElement("button");more.className="song-card-more";more.textContent="•••";more.setAttribute("aria-label","노래 메뉴");
+      const menu=document.createElement("div");menu.className="menu hidden";
+      const rename=document.createElement("button");rename.textContent="이름 변경";rename.onclick=e=>{e.stopPropagation();menu.classList.add("hidden");editSong(song)};
+      const del=document.createElement("button");del.className="danger";del.textContent="삭제";del.onclick=e=>{e.stopPropagation();menu.classList.add("hidden");deleteSong(song)};
+      menu.append(rename,del);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();
+      card.append(main,more,menu);grid.append(card);
+    });
+    section.append(grid);area.append(section);
+  };
+  groups.forEach(g=>drawGroup(g.subject.name,g.songs));
+  drawGroup("연결 확인 필요",orphan);
+}
+function appendSongManageButton(menu,rowId=""){
+  const b=document.createElement("button");
+  const linked=songsForCurrentRow(rowId);
+  b.textContent=linked.length?`♪ 노래 연결 · ${linked.length}`:"♪ 노래 연결";
+  b.onclick=e=>{e.preventDefault();e.stopPropagation();menu.classList.add("hidden");openSongLinkModal(rowId)};
+  menu.append(b);
+}
+function makeStudySongHint(rowId=""){
+  const songs=songsForCurrentRow(rowId);if(!songs.length)return null;
+  const b=document.createElement("button");b.type="button";b.className="study-song-hint";
+  b.textContent="♪ "+songs.map(x=>x.name).join(" · ");
+  b.title=songs.map(x=>x.name).join(", ");
+  b.onclick=e=>{
+    e.preventDefault();e.stopPropagation();
+    if(songs.length===1)openSongDestination(songs[0]);
+    else openSongLinkModal(rowId);
+  };
+  return b;
+}
+
 function renderStudy(){
   document.getElementById("studyTitle").textContent=sh().name;
   const allBtn=document.getElementById("toggleAllAnswers");
@@ -2514,6 +2904,14 @@ function renderStudy(){
   if(memoAllBtn)memoAllBtn.textContent=app.ui.showAllStudyMemos?"메모 숨김":"메모 전체";
 
   const list=document.getElementById("studyList");list.innerHTML="";
+  const sheetSongs=songsForCurrentRow("");
+  if(sheetSongs.length){
+    const strip=document.createElement("div");strip.className="sheet-song-strip";
+    const label=document.createElement("span");label.textContent="♪";
+    const names=document.createElement("button");names.type="button";names.textContent=sheetSongs.map(x=>x.name).join(" · ");
+    names.onclick=()=>{if(sheetSongs.length===1)openSongDestination(sheetSongs[0]);else openSongLinkModal("")};
+    strip.append(label,names);list.append(strip);
+  }
   let rows=sh().rows.filter(r=>r.type==="section"?(r.title||"").trim():(r.correct||r.category||r.memo));
 
   let hiddenBySection=false;
@@ -2577,11 +2975,13 @@ function renderStudy(){
       const w=document.createElement("div");w.className="section-menu-wrap";
       const b=document.createElement("button");b.type="button";b.className="more section-more compact-more";keepStudyInputFocusOnTap(b);b.textContent="•••";
       const m=document.createElement("div");m.className="menu hidden";
+      appendSongManageButton(m,r.id);
       const collapse=document.createElement("button");collapse.textContent=hiddenBySection?"펼치기":"접기";collapse.onclick=e=>{e.stopPropagation();toggleSectionCollapsed(r.id)};
       const clear=document.createElement("button");clear.textContent="이 구간 입력 지우기";
       clear.onclick=e=>{e.preventDefault();e.stopPropagation();const original=sh().rows.indexOf(r);clearReviewRow(r);const [a,z]=sectionRange(sh().rows,original);for(let i=a;i<z;i++)clearReviewRow(sh().rows[i]);saveStudyDraftsNow();renderStudyKeepPosition(r.id)};
       m.append(collapse,clear);b.onclick=e=>{e.preventDefault();e.stopPropagation();toggleFloatingMenu(b,m)};m.onclick=e=>e.stopPropagation();w.append(b,m);
-      head.append(content,w);list.append(head);return;
+      const songHint=makeStudySongHint(r.id);
+      head.append(content);if(songHint)head.append(songHint);head.append(w);list.append(head);return;
     }
     if(hiddenBySection)return;
 
@@ -2591,6 +2991,7 @@ function renderStudy(){
     if(r.category){
       const cat=document.createElement("div");cat.className="category";cat.textContent=r.category;row.append(cat);
     }
+    const rowSongHint=makeStudySongHint(r.id);if(rowSongHint)row.append(rowSongHint);
 
     const line=document.createElement("div");line.className="answer-line";
     const star=document.createElement("button");star.type="button";star.className="star"+(r.flagged?" on":"");keepStudyInputFocusOnTap(star);
@@ -2666,6 +3067,7 @@ function renderStudy(){
     const rowMenuWrap=document.createElement("div");rowMenuWrap.className="study-row-menu-wrap";
     const rowMore=document.createElement("button");rowMore.type="button";rowMore.className="study-action row-more";keepStudyInputFocusOnTap(rowMore);rowMore.textContent="•••";rowMore.setAttribute("aria-label","항목 메뉴");
     const rowMenu=document.createElement("div");rowMenu.className="menu study-row-menu hidden";
+    appendSongManageButton(rowMenu,r.id);
     if(r.memo){
       const memoToggle=document.createElement("button");memoToggle.textContent=app.ui.showAllStudyMemos?"메모 숨기기":"메모 보기";
       memoToggle.onclick=e=>{e.stopPropagation();memo.classList.toggle("show");rowMenu.classList.add("hidden")};
@@ -3120,20 +3522,179 @@ function rememberQuizRange(){
   q.recentRanges.unshift({key,label,subject:q.subject,areas:[...(q.areas||[])]});
   q.recentRanges=q.recentRanges.slice(0,3);
 }
+function quizItemsFromSheets(sheets,{filter=app.ui.quiz.filter,mode=app.ui.quiz.mode}={}){
+  let items=sheets.flatMap(sheet=>{
+    const meta=bankSheetMeta(sheet);
+    return (sheet.items||[]).map(i=>({...i,sheetId:sheet.id,sheetName:sheet.name,source:sheet.source,subject:meta.subject,area:meta.area}));
+  });
+  if(filter==="unchecked")items=items.filter(i=>!i.excelCheck);
+  if(filter==="checked")items=items.filter(i=>i.excelCheck);
+  if(filter==="answered")items=items.filter(i=>i.answer);
+  if(filter==="wrong")items=items.filter(i=>getStat(i).needsReview);
+  if(filter==="starred")items=items.filter(i=>getStat(i).flagged);
+  if(mode!=="write")items=items.filter(i=>i.answer);
+  return mergeDuplicateQuizItems(items);
+}
+function effectiveQuickOrder(){return app.ui.quiz.order==="random"||app.ui.quiz.groupOrder==="mixed"?"random":"sequence"}
 function quizPool(){
   const q=app.ui.quiz;
-  let sheets=selectedBankSheets();
-  let items=sheets.flatMap(s=>s.items.map(i=>({...i,sheetId:s.id,sheetName:s.name,source:s.source,subject:bankSheetMeta(s).subject,area:bankSheetMeta(s).area})));
-  if(q.filter==="unchecked")items=items.filter(i=>!i.excelCheck);
-  if(q.filter==="checked")items=items.filter(i=>i.excelCheck);
-  if(q.filter==="answered")items=items.filter(i=>i.answer);
-  if(q.filter==="wrong")items=items.filter(i=>getStat(i).needsReview);
-  if(q.filter==="starred")items=items.filter(i=>getStat(i).flagged);
-  if(q.mode!=="write")items=items.filter(i=>i.answer);
-  items=mergeDuplicateQuizItems(items);
-  if(q.groupOrder==="mixed"||q.order==="random")return shuffled(items);
+  let items=quizItemsFromSheets(selectedBankSheets(),{filter:q.filter,mode:q.mode});
+  if(effectiveQuickOrder()==="random")return shuffled(items);
   return items;
 }
+let quizCountCache=new Map();
+function quizCountFor(subject="all",areas=[]){
+  const stamp=[app.bank.contentUpdatedAt||0,app.bank.statsUpdatedAt||0,app.ui.quiz.filter,app.ui.quiz.mode,subject,[...areas].sort().join("|")].join("::");
+  if(quizCountCache.has(stamp))return quizCountCache.get(stamp);
+  let sheets=app.bank.sheets.filter(s=>!s.legacyWrong);
+  if(subject&&subject!=="all"){
+    const picked=new Set(areas||[]);
+    sheets=sheets.filter(s=>bankSheetMeta(s).subject===subject&&(picked.size===0||picked.has(bankSheetMeta(s).area)));
+  }
+  const n=quizItemsFromSheets(sheets,{filter:app.ui.quiz.filter,mode:app.ui.quiz.mode}).length;
+  quizCountCache.set(stamp,n);
+  if(quizCountCache.size>120)quizCountCache=new Map([...quizCountCache].slice(-60));
+  return n;
+}
+function activeQuizMode(){return quizSession?.quizMode||app.ui.quiz.mode}
+function activeQuizOrder(){return quizSession?.quizOrder||app.ui.quiz.order}
+
+function adventureStore(){
+  if(!app.ui.quizAdventure||typeof app.ui.quizAdventure!=="object")app.ui.quizAdventure={activeSheetId:"",configs:{}};
+  if(!app.ui.quizAdventure.configs||typeof app.ui.quizAdventure.configs!=="object")app.ui.quizAdventure.configs={};
+  return app.ui.quizAdventure;
+}
+function adventureSheet(sheetId){return app.bank.sheets.find(s=>s.id===sheetId&&!s.legacyWrong)}
+function adventureBaseItems(sheet,mode="choice"){
+  if(!sheet)return [];
+  return quizItemsFromSheets([sheet],{filter:"all",mode});
+}
+function adventureSignature(sheet,mode,items,order="sequence"){
+  const ids=items.map(canonicalProblemId);
+  if(order==="random")ids.sort();
+  return hashString([sheet?.id||"",mode,ids.join("|")].join("::"));
+}
+function adventureConfig(sheetId,{quiet=false}={}){
+  const store=adventureStore(),sheet=adventureSheet(sheetId);if(!sheet)return null;
+  let cfg=store.configs[sheetId];
+  if(!cfg||typeof cfg!=="object"){
+    cfg={size:20,order:"sequence",mode:"choice",signature:"",orderIds:[],completed:{},reviews:{},activeSessions:{},settingsOpen:false,lastTouchedAt:0};
+    store.configs[sheetId]=cfg;
+  }
+  if(![10,20,30,50].includes(cfg.size))cfg.size=20;
+  if(!["sequence","random"].includes(cfg.order))cfg.order="sequence";
+  if(!["choice","subjective","write"].includes(cfg.mode))cfg.mode="choice";
+  if(!cfg.completed||typeof cfg.completed!=="object")cfg.completed={};
+  if(!cfg.reviews||typeof cfg.reviews!=="object")cfg.reviews={};
+  if(!cfg.activeSessions||typeof cfg.activeSessions!=="object")cfg.activeSessions={};
+  const base=adventureBaseItems(sheet,cfg.mode),sig=adventureSignature(sheet,cfg.mode,base,cfg.order);
+  const validIds=new Set(base.map(canonicalProblemId));
+  const stale=cfg.signature!==sig||!Array.isArray(cfg.orderIds)||cfg.orderIds.length!==base.length||cfg.orderIds.some(id=>!validIds.has(id));
+  if(stale){
+    const hadProgress=Object.keys(cfg.completed).length||Object.keys(cfg.activeSessions).length;
+    cfg.signature=sig;
+    cfg.orderIds=cfg.order==="random"?shuffled(base.map(canonicalProblemId)):base.map(canonicalProblemId);
+    cfg.completed={};cfg.reviews={};cfg.activeSessions={};
+    if(hadProgress&&!quiet)setTimeout(()=>toast("문제 구성이 바뀌어 학습 경로를 새로 정리했어요"),0);
+    saveLocal();
+  }
+  return cfg;
+}
+function adventureOrderedItems(sheet,cfg){
+  const base=adventureBaseItems(sheet,cfg.mode),byId=new Map(base.map(x=>[canonicalProblemId(x),x]));
+  return (cfg.orderIds||[]).map(id=>byId.get(id)).filter(Boolean);
+}
+function adventureSetCount(cfg){return Math.ceil((cfg?.orderIds?.length||0)/(cfg?.size||20))}
+function adventureSetIds(cfg,index){const size=cfg.size||20;return (cfg.orderIds||[]).slice(index*size,(index+1)*size)}
+function adventureHasProgress(cfg){return !!(Object.keys(cfg?.completed||{}).length||Object.keys(cfg?.activeSessions||{}).length)}
+function resetAdventureConfig(sheetId,patch){
+  const cfg=adventureConfig(sheetId,{quiet:true});if(!cfg)return false;
+  if(adventureHasProgress(cfg)&&!confirm("경로 설정을 바꾸면 이 시트의 완료·진행 기록이 초기화됩니다. 변경할까요?"))return false;
+  Object.assign(cfg,patch);
+  cfg.signature="";cfg.orderIds=[];cfg.completed={};cfg.reviews={};cfg.activeSessions={};
+  adventureConfig(sheetId,{quiet:true});
+  markAdventureCloud();return true;
+}
+function adventureItemsForIds(sheet,cfg,ids){
+  const byId=new Map(adventureBaseItems(sheet,cfg.mode).map(x=>[canonicalProblemId(x),x]));
+  return ids.map(id=>byId.get(id)).filter(Boolean);
+}
+function adventureReviewItems(sheet,cfg,milestone){
+  const covered=(cfg.orderIds||[]).slice(0,Math.min(cfg.orderIds.length,milestone*(cfg.size||20)));
+  const items=adventureItemsForIds(sheet,cfg,covered),seen=new Set();
+  return items.filter(item=>{
+    const id=canonicalProblemId(item),st=getStat(item);
+    if(seen.has(id)||(!st.needsReview&&!st.flagged))return false;
+    seen.add(id);return true;
+  });
+}
+function adventureSessionFromSnapshot(saved){
+  if(!saved?.adventure)return false;
+  const adv=saved.adventure,sheet=adventureSheet(adv.sheetId),cfg=adventureConfig(adv.sheetId,{quiet:true});
+  if(!sheet||!cfg)return false;
+  const unified=adventureBaseItems(sheet,saved.mode||cfg.mode),byId=new Map(unified.map(x=>[canonicalProblemId(x),x]));
+  const items=(saved.itemIds||[]).map(id=>byId.get(id)).filter(Boolean);
+  if(!items.length)return false;
+  quizSession={
+    correctCount:saved.correctCount||0,wrongCount:saved.wrongCount||0,initialCount:saved.initialCount||items.length,resumeSlotId:"",
+    items,remaining:(saved.remainingIds||[]).map(id=>byId.get(id)).filter(Boolean),
+    index:Math.min(saved.index||0,items.length-1),answered:!!saved.answered,selected:saved.selected??null,showAnswer:!!saved.showAnswer,draft:saved.draft||"",
+    round:saved.round||1,nextRound:(saved.nextRoundIds||[]).map(id=>byId.get(id)).filter(Boolean),
+    deferred:(saved.deferredIds||[]).map(id=>byId.get(id)).filter(Boolean),rangeLabel:saved.rangeLabel||sheet.name,
+    mastery:saved.mastery!==false,choices:Array.isArray(saved.choices)?saved.choices:[],
+    quizMode:saved.mode||cfg.mode,quizOrder:saved.order||cfg.order,adventure:{...adv}
+  };
+  if(activeQuizMode()==="choice"&&!quizSession.choices.length)buildChoices();
+  adventureStore().activeSheetId=adv.sheetId;app.ui.quizHomeMode="path";
+  document.body.classList.add("quiz-running");saveLocal();renderQuizQuestion();return true;
+}
+function startAdventureSet(sheetId,setIndex,{replay=false}={}){
+  const sheet=adventureSheet(sheetId),cfg=adventureConfig(sheetId);if(!sheet||!cfg)return;
+  const key=`set:${setIndex}`,saved=cfg.activeSessions?.[key];
+  if(saved&&!replay){if(adventureSessionFromSnapshot(saved))return}
+  const items=adventureItemsForIds(sheet,cfg,adventureSetIds(cfg,setIndex));
+  if(!items.length)return toast("이 세트에 출제할 문제가 없습니다");
+  quizLastComplete=null;
+  quizSession={items,index:0,remaining:[],answered:false,selected:null,showAnswer:false,draft:"",choices:[],round:1,nextRound:[],deferred:[],
+    mastery:true,rangeLabel:`${bankSheetMeta(sheet).area||sheet.name} · ${setIndex+1}세트`,initialCount:items.length,resumeSlotId:"",
+    correctCount:0,wrongCount:0,quizMode:cfg.mode,quizOrder:cfg.order,
+    adventure:{sheetId,setIndex,sessionKey:key,replay:!!replay,review:false}};
+  adventureStore().activeSheetId=sheetId;app.ui.quizHomeMode="path";
+  document.body.classList.add("quiz-running");buildChoices();saveQuizSessionLocal();markAdventureCloud();renderQuizQuestion();
+}
+function startAdventureReview(sheetId,milestone){
+  const sheet=adventureSheet(sheetId),cfg=adventureConfig(sheetId);if(!sheet||!cfg)return;
+  const key=`review:${milestone}`,saved=cfg.activeSessions?.[key];
+  if(saved){if(adventureSessionFromSnapshot(saved))return}
+  const items=adventureReviewItems(sheet,cfg,milestone);
+  if(!items.length)return toast("지금 복습할 오답/★ 문제가 없습니다");
+  quizSession={items,index:0,remaining:[],answered:false,selected:null,showAnswer:false,draft:"",choices:[],round:1,nextRound:[],deferred:[],
+    mastery:true,rangeLabel:`${bankSheetMeta(sheet).area||sheet.name} · 복습`,initialCount:items.length,resumeSlotId:"",
+    correctCount:0,wrongCount:0,quizMode:cfg.mode,quizOrder:"random",
+    adventure:{sheetId,milestone,sessionKey:key,replay:true,review:true}};
+  adventureStore().activeSheetId=sheetId;app.ui.quizHomeMode="path";
+  document.body.classList.add("quiz-running");buildChoices();saveQuizSessionLocal();markAdventureCloud();renderQuizQuestion();
+}
+function finishAdventureQuiz(){
+  const session=quizSession,adv=session?.adventure;if(!adv)return false;
+  const cfg=adventureConfig(adv.sheetId,{quiet:true});if(!cfg)return false;
+  delete cfg.activeSessions?.[adv.sessionKey];
+  if(adv.review){
+    const key=String(adv.milestone||0),prev=cfg.reviews[key]||{};
+    cfg.reviews[key]={count:(prev.count||0)+1,lastAt:Date.now(),correct:session.correctCount||0,wrong:session.wrongCount||0};
+  }else if(adv.replay){
+    const prev=cfg.completed[String(adv.setIndex)]||{};
+    cfg.completed[String(adv.setIndex)]={...prev,reviewCount:(prev.reviewCount||0)+1,lastReviewAt:Date.now(),lastCorrect:session.correctCount||0,lastWrong:session.wrongCount||0};
+  }else{
+    cfg.completed[String(adv.setIndex)]={completedAt:Date.now(),correct:session.correctCount||0,wrong:session.wrongCount||0,reviewCount:0};
+  }
+  cfg.lastTouchedAt=Date.now();
+  const sheetId=adv.sheetId;
+  quizSession=null;delete app.ui.quizDraft;document.body.classList.remove("quiz-running");
+  app.ui.quizHomeMode="path";adventureStore().activeSheetId=sheetId;
+  markAdventureCloud();renderQuiz();toast(adv.review?"복습 완료 ✓":"세트 완료 ✓");return true;
+}
+function markAdventureCloud(){app.bank.statsUpdatedAt=Date.now();saveLocal();scheduleBankStatsCloud()}
 let quizLastComplete=null;
 function startQuiz(customItems=null,appendCount=null){
   const full=customItems?[...customItems]:quizPool();
@@ -3143,13 +3704,13 @@ function startQuiz(customItems=null,appendCount=null){
   const items=full.slice(0,n),remaining=full.slice(n);
   rememberQuizRange();
   quizLastComplete=null;
-  quizSession={items,index:0,remaining,answered:false,selected:null,showAnswer:false,draft:"",choices:[],round:1,nextRound:[],deferred:[],mastery:!!app.ui.quiz.mastery,rangeLabel:quizRangeLabel(),initialCount:items.length,resumeSlotId:"",correctCount:0,wrongCount:0};
+  quizSession={items,index:0,remaining,answered:false,selected:null,showAnswer:false,draft:"",choices:[],round:1,nextRound:[],deferred:[],mastery:!!app.ui.quiz.mastery,rangeLabel:quizRangeLabel(),initialCount:items.length,resumeSlotId:"",correctCount:0,wrongCount:0,quizMode:app.ui.quiz.mode,quizOrder:effectiveQuickOrder()};
   document.body.classList.add("quiz-running");
   buildChoices();saveQuizSessionLocal();saveLocal();renderQuizQuestion();
 }
 function currentQuizItem(){return quizSession?.items[quizSession.index]}
 function buildChoices(){
-  if(!quizSession||app.ui.quiz.mode!=="choice")return;
+  if(!quizSession||activeQuizMode()!=="choice")return;
   const item=currentQuizItem();
   const same=mergeDuplicateQuizItems(bankQuestions(false)).filter(x=>{
     const metaSheet=app.bank.sheets.find(s=>s.id===x.sheetId);
@@ -3165,6 +3726,7 @@ function buildChoices(){
   quizSession.choices=shuffled([item.answer,...distract]);
 }
 function finishQuiz(){
+  if(quizSession?.adventure){finishAdventureQuiz();return}
   const completedResumeSlot=quizSession?.resumeSlotId||"";
   quizLastComplete={
     label:quizSession?.rangeLabel||quizRangeLabel(),
@@ -3186,7 +3748,7 @@ function nextQuiz(){
     }
     if(quizSession.mastery&&quizSession.nextRound.length){
       const seen=new Set(),remain=quizSession.nextRound.filter(x=>{const k=canonicalProblemId(x);if(seen.has(k))return false;seen.add(k);return true});
-      quizSession.items=app.ui.quiz.order==="random"?shuffled(remain):remain;
+      quizSession.items=activeQuizOrder()==="random"?shuffled(remain):remain;
       quizSession.index=0;quizSession.round++;quizSession.nextRound=[];quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";
       buildChoices();saveQuizSessionLocal();toast(`${quizSession.round}회차 · ${quizSession.items.length}문제 남음`);renderQuizQuestion();return;
     }
@@ -3198,16 +3760,27 @@ function renderBankToolbar(){
   const box=document.getElementById("bankToolbar");box.innerHTML="";
   if(quizSession)return;
 
+  const homeTabs=document.createElement("div");homeTabs.className="quiz-home-tabs";
+  const quickTab=document.createElement("button");quickTab.textContent="빠르게 풀기";quickTab.className=app.ui.quizHomeMode==="quick"?"active":"";
+  const pathTab=document.createElement("button");pathTab.textContent="학습 경로";pathTab.className=app.ui.quizHomeMode==="path"?"active":"";
+  quickTab.onclick=()=>{app.ui.quizHomeMode="quick";quizLastComplete=null;saveLocal();renderQuiz()};
+  pathTab.onclick=()=>{app.ui.quizHomeMode="path";quizLastComplete=null;saveLocal();renderQuiz()};
+  homeTabs.append(quickTab,pathTab);box.append(homeTabs);
+  if(app.ui.quizHomeMode==="path")return;
+
+  const available=quizPool().length;
   const summary=document.createElement("button");summary.className="quiz-setup-summary";
-  const sizeLabel=app.ui.quiz.sessionSize==="all"?"전체":`${app.ui.quiz.sessionSize}문제`;
-  summary.innerHTML=`<strong>${escapeHtml(quizRangeLabel())}</strong><span>${sizeLabel} · ${app.ui.quiz.mode==="choice"?"객관식":app.ui.quiz.mode==="subjective"?"주관식":"글쓰기"} ▾</span>`;
+  const sizeLabel=app.ui.quiz.sessionSize==="all"?`전체 ${available}문제`:`${Math.min(available,Number(app.ui.quiz.sessionSize)||20)}문제`;
+  summary.innerHTML=`<strong>${escapeHtml(quizRangeLabel())} <em>${available}</em></strong><span>${sizeLabel} · ${effectiveQuickOrder()==="random"?"랜덤":"순서대로"} ▾</span>`;
   const panel=document.createElement("div");panel.className="quiz-setup-panel"+(app.ui.quiz.setupOpen?"":" hidden");
   summary.onclick=()=>{app.ui.quiz.setupOpen=!app.ui.quiz.setupOpen;saveLocal();renderBankToolbar()};
 
   const subjectRow=document.createElement("div");subjectRow.className="subject-pills";
   ["all",...bankSubjects()].forEach(subject=>{
-    const b=document.createElement("button");b.className="mini-pill"+(app.ui.quiz.subject===subject?" active":"");b.textContent=subject==="all"?"전체":subject;
-    b.onclick=()=>{app.ui.quiz.subject=subject;app.ui.quiz.areas=(subject==="all"?[]:bankAreas(subject));app.ui.quiz.areaSelectionV2=true;saveLocal();renderBankToolbar()};
+    const count=subject==="all"?quizCountFor("all",[]):quizCountFor(subject,bankAreas(subject));
+    const b=document.createElement("button");b.className="mini-pill"+(app.ui.quiz.subject===subject?" active":"");
+    b.innerHTML=`<span>${escapeHtml(subject==="all"?"전체":subject)}</span><small>${count}</small>`;
+    b.onclick=()=>{app.ui.quiz.subject=subject;app.ui.quiz.areas=(subject==="all"?[]:bankAreas(subject));app.ui.quiz.areaSelectionV2=true;saveLocal();renderQuiz()};
     subjectRow.append(b);
   });
   panel.append(subjectRow);
@@ -3215,56 +3788,75 @@ function renderBankToolbar(){
   if(app.ui.quiz.subject!=="all"){
     const areas=bankAreas(app.ui.quiz.subject);
     if(!app.ui.quiz.areaSelectionV2){
-      app.ui.quiz.areas=[...areas];
-      app.ui.quiz.areaSelectionV2=true;
-      saveLocal();
+      app.ui.quiz.areas=[...areas];app.ui.quiz.areaSelectionV2=true;saveLocal();
     }
     const selected=Array.isArray(app.ui.quiz.areas)?app.ui.quiz.areas:[...areas];
     const areaBox=document.createElement("div");areaBox.className="area-checks";
     const allLabel=document.createElement("label");const allCb=document.createElement("input");allCb.type="checkbox";
     allCb.checked=areas.length>0&&selected.length===areas.length;
-    allCb.onchange=()=>{app.ui.quiz.areas=allCb.checked?[...areas]:[];app.ui.quiz.areaSelectionV2=true;saveLocal();renderBankToolbar()};
-    allLabel.append(allCb,document.createTextNode(" 전체"));areaBox.append(allLabel);
+    const allCount=quizCountFor(app.ui.quiz.subject,areas);
+    allCb.onchange=()=>{app.ui.quiz.areas=allCb.checked?[...areas]:[];app.ui.quiz.areaSelectionV2=true;saveLocal();renderQuiz()};
+    allLabel.append(allCb,document.createTextNode(` 전체 (${allCount})`));areaBox.append(allLabel);
     areas.forEach(area=>{
       const label=document.createElement("label"),cb=document.createElement("input");cb.type="checkbox";cb.checked=selected.includes(area);
+      const n=quizCountFor(app.ui.quiz.subject,[area]);
       cb.onchange=()=>{
-        let picked=[...selected];
+        let picked=[...(app.ui.quiz.areas||[])];
         if(cb.checked&&!picked.includes(area))picked.push(area);
         if(!cb.checked)picked=picked.filter(x=>x!==area);
-        app.ui.quiz.areas=picked;app.ui.quiz.areaSelectionV2=true;saveLocal();renderBankToolbar();
+        app.ui.quiz.areas=picked;app.ui.quiz.areaSelectionV2=true;saveLocal();renderQuiz();
       };
-      label.append(cb,document.createTextNode(" "+area));areaBox.append(label);
+      label.append(cb,document.createTextNode(` ${area} (${n})`));areaBox.append(label);
     });
     panel.append(areaBox);
   }
 
-  if(app.ui.quiz.recentRanges?.length){
-    const recent=document.createElement("div");recent.className="recent-ranges";
-    app.ui.quiz.recentRanges.forEach(r=>{const b=document.createElement("button");b.textContent=r.label;b.onclick=()=>{app.ui.quiz.subject=r.subject;app.ui.quiz.areas=[...r.areas];app.ui.quiz.areaSelectionV2=true;saveLocal();renderBankToolbar()};recent.append(b)});
-    panel.append(recent);
-  }
-
-  const options=document.createElement("div");options.className="compact-options";
   const select=(pairs,value,onchange)=>{
-    const x=document.createElement("select");pairs.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;x.append(o)});x.value=String(value);x.onchange=()=>onchange(x.value);return x;
+    const x=document.createElement("select");
+    pairs.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;x.append(o)});
+    x.value=String(value);x.onchange=()=>onchange(x.value);return x;
   };
-  options.append(
-    select([["choice","객관식"],["subjective","주관식"],["write","글쓰기"]],app.ui.quiz.mode,v=>{app.ui.quiz.mode=v;saveLocal()}),
-    select([["all","전체 문제"],["wrong","누적 오답"],["starred","★ 헷갈림"],["unchecked","E 미체크"],["checked","E 체크"]],app.ui.quiz.filter,v=>{app.ui.quiz.filter=v;saveLocal()}),
-    select([["grouped","영역별"],["mixed","섞어서"]],app.ui.quiz.groupOrder,v=>{app.ui.quiz.groupOrder=v;saveLocal()}),
-    select([["20","20문제"],["10","10문제"],["all","전체"]],app.ui.quiz.sessionSize,v=>{app.ui.quiz.sessionSize=v==="all"?"all":Number(v);saveLocal()}),
-    select([["yes","전부 맞을 때까지"],["no","1회만"]],app.ui.quiz.mastery?"yes":"no",v=>{app.ui.quiz.mastery=v==="yes";saveLocal()})
+
+  const core=document.createElement("div");core.className="quick-core-options";
+  core.append(
+    select([["10","10문제"],["20","20문제"],["30","30문제"],["50","50문제"],["all",`전체 (${available})`]],app.ui.quiz.sessionSize,v=>{app.ui.quiz.sessionSize=v==="all"?"all":Number(v);saveLocal();renderQuiz()}),
+    select([["sequence","순서대로"],["random","랜덤"]],effectiveQuickOrder(),v=>{app.ui.quiz.order=v;app.ui.quiz.groupOrder=v==="random"?"mixed":"grouped";saveLocal();renderQuiz()})
   );
-  panel.append(options);
+  panel.append(core);
+
+  const details=document.createElement("details");details.className="quiz-advanced";details.open=!!app.ui.quiz.advancedOpen;
+  details.addEventListener("toggle",()=>{app.ui.quiz.advancedOpen=details.open;saveLocal()});
+  const ds=document.createElement("summary");ds.textContent="세부 설정";
+  const advanced=document.createElement("div");advanced.className="compact-options";
+  advanced.append(
+    select([["choice","객관식"],["subjective","주관식"],["write","글쓰기"]],app.ui.quiz.mode,v=>{app.ui.quiz.mode=v;quizCountCache.clear();saveLocal();renderQuiz()}),
+    select([["all","전체 문제"],["wrong","누적 오답"],["starred","★ 헷갈림"],["unchecked","E 미체크"],["checked","E 체크"]],app.ui.quiz.filter,v=>{app.ui.quiz.filter=v;quizCountCache.clear();saveLocal();renderQuiz()}),
+    select([["yes","오답 다시"],["no","1회만"]],app.ui.quiz.mastery?"yes":"no",v=>{app.ui.quiz.mastery=v==="yes";saveLocal()})
+  );
+  details.append(ds,advanced);
+  if(app.ui.quiz.recentRanges?.length){
+    const recent=document.createElement("div");recent.className="recent-ranges advanced-recent";
+    app.ui.quiz.recentRanges.forEach(r=>{
+      const b=document.createElement("button");b.textContent=r.label;
+      b.onclick=()=>{app.ui.quiz.subject=r.subject;app.ui.quiz.areas=[...r.areas];app.ui.quiz.areaSelectionV2=true;saveLocal();renderQuiz()};
+      recent.append(b);
+    });
+    details.append(recent);
+  }
+  panel.append(details);
+
+  const chosen=document.createElement("div");chosen.className="quick-selection-count";
+  chosen.textContent=available?`선택 범위 ${available}문제 · 이번 세트 ${sizeLabel}`:"선택한 범위에 문제가 없습니다";
+  panel.append(chosen);
 
   const manage=document.createElement("div");manage.className="quiz-manage";
   const more=document.createElement("button");more.textContent="•••";
   const menu=document.createElement("div");menu.className="menu hidden";
   const imp=document.createElement("button");imp.textContent="엑셀 가져오기";imp.onclick=()=>document.getElementById("bankExcelFiles").click();
   const edit=document.createElement("button");edit.textContent="문제 편집";edit.onclick=()=>{app.ui.bankMode="edit";saveLocal();renderMode()};
-  menu.append(imp,edit);more.onclick=e=>{e.stopPropagation();menu.classList.toggle("hidden")};manage.append(more,menu);panel.append(manage);
+  menu.append(imp,edit);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();manage.append(more,menu);panel.append(manage);
 
-  const start=document.createElement("button");start.className="primary quiz-start";start.textContent="시작";
+  const start=document.createElement("button");start.className="primary quiz-start";start.textContent=available?"시작":"문제 없음";start.disabled=!available;
   start.onclick=()=>{
     if(app.ui.quiz.subject!=="all"&&app.ui.quiz.areaSelectionV2&&!(app.ui.quiz.areas||[]).length)return toast("영역을 하나 이상 선택하세요");
     startQuiz();
@@ -3320,6 +3912,123 @@ function renderResumeSlots(area){
   });
   area.append(wrap);
 }
+function renderAdventureSheetPicker(area){
+  const store=adventureStore(),sheets=app.bank.sheets.filter(s=>!s.legacyWrong);
+  const intro=document.createElement("div");intro.className="path-intro";
+  intro.innerHTML="<strong>시트별 학습 경로</strong><span>세트가 그대로 남아서 완료한 부분도 언제든 다시 복습할 수 있어요.</span>";
+  area.append(intro);
+  const groups=new Map();
+  sheets.forEach(sheet=>{
+    const meta=bankSheetMeta(sheet);
+    if(!groups.has(meta.subject))groups.set(meta.subject,[]);
+    groups.get(meta.subject).push(sheet);
+  });
+  groups.forEach((arr,subject)=>{
+    const group=document.createElement("section");group.className="path-sheet-group";
+    const head=document.createElement("div");head.className="path-sheet-group-title";head.textContent=subject;group.append(head);
+    const list=document.createElement("div");list.className="path-sheet-list";
+    arr.forEach(sheet=>{
+      const existing=store.configs?.[sheet.id]||null;
+      const cfg=existing?adventureConfig(sheet.id,{quiet:true}):null;
+      const mode=cfg?.mode||"choice",items=adventureBaseItems(sheet,mode);
+      const totalSets=cfg?adventureSetCount(cfg):Math.ceil(items.length/20);
+      const done=Object.keys(cfg?.completed||{}).length,active=Object.keys(cfg?.activeSessions||{}).length;
+      const meta=bankSheetMeta(sheet);
+      const b=document.createElement("button");b.className="path-sheet-card";
+      b.innerHTML=`<span class="path-sheet-name">${escapeHtml(meta.area||sheet.name)}</span><span class="path-sheet-meta">${items.length}문제 · ${totalSets}세트${done?` · ${done}완료`:""}${active?` · ${active}진행중`:""}</span><span class="path-sheet-arrow">›</span>`;
+      b.onclick=()=>{store.activeSheetId=sheet.id;saveLocal();renderQuiz()};
+      list.append(b);
+    });
+    group.append(list);area.append(group);
+  });
+}
+function renderAdventurePath(area,sheetId){
+  const store=adventureStore(),sheet=adventureSheet(sheetId);
+  if(!sheet){store.activeSheetId="";saveLocal();renderAdventureSheetPicker(area);return}
+  const cfg=adventureConfig(sheetId),meta=bankSheetMeta(sheet),totalSets=adventureSetCount(cfg),total=cfg.orderIds.length;
+  const top=document.createElement("div");top.className="path-head";
+  const back=document.createElement("button");back.className="path-back";back.textContent="‹ 시트";
+  back.onclick=()=>{store.activeSheetId="";saveLocal();renderQuiz()};
+  const title=document.createElement("div");title.className="path-title";title.innerHTML=`<strong>${escapeHtml(meta.area||sheet.name)}</strong><span>${total}문제 · ${totalSets}세트</span>`;
+  const settings=document.createElement("button");settings.className="path-settings-btn";settings.textContent="설정";
+  settings.onclick=()=>{cfg.settingsOpen=!cfg.settingsOpen;saveLocal();renderQuiz()};
+  top.append(back,title,settings);area.append(top);
+
+  if(cfg.settingsOpen){
+    const settingsBox=document.createElement("div");settingsBox.className="path-settings";
+    const makeSelect=(label,pairs,value,apply)=>{
+      const wrap=document.createElement("label");const span=document.createElement("span");span.textContent=label;
+      const sel=document.createElement("select");
+      pairs.forEach(([v,t])=>{const o=document.createElement("option");o.value=v;o.textContent=t;sel.append(o)});
+      sel.value=String(value);sel.onchange=()=>{if(apply(sel.value)===false){sel.value=String(value);return}renderQuiz()};
+      wrap.append(span,sel);return wrap;
+    };
+    settingsBox.append(
+      makeSelect("세트 크기",[["10","10문제"],["20","20문제"],["30","30문제"],["50","50문제"]],cfg.size,v=>resetAdventureConfig(sheetId,{size:Number(v)})),
+      makeSelect("출제 순서",[["sequence","순서대로"],["random","처음 한 번 섞기"]],cfg.order,v=>resetAdventureConfig(sheetId,{order:v})),
+      makeSelect("답 방식",[["choice","객관식"],["subjective","주관식"],["write","글쓰기"]],cfg.mode,v=>resetAdventureConfig(sheetId,{mode:v}))
+    );
+    const help=document.createElement("div");help.className="path-settings-help";help.textContent="랜덤은 처음 경로를 만들 때 한 번만 섞고, 이후에는 같은 세트가 유지됩니다.";
+    settingsBox.append(help);area.append(settingsBox);
+  }
+
+  const doneCount=Object.keys(cfg.completed||{}).length;
+  const summary=document.createElement("div");summary.className="path-progress-summary";
+  summary.innerHTML=`<span><b>${doneCount}</b> / ${totalSets} 세트 완료</span><span>${cfg.order==="random"?"랜덤 고정":"순서대로"} · ${cfg.mode==="choice"?"객관식":cfg.mode==="subjective"?"주관식":"글쓰기"}</span>`;
+  area.append(summary);
+
+  const path=document.createElement("div");path.className="adventure-path";
+  let firstIncomplete=-1;
+  for(let i=0;i<totalSets;i++){if(!cfg.completed[String(i)]){firstIncomplete=i;break}}
+  for(let i=0;i<totalSets;i++){
+    const ids=adventureSetIds(cfg,i),completed=cfg.completed[String(i)],active=cfg.activeSessions?.[`set:${i}`];
+    const row=document.createElement("div");row.className="path-node-row"+(i%2?" right":" left");
+    const node=document.createElement("button");node.className="path-node";
+    if(completed)node.classList.add("completed");
+    if(active)node.classList.add("in-progress");
+    if(i===firstIncomplete&&!active)node.classList.add("current");
+    node.textContent=completed?"✓":active?"▶":String(i+1);
+    node.setAttribute("aria-label",`${i+1}세트`);
+    node.onclick=()=>{if(active)adventureSessionFromSnapshot(active);else startAdventureSet(sheetId,i,{replay:!!completed})};
+    const text=document.createElement("div");text.className="path-node-text";
+    let detail=`${ids.length}문제`;
+    if(active)detail=active.round>1?`${active.round}회차 진행 중`:`${Math.min((active.index||0)+1,active.initialCount||ids.length)}/${active.initialCount||ids.length} 진행 중`;
+    else if(completed)detail=`완료${completed.wrong?` · 오답 ${completed.wrong}`:""}${completed.reviewCount?` · 복습 ${completed.reviewCount}`:""}`;
+    else if(i===firstIncomplete)detail=`${ids.length}문제 · 다음`;
+    text.innerHTML=`<strong>${i+1}세트</strong><span>${detail}</span>`;
+    row.append(node,text);path.append(row);
+
+    const milestone=i+1;
+    if(milestone%3===0&&cfg.completed[String(i)]){
+      const reviewItems=adventureReviewItems(sheet,cfg,milestone);
+      if(reviewItems.length){
+        const key=`review:${milestone}`,activeReview=cfg.activeSessions?.[key],rev=cfg.reviews?.[String(milestone)];
+        const rr=document.createElement("div");rr.className="path-node-row review";
+        const rb=document.createElement("button");rb.className="path-node review-node"+(activeReview?" in-progress":"");rb.textContent="↻";
+        rb.onclick=()=>{if(activeReview)adventureSessionFromSnapshot(activeReview);else startAdventureReview(sheetId,milestone)};
+        const rt=document.createElement("div");rt.className="path-node-text";
+        rt.innerHTML=`<strong>복습</strong><span>${reviewItems.length}문제 · 오답/★${rev?.count?` · ${rev.count}회 완료`:""}</span>`;
+        rr.append(rb,rt);path.append(rr);
+      }
+    }
+  }
+  if(!totalSets){
+    const empty=document.createElement("div");empty.className="bank-empty";empty.textContent="이 시트에는 출제할 문제가 없습니다.";path.append(empty);
+  }
+  area.append(path);
+  if(!cfg.settingsOpen){
+    requestAnimationFrame(()=>{
+      const target=path.querySelector(".path-node.in-progress,.path-node.current");
+      if(target)target.scrollIntoView({block:"center",behavior:"auto"});
+    });
+  }
+}
+function renderAdventureHome(area){
+  const store=adventureStore();
+  if(store.activeSheetId)renderAdventurePath(area,store.activeSheetId);
+  else renderAdventureSheetPicker(area);
+}
+
 function renderQuiz(){
   renderBankToolbar();
   const area=document.getElementById("quizArea");area.innerHTML="";
@@ -3328,6 +4037,7 @@ function renderQuiz(){
     document.getElementById("emptyBankImport").onclick=()=>document.getElementById("bankExcelFiles").click();return
   }
   if(!quizSession){
+    if(app.ui.quizHomeMode==="path"){renderAdventureHome(area);return}
     if(quizLastComplete){
       area.innerHTML=`<div class="session-done"><strong>여기까지 ✓</strong><span>${escapeHtml(quizLastComplete.label)} · ${quizLastComplete.count}문제${quizLastComplete.correctCount!=null?` · ✓ ${quizLastComplete.correctCount} · × ${quizLastComplete.wrongCount}`:""}</span><div><button id="doneStop">여기까지</button><button id="tenMore" class="primary">10개 더</button></div></div>`;
       document.getElementById("doneStop").onclick=()=>{quizLastComplete=null;renderQuiz()};
@@ -3352,6 +4062,9 @@ function renderQuizQuestion(){
   const area=document.getElementById("quizArea");area.innerHTML="";
   const item=currentQuizItem();if(!item)return;
   const card=document.createElement("div");card.className="question-card";
+  const progressTrack=document.createElement("div");progressTrack.className="quiz-progress-track";
+  const progressFill=document.createElement("span");progressFill.style.width=`${Math.max(2,Math.min(100,((quizSession.index+1)/Math.max(1,quizSession.items.length))*100))}%`;
+  progressTrack.append(progressFill);card.append(progressTrack);
   const top=document.createElement("div");top.className="q-top";
   const tag=document.createElement("div");tag.className="q-tag";
   const sheetMeta=document.createElement("div");sheetMeta.className="quiz-sheet-name";sheetMeta.textContent=item.sheetName||"";
@@ -3366,7 +4079,7 @@ function renderQuizQuestion(){
   top.append(tag,qStar,prog);
   const q=document.createElement("div");q.className="question";q.textContent=(item.question||"").replace(/\s*\/\s*/g,"  /  ");
   card.append(top,q);
-  const mode=app.ui.quiz.mode;
+  const mode=activeQuizMode();
   if(mode==="choice"){
     const choices=document.createElement("div");choices.className="choices";
     quizSession.choices.forEach((text,i)=>{
@@ -3397,9 +4110,11 @@ function renderQuizQuestion(){
   }
   if(quizSession.showAnswer&&item.answer){const ans=document.createElement("div");ans.className="answer-panel";ans.textContent=item.answer+(item.memo?`\n\n${item.memo}`:"");card.append(ans)}
   const actions=document.createElement("div");actions.className="quiz-actions";
-  const stop=document.createElement("button");stop.textContent="중단";stop.onclick=requestQuizStop;actions.append(stop);
+  const stop=document.createElement("button");stop.textContent=quizSession.adventure?"나가기":"중단";stop.onclick=requestQuizStop;actions.append(stop);
   const later=document.createElement("button");later.textContent="나중에";later.onclick=()=>{quizSession.deferred=quizSession.deferred||[];quizSession.deferred.push(item);nextQuiz()};actions.append(later);
-  const skip=document.createElement("button");skip.textContent="건너뛰기";skip.onclick=()=>nextQuiz();actions.append(skip);
+  if(!quizSession.adventure){
+    const skip=document.createElement("button");skip.textContent="건너뛰기";skip.onclick=()=>nextQuiz();actions.append(skip);
+  }
   const moreWrap=document.createElement("div");moreWrap.className="quiz-more-wrap";const more=document.createElement("button");more.textContent="•••";const moreMenu=document.createElement("div");moreMenu.className="menu hidden";
   const editQ=document.createElement("button");editQ.textContent="문제 수정";editQ.onclick=()=>{moreMenu.classList.add("hidden");toggleQuizInlineEdit(card,item)};
   const reason=document.createElement("button");reason.textContent="★ 이유";
@@ -3421,13 +4136,16 @@ function renderQuizQuestion(){
   if((quizSession.answered||quizSession.showAnswer)&&mode!=="choice"){
     const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=nextQuiz;actions.append(next);
   }
+  if(mode==="choice"&&quizSession.adventure&&quizSession.answered&&quizSession.showAnswer){
+    const next=document.createElement("button");next.className="primary adventure-continue";next.textContent="계속";next.onclick=nextQuiz;actions.append(next);
+  }
   card.append(actions);area.append(card);
 }
 function selectChoice(i){
   if(!quizSession||quizSession.answered||i<0||i>=quizSession.choices.length)return;
   const item=currentQuizItem(),text=quizSession.choices[i],ok=norm(text)===norm(item.answer);
   quizSession.selected=i;quizSession.answered=true;quizSession.showAnswer=!ok;recordQuiz(item,ok);saveQuizSessionLocal();renderQuizQuestion();
-  setTimeout(()=>{if(quizSession?.answered)nextQuiz()}, ok?450:1000);
+  if(ok||!quizSession?.adventure)setTimeout(()=>{if(quizSession?.answered)nextQuiz()}, ok?450:1000);
 }
 function checkSubjective(input){
   if(!quizSession||quizSession.answered||!quizSession.draft.trim())return;
@@ -3438,7 +4156,7 @@ window.addEventListener("keydown",e=>{
   if(app.ui.workspace!=="bank"||app.ui.bankMode!=="quiz"||!quizSession)return;
   const tag=document.activeElement?.tagName;
   if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
-  if(app.ui.quiz.mode==="choice"){
+  if(activeQuizMode()==="choice"){
     let n=null;
     if(["1","2","3","4"].includes(e.key))n=Number(e.key);
     else if(/^Digit[1-4]$/.test(e.code||""))n=Number(e.code.slice(-1));
@@ -3542,6 +4260,8 @@ function renderBankEditor(){
 
     if(app.ui.bankEditSheetId===target.id)app.ui.bankEditSheetId="";
     if(app.ui.quiz.sheetId===target.id)app.ui.quiz.sheetId="all";
+    if(app.ui.quizAdventure?.configs)delete app.ui.quizAdventure.configs[target.id];
+    if(app.ui.quizAdventure?.activeSheetId===target.id)app.ui.quizAdventure.activeSheetId="";
 
     app.bank.contentUpdatedAt=Date.now();
     app.bank.statsUpdatedAt=Date.now();
@@ -3556,7 +4276,7 @@ function renderBankEditor(){
         try{
           await deleteDoc(bankSheetDoc(cloudUser.uid,target.id));
           await saveBankIndexCloud();
-          await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt});
+          await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt});
           updateSync("✓",true);
         }catch(e){console.error(e);updateSync("!",false);toast("기기에서는 삭제됨 · 클라우드 동기화 실패")}
       })();
@@ -3575,6 +4295,7 @@ function renderBankEditor(){
     const ids=app.bank.sheets.map(x=>x.id);
     app.bank.sheets=[];
     app.bank.stats={};
+    app.ui.quizAdventure={activeSheetId:"",configs:{}};
     app.bank.contentUpdatedAt=Date.now();
     app.bank.statsUpdatedAt=Date.now();
     app.ui.bankEditSheetId="";
@@ -3592,7 +4313,7 @@ function renderBankEditor(){
         try{
           for(const id of ids)await deleteDoc(bankSheetDoc(cloudUser.uid,id));
           await setDoc(bankIndexDoc(cloudUser.uid),{sheets:[],updatedAt:app.bank.contentUpdatedAt});
-          await setDoc(bankStatsDoc(cloudUser.uid),{stats:{},updatedAt:app.bank.statsUpdatedAt});
+          await setDoc(bankStatsDoc(cloudUser.uid),{stats:{},adventure:{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt});
           updateSync("✓",true);
         }catch(e){
           console.error(e);
@@ -3667,15 +4388,18 @@ function renderMode(){
   document.getElementById("memorySummary").classList.toggle("hidden",!memory);
   document.getElementById("headerToggle").classList.toggle("hidden",!memory);
   if(memory){
-    const mode=app.study.mode==="edit"?"edit":"study";
+    const mode=app.study.mode==="edit"?"edit":app.study.mode==="songs"?"songs":"study";
     document.getElementById("studyView").classList.toggle("hidden",mode!=="study");
     document.getElementById("editView").classList.toggle("hidden",mode!=="edit");
+    document.getElementById("songMapView").classList.toggle("hidden",mode!=="songs");
     document.getElementById("quizView").classList.add("hidden");document.getElementById("bankEditView").classList.add("hidden");
     document.getElementById("studyBtn").classList.toggle("active",mode==="study");
     document.getElementById("editBtn").classList.toggle("active",mode==="edit");
+    document.getElementById("songMapBtn").classList.toggle("active",mode==="songs");
+    if(mode==="songs")renderSongMap();
   }else{
     document.getElementById("studyMenu")?.classList.add("hidden");
-    document.getElementById("studyView").classList.add("hidden");document.getElementById("editView").classList.add("hidden");
+    document.getElementById("studyView").classList.add("hidden");document.getElementById("editView").classList.add("hidden");document.getElementById("songMapView").classList.add("hidden");
     const bm=app.ui.bankMode||"quiz";
     document.getElementById("quizView").classList.toggle("hidden",bm!=="quiz");
     document.getElementById("bankEditView").classList.toggle("hidden",bm!=="edit");
@@ -3837,7 +4561,7 @@ let statsTimer=null;
 function scheduleBankStatsCloud(){
   if(!cloudUser||applyingRemote)return;
   clearTimeout(statsTimer);statsTimer=setTimeout(async()=>{
-    try{await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt||Date.now()});updateSync("✓",true)}
+    try{await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt||Date.now()});updateSync("✓",true)}
     catch(e){console.error(e);updateSync("!",false)}
   },700);
 }
@@ -3878,7 +4602,7 @@ onAuthStateChanged(auth,async user=>{
     else if(app.bank.sheets.length)await syncImportedBankSheets(app.bank.sheets);
     bankIndexUnsub=onSnapshot(bref,async snap=>{if(!snap.exists())return;const d=snap.data();if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d)});
     const stat=await getDoc(bankStatsDoc(user.uid));
-    if(stat.exists()){const d=stat.data();if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){app.bank.stats=d.stats||{};app.bank.statsUpdatedAt=d.updatedAt||0;saveLocal();renderQuiz();}}
+    if(stat.exists()){const d=stat.data();if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){app.bank.stats=d.stats||{};if(d.adventure&&typeof d.adventure==="object")app.ui.quizAdventure=d.adventure;app.bank.statsUpdatedAt=d.updatedAt||0;saveLocal();renderQuiz();}}
     updateSync("✓",true);
   }catch(e){console.error(e);updateSync(e.code==="permission-denied"?"규칙":"!",false)}
 });
@@ -3921,6 +4645,7 @@ bindModeSwitchTap(document.getElementById("bankSpace"),()=>{
 });
 bindModeSwitchTap(document.getElementById("studyBtn"),()=>{app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode()});
 bindModeSwitchTap(document.getElementById("editBtn"),()=>{app.study.mode="edit";app.ui.workspace="memory";saveLocal();renderMode()});
+bindModeSwitchTap(document.getElementById("songMapBtn"),()=>{app.study.mode="songs";app.ui.workspace="memory";saveLocal();renderMode()});
 document.getElementById("quizBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="quiz";saveLocal();renderMode()};
 document.getElementById("bankEditBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="edit";saveLocal();renderMode()};
 bindModeSwitchTap(document.getElementById("toggleAllAnswers"),()=>{app.ui.showAllStudyAnswers=!app.ui.showAllStudyAnswers;renderStudyKeepPosition()});
@@ -3931,6 +4656,13 @@ bindModeSwitchTap(document.getElementById("studyMenuBtn"),()=>{
   btn.setAttribute("aria-expanded",menu.classList.contains("hidden")?"false":"true");
 });
 document.getElementById("studyMenu").onclick=e=>e.stopPropagation();
+document.getElementById("linkSheetSong").onclick=e=>{e.preventDefault();e.stopPropagation();document.getElementById("studyMenu").classList.add("hidden");openSongLinkModal("")};
+document.getElementById("songCreateLink").onclick=createAndLinkSong;
+bindSafeEnter(document.getElementById("songNameInput"),createAndLinkSong);
+document.getElementById("songLinkCancel").onclick=()=>{document.getElementById("songLinkModal").classList.add("hidden");pendingSongLink=null};
+document.getElementById("songLinkModal").onclick=e=>{if(e.target.id==="songLinkModal"){e.currentTarget.classList.add("hidden");pendingSongLink=null}};
+document.getElementById("songDestCancel").onclick=()=>document.getElementById("songDestModal").classList.add("hidden");
+document.getElementById("songDestModal").onclick=e=>{if(e.target.id==="songDestModal")e.currentTarget.classList.add("hidden")};
 document.getElementById("clearSheetReview").onclick=e=>{e.stopPropagation();if(!confirm(`'${sh().name}'의 현재 입력내용을 전부 지울까요?`))return;sh().rows.forEach(clearReviewRow);saveStudyDraftsNow();renderStudyKeepPosition()};
 document.getElementById("clearSheetStars").onclick=e=>{e.stopPropagation();sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});markStudyCloud();renderStudyKeepPosition()};
 document.getElementById("clearSheetStarCounts").onclick=e=>{e.stopPropagation();if(!confirm("이 시트의 ★ 누적 횟수를 0으로 초기화할까요?"))return;sh().rows.forEach(r=>{if(r.type!=="section"){r.flagCount=0;r.flagged=false}});markStudyCloud();renderStudyKeepPosition()};
