@@ -3872,10 +3872,43 @@ function adventureBaseItems(sheet,mode="choice"){
   if(!sheet)return [];
   return quizItemsFromSheets([sheet],{filter:"all",mode});
 }
+function adventureItemId(item){
+  return item?.id?("i_"+item.id):canonicalProblemId(item);
+}
 function adventureSignature(sheet,mode,items,order="sequence"){
-  const ids=items.map(canonicalProblemId);
+  // 진도 경로는 문제 문구/정답이 아니라 물리 문제 id를 기준으로 함.
+  // 따라서 오탈자·문구·정답 수정만으로 완료 기록이 초기화되지 않음.
+  const ids=items.map(adventureItemId);
   if(order==="random")ids.sort();
   return hashString([sheet?.id||"",mode,ids.join("|")].join("::"));
+}
+function migrateAdventureOrderIds(cfg,base){
+  const fresh=base.map(adventureItemId);
+  if(!Array.isArray(cfg.orderIds)||!cfg.orderIds.length)return null;
+  const freshSet=new Set(fresh);
+  if(cfg.orderIds.length===fresh.length&&cfg.orderIds.every(id=>freshSet.has(id)))return [...cfg.orderIds];
+
+  // 예전 버전은 문제+정답 해시(canonical id)를 저장했음.
+  // 현재 문제와 일치하는 것은 안정 id로 바꾸고, 문구가 수정된 항목은 남은 자리끼리 대응해 진도를 보존함.
+  const canonicalToFresh=new Map();
+  for(const item of base){
+    const cid=canonicalProblemId(item),fid=adventureItemId(item);
+    if(!canonicalToFresh.has(cid))canonicalToFresh.set(cid,[]);
+    canonicalToFresh.get(cid).push(fid);
+  }
+  const used=new Set(),mapped=new Array(cfg.orderIds.length).fill(null);
+  cfg.orderIds.forEach((oldId,i)=>{
+    if(freshSet.has(oldId)&&!used.has(oldId)){mapped[i]=oldId;used.add(oldId);return}
+    const candidates=(canonicalToFresh.get(oldId)||[]).filter(id=>!used.has(id));
+    if(candidates.length===1){mapped[i]=candidates[0];used.add(candidates[0])}
+  });
+  const missing=fresh.filter(id=>!used.has(id));
+  const holes=mapped.map((v,i)=>v?null:i).filter(i=>i!==null);
+  if(mapped.length===fresh.length&&holes.length===missing.length){
+    holes.forEach((idx,j)=>mapped[idx]=missing[j]);
+    if(new Set(mapped).size===fresh.length)return mapped;
+  }
+  return null;
 }
 function newAdventurePath(order="sequence",size=20,mode="choice"){
   return {size,order,mode,signature:"",orderIds:[],completed:{},reviews:{},activeSessions:{},lastTouchedAt:0};
@@ -3918,14 +3951,20 @@ function adventureConfig(sheetId,{quiet=false,order=null}={}){
   const state=adventureSheetState(sheetId),which=order||state.activeOrder;
   const cfg=state.paths[which]||state.paths.sequence;
   const base=adventureBaseItems(sheet,cfg.mode),sig=adventureSignature(sheet,cfg.mode,base,cfg.order);
-  const validIds=new Set(base.map(canonicalProblemId));
+  const freshIds=base.map(adventureItemId),validIds=new Set(freshIds);
+  const migratedOrder=migrateAdventureOrderIds(cfg,base);
+  if(migratedOrder){
+    cfg.orderIds=migratedOrder;
+    cfg.signature=sig;
+    saveLocal();
+  }
   const stale=cfg.signature!==sig||!Array.isArray(cfg.orderIds)||cfg.orderIds.length!==base.length||cfg.orderIds.some(id=>!validIds.has(id));
   if(stale){
     const hadProgress=Object.keys(cfg.completed).length||Object.keys(cfg.activeSessions).length;
     cfg.signature=sig;
-    cfg.orderIds=cfg.order==="random"?shuffled(base.map(canonicalProblemId)):base.map(canonicalProblemId);
+    cfg.orderIds=cfg.order==="random"?shuffled(freshIds):freshIds;
     cfg.completed={};cfg.reviews={};cfg.activeSessions={};
-    if(hadProgress&&!quiet)setTimeout(()=>toast("문제 구성이 바뀌어 이 경로를 새로 정리했어요"),0);
+    if(hadProgress&&!quiet)setTimeout(()=>toast("문제가 추가·삭제되어 이 경로를 새로 정리했어요"),0);
     saveLocal();
   }
   return cfg;
@@ -3938,14 +3977,16 @@ function setAdventureOrder(sheetId,order){
   saveLocal();
 }
 function adventureOrderedItems(sheet,cfg){
-  const base=adventureBaseItems(sheet,cfg.mode),byId=new Map(base.map(x=>[canonicalProblemId(x),x]));
+  const base=adventureBaseItems(sheet,cfg.mode),byId=new Map(base.map(x=>[adventureItemId(x),x]));
   return (cfg.orderIds||[]).map(id=>byId.get(id)).filter(Boolean);
 }
 function adventureSetCount(cfg){return Math.ceil((cfg?.orderIds?.length||0)/(cfg?.size||20))}
 function adventureSetIds(cfg,index){const size=cfg.size||20;return (cfg.orderIds||[]).slice(index*size,(index+1)*size)}
 function adventureHasProgress(cfg){return !!(Object.keys(cfg?.completed||{}).length||Object.keys(cfg?.activeSessions||{}).length)}
 function adventureProgress(cfg){
-  const total=adventureSetCount(cfg),done=Math.min(total,Object.keys(cfg?.completed||{}).length);
+  const total=adventureSetCount(cfg);
+  // 진행률은 본 세트 완료만 계산함. 복습/과거 보조 키가 completed에 섞여 있어도 제외.
+  const done=Array.from({length:total},(_,i)=>String(i)).filter(key=>!!cfg?.completed?.[key]).length;
   return {total,done,pct:total?Math.round(done/total*100):0};
 }
 function resetAdventureConfig(sheetId,patch){
@@ -3957,7 +3998,7 @@ function resetAdventureConfig(sheetId,patch){
   markAdventureCloud();return true;
 }
 function adventureItemsForIds(sheet,cfg,ids){
-  const byId=new Map(adventureBaseItems(sheet,cfg.mode).map(x=>[canonicalProblemId(x),x]));
+  const byId=new Map(adventureBaseItems(sheet,cfg.mode).map(x=>[adventureItemId(x),x]));
   return ids.map(id=>byId.get(id)).filter(Boolean);
 }
 function adventureReviewItems(sheet,cfg,milestone){
@@ -4496,10 +4537,8 @@ function renderQuizQuestion(){
     const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=nextQuiz;actions.append(next);
   }
   if(mode==="choice"&&quizSession.adventure&&quizSession.answered&&quizSession.selected!=null&&item.memo){
-    const selectedText=quizSession.choices[quizSession.selected]||"";
-    if(norm(selectedText)!==norm(item.answer)){
-      const next=document.createElement("button");next.className="primary adventure-explanation-next";next.textContent="계속";next.onclick=nextQuiz;actions.append(next);
-    }
+    const next=document.createElement("button");next.className="primary adventure-explanation-next";
+    next.textContent="계속";next.onclick=nextQuiz;actions.append(next);
   }
   card.append(actions);area.append(card);
 }
@@ -4507,7 +4546,7 @@ function selectChoice(i){
   if(!quizSession||quizSession.answered||i<0||i>=quizSession.choices.length)return;
   const item=currentQuizItem(),text=quizSession.choices[i],ok=norm(text)===norm(item.answer);
   quizSession.selected=i;quizSession.answered=true;quizSession.showAnswer=!ok&&!quizSession.adventure;recordQuiz(item,ok);saveQuizSessionLocal();renderQuizQuestion();
-  const holdForExplanation=!!(quizSession?.adventure&&!ok&&item.memo);
+  const holdForExplanation=!!(quizSession?.adventure&&item.memo);
   if(!holdForExplanation)setTimeout(()=>{if(quizSession?.answered)nextQuiz()},ok?450:900);
 }
 function checkSubjective(input){
