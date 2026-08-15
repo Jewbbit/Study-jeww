@@ -2017,6 +2017,17 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   }
 }
 
+
+
+/* 멜로디 인덱스: 암기판 연결 없이 노래만 추가 */
+.song-map-head{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.song-map-add{
+  border:0!important;background:transparent!important;box-shadow:none!important;
+  width:28px;height:28px;min-height:28px!important;padding:0!important;
+  font-size:18px;line-height:28px;color:#66676d;border-radius:5px
+}
+.song-map-add:active{background:#ededf0!important}
+
 </style>
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#f7f7f8">
@@ -2108,6 +2119,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
       <div>
         <strong>멜로디 인덱스</strong>
       </div>
+      <button id="addStandaloneSong" type="button" class="song-map-add" title="노래 추가" aria-label="노래 추가">＋</button>
     </div>
     <div id="songMapArea"></div>
   </section>
@@ -3048,6 +3060,16 @@ function createAndLinkSong(){
   if(!(song.links||[]).some(link=>songLinkKey(link)===key))song.links.push({...pendingSongLink});
   input.value="";markStudyCloud();renderSongLinkModal();renderStudy();toast("노래 연결됨");
 }
+function createStandaloneSong(){
+  const raw=prompt("노래 이름");
+  if(raw==null)return;
+  const name=raw.trim();
+  if(!name)return;
+  const existing=songStore().find(x=>x.name.trim().toLowerCase()===name.toLowerCase());
+  if(existing)return toast("이미 등록된 노래입니다");
+  songStore().push({id:uid(),name,note:"",links:[]});
+  markStudyCloud();renderSongMap();renderStudy();toast("노래 추가됨");
+}
 function revealSongTarget(sheet,rowId){
   if(!rowId)return;
   const rows=sheet.rows||[],idx=rows.findIndex(r=>r.id===rowId);if(idx<0)return;
@@ -3104,7 +3126,7 @@ function renderSongMap(){
   const songs=songStore();
   if(!songs.length){
     const empty=document.createElement("div");empty.className="song-map-empty";
-    empty.innerHTML="<strong>아직 노래가 없어요.</strong><span>암기판의 •••에서 ‘♪ 노래 연결’을 누르면 지도가 자동으로 채워집니다.</span>";
+    empty.innerHTML="<strong>아직 노래가 없어요.</strong><span>오른쪽 ＋로 노래만 먼저 추가하거나, 암기판에서 연결할 수 있습니다.</span>";
     area.append(empty);return;
   }
   const groups=new Map();
@@ -3145,7 +3167,7 @@ function renderSongMap(){
     section.append(grid);area.append(section);
   };
   groups.forEach(g=>drawGroup(g.subject.name,g.songs));
-  drawGroup("연결 확인 필요",orphan);
+  drawGroup("암기판 연결 없음",orphan);
 }
 function appendSongManageButton(menu,rowId=""){
   const b=document.createElement("button");
@@ -4120,23 +4142,24 @@ function finishQuiz(){
   if(completedResumeSlot)removeResumeSlot(completedResumeSlot,false);
   quizSession=null;clearSavedQuiz();document.body.classList.remove("quiz-running");renderQuiz();
 }
-function nextQuiz(){
+function nextQuiz(force=false){
   if(!quizSession)return;
+  if(quizSession.awaitingExplanation&&!force)return;
   if(quizSession.index>=quizSession.items.length-1){
     if(quizSession.deferred?.length){
       const seen=new Set(),later=quizSession.deferred.filter(x=>{const k=canonicalProblemId(x);if(seen.has(k))return false;seen.add(k);return true});
-      quizSession.items=later;quizSession.index=0;quizSession.deferred=[];quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";
+      quizSession.items=later;quizSession.index=0;quizSession.deferred=[];quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";quizSession.awaitingExplanation=false;
       buildChoices();saveQuizSessionLocal();toast(`나중에 ${later.length}문제`);renderQuizQuestion();return;
     }
     if(quizSession.mastery&&quizSession.nextRound.length){
       const seen=new Set(),remain=quizSession.nextRound.filter(x=>{const k=canonicalProblemId(x);if(seen.has(k))return false;seen.add(k);return true});
       quizSession.items=activeQuizOrder()==="random"?shuffled(remain):remain;
-      quizSession.index=0;quizSession.round++;quizSession.nextRound=[];quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";
+      quizSession.index=0;quizSession.round++;quizSession.nextRound=[];quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";quizSession.awaitingExplanation=false;
       buildChoices();saveQuizSessionLocal();toast(`${quizSession.round}회차 · ${quizSession.items.length}문제 남음`);renderQuizQuestion();return;
     }
     finishQuiz();return;
   }
-  quizSession.index++;quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";buildChoices();saveQuizSessionLocal();renderQuizQuestion();
+  quizSession.index++;quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";quizSession.awaitingExplanation=false;buildChoices();saveQuizSessionLocal();renderQuizQuestion();
 }
 function renderBankToolbar(){
   const box=document.getElementById("bankToolbar");box.innerHTML="";
@@ -4511,7 +4534,7 @@ function renderQuizQuestion(){
   }
   const actions=document.createElement("div");actions.className="quiz-actions";
   const stop=document.createElement("button");stop.textContent=quizSession.adventure?"나가기":"중단";stop.onclick=requestQuizStop;actions.append(stop);
-  const later=document.createElement("button");later.textContent="나중에";later.onclick=()=>{quizSession.deferred=quizSession.deferred||[];quizSession.deferred.push(item);nextQuiz()};actions.append(later);
+  const later=document.createElement("button");later.textContent="나중에";later.onclick=()=>{quizSession.deferred=quizSession.deferred||[];quizSession.deferred.push(item);nextQuiz(true)};actions.append(later);
   if(!quizSession.adventure){
     const skip=document.createElement("button");skip.textContent="건너뛰기";skip.onclick=()=>nextQuiz();actions.append(skip);
   }
@@ -4538,16 +4561,17 @@ function renderQuizQuestion(){
   }
   if(mode==="choice"&&quizSession.adventure&&quizSession.answered&&quizSession.selected!=null&&item.memo){
     const next=document.createElement("button");next.className="primary adventure-explanation-next";
-    next.textContent="계속";next.onclick=nextQuiz;actions.append(next);
+    next.textContent="계속";next.onclick=()=>nextQuiz(true);actions.append(next);
   }
   card.append(actions);area.append(card);
 }
 function selectChoice(i){
   if(!quizSession||quizSession.answered||i<0||i>=quizSession.choices.length)return;
   const item=currentQuizItem(),text=quizSession.choices[i],ok=norm(text)===norm(item.answer);
-  quizSession.selected=i;quizSession.answered=true;quizSession.showAnswer=!ok&&!quizSession.adventure;recordQuiz(item,ok);saveQuizSessionLocal();renderQuizQuestion();
-  const holdForExplanation=!!(quizSession?.adventure&&item.memo);
-  if(!holdForExplanation)setTimeout(()=>{if(quizSession?.answered)nextQuiz()},ok?450:900);
+  quizSession.selected=i;quizSession.answered=true;quizSession.showAnswer=!ok&&!quizSession.adventure;
+  quizSession.awaitingExplanation=!!(quizSession.adventure&&item.memo);
+  recordQuiz(item,ok);saveQuizSessionLocal();renderQuizQuestion();
+  if(!quizSession.awaitingExplanation)setTimeout(()=>{if(quizSession?.answered)nextQuiz()},ok?450:900);
 }
 function checkSubjective(input){
   if(!quizSession||quizSession.answered||!quizSession.draft.trim())return;
@@ -4565,7 +4589,7 @@ window.addEventListener("keydown",e=>{
     else if(/^Numpad[1-4]$/.test(e.code||""))n=Number(e.code.slice(-1));
     if(n){e.preventDefault();e.stopPropagation();selectChoice(n-1);return}
   }
-  if(e.key==="Enter"&&(quizSession.answered||quizSession.showAnswer)){e.preventDefault();nextQuiz()}
+  if(e.key==="Enter"&&(quizSession.answered||quizSession.showAnswer)){e.preventDefault();nextQuiz(true)}
 },true);
 function wrongItems(){
   const all=mergeDuplicateQuizItems(bankQuestions(true));
@@ -5115,6 +5139,7 @@ document.getElementById("quizSlotModal").onclick=e=>{
   }
 };
 
+document.getElementById("addStandaloneSong").onclick=createStandaloneSong;
 document.getElementById("settingsClose").onclick=closeSettings;
 document.getElementById("settingsModal").onclick=e=>{if(e.target.id==="settingsModal")closeSettings()};
 document.getElementById("fontFile").onchange=async e=>{
