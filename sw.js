@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v1";
+const CACHE_NAME="study-jew-pwa-v3";
 const CORE=["./edit.html","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 
 self.addEventListener("install",event=>{
