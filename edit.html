@@ -1801,14 +1801,6 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .melody-index-btn.active{background:#ededf0!important;color:#5f4e78!important}
 
 
-/* 전역 진도 진입 */
-.global-path-btn{
-  border:0;background:transparent;border-radius:6px;padding:5px 7px;
-  min-height:30px;color:#68686e;font-size:10.5px;font-weight:700
-}
-.global-path-btn.active{background:#ededf0;color:#242428}
-@media(pointer:coarse){#globalTools .global-path-btn{min-height:40px!important;padding-left:8px;padding-right:8px}}
-
 /* 노래 연결 표시는 별도 줄 대신 기존 제목/카테고리 옆에 붙임 */
 .sheet-title{display:flex;align-items:center;gap:5px}
 .sheet-title>span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1894,6 +1886,46 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
     width:40px!important;min-width:40px!important;height:40px!important;min-height:40px!important;
     line-height:40px!important
   }
+}
+
+
+/* 상단 전역 도구: 진도 / 멜로디 / 설정 동일한 흰 박스 */
+#globalTools .global-path-btn,
+#globalTools .melody-index-btn,
+#globalTools .settings-btn{
+  box-sizing:border-box!important;
+  height:30px!important;min-height:30px!important;
+  border:1px solid #dedee2!important;
+  border-radius:6px!important;
+  background:#fff!important;
+  color:#5f6066!important;
+  box-shadow:none!important;
+}
+#globalTools .global-path-btn{
+  width:auto!important;min-width:44px!important;
+  padding:0 8px!important;
+  font-size:10.5px!important;font-weight:700!important;
+}
+#globalTools .melody-index-btn,
+#globalTools .settings-btn{
+  width:30px!important;min-width:30px!important;
+  padding:0!important;
+}
+#globalTools .global-path-btn.active,
+#globalTools .melody-index-btn.active{
+  background:#ededf0!important;
+  border-color:#d2d2d7!important;
+  color:#242428!important;
+}
+@media(pointer:coarse){
+  #globalTools .global-path-btn,
+  #globalTools .melody-index-btn,
+  #globalTools .settings-btn{
+    height:40px!important;min-height:40px!important;
+  }
+  #globalTools .global-path-btn{min-width:50px!important;padding:0 9px!important}
+  #globalTools .melody-index-btn,
+  #globalTools .settings-btn{width:40px!important;min-width:40px!important}
 }
 
 </style>
