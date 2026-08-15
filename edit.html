@@ -1904,6 +1904,74 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   }
 }
 
+
+@media(max-width:640px){
+  #subjects .chip{
+    width:34px!important;min-width:34px!important;max-width:34px!important;
+    padding-left:0!important;padding-right:0!important;
+    font-size:0!important;overflow:hidden
+  }
+  #subjects .chip::after{
+    content:attr(data-short-label);
+    font-size:12px!important;line-height:1;font-weight:700
+  }
+}
+
+
+@media(max-width:640px){
+  body:not(.quiz-running) #memoryHeader.collapsed:not(.hidden){
+    display:block!important
+  }
+}
+
+
+@media(max-width:640px){
+  #songMapView .more,
+  #songMapView .song-more,
+  #songMapView button[aria-label*="메뉴"]{
+    width:24px!important;min-width:24px!important;
+    height:24px!important;min-height:24px!important;
+    padding:0!important;font-size:9px!important;line-height:24px!important
+  }
+}
+
+
+#globalTools .global-path-btn,
+#globalTools .melody-index-btn,
+#globalTools .settings-btn{
+  box-sizing:border-box!important;
+  height:30px;min-height:30px!important;
+  border:1px solid #dedee2!important;
+  border-radius:6px!important;
+  background:#fff!important;
+  color:#5f6066!important;
+  display:inline-flex;align-items:center;justify-content:center;
+  box-shadow:none!important
+}
+#globalTools .global-path-btn{
+  min-width:42px;padding:0 8px!important;font-size:10.5px;font-weight:700
+}
+#globalTools .melody-index-btn,
+#globalTools .settings-btn{
+  width:30px;min-width:30px!important;padding:0!important
+}
+#globalTools .global-path-btn.active,
+#globalTools .melody-index-btn.active{
+  background:#ededf0!important;border-color:#cfd0d4!important;color:#242428!important
+}
+@media(pointer:coarse){
+  #globalTools .global-path-btn,
+  #globalTools .melody-index-btn,
+  #globalTools .settings-btn{
+    height:40px!important;min-height:40px!important
+  }
+  #globalTools .global-path-btn{min-width:48px!important}
+  #globalTools .melody-index-btn,
+  #globalTools .settings-btn{
+    width:40px!important;min-width:40px!important
+  }
+}
+
 </style>
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#f7f7f8">
@@ -2714,7 +2782,9 @@ function renderSubjects(){
   el.innerHTML="";tools.innerHTML="";global.innerHTML="";
   app.study.subjects.forEach(subject=>{
     const b=document.createElement("button");b.className="chip"+(subject.id===app.study.subjectId?" active":"");
-    b.textContent=subject.name;b.title=subject.name;
+    b.textContent=subject.name;
+    b.dataset.shortLabel=(subject.name||"").trim().slice(0,1)||"·";
+    b.title=subject.name;b.setAttribute("aria-label",subject.name);
     bindModeSwitchTap(b,()=>{app.study.subjectId=subject.id;saveLocal();render()});
     el.append(b);
     bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>app.study.subjects.indexOf(subject),(from,to)=>{reorderArray(app.study.subjects,from,to);markStudyCloud();render()});
@@ -2765,7 +2835,7 @@ function renderSheets(){
   const el=document.getElementById("sheets");el.innerHTML="";
   sub().sheets.forEach(sheet=>{
     const b=document.createElement("button");b.className="chip"+(sheet.id===sub().currentId?" active":"");b.textContent=sheet.name;
-    bindModeSwitchTap(b,()=>{sub().currentId=sheet.id;setHeaderCollapsed(true);saveLocal();render()});
+    bindModeSwitchTap(b,()=>{sub().currentId=sheet.id;saveLocal();render()});
     el.append(b);
     bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>sub().sheets.indexOf(sheet),(from,to)=>{reorderArray(sub().sheets,from,to);markStudyCloud();render()});
   });
