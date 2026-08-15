@@ -1791,6 +1791,10 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .sheet-song-strip{display:flex;align-items:center;gap:5px;margin:0 2px 5px;padding:5px 7px;border-bottom:1px solid #ececef;color:#77688c;font-size:10px}
 .sheet-song-strip button{min-width:0;border:0;background:transparent;color:inherit;font:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left;padding:2px}
 
+.adventure-explanation{white-space:pre-wrap}
+.adventure-explanation::before{content:"해설";display:block;font-size:9.5px;font-weight:750;color:#8a8b91;margin-bottom:4px}
+.question-card .adventure-explanation-next{margin-left:auto}
+
 </style>
 </head>
 <body>
@@ -3480,7 +3484,10 @@ function recordQuiz(item,ok){
   if(quizSession){if(ok)quizSession.correctCount=(quizSession.correctCount||0)+1;else quizSession.wrongCount=(quizSession.wrongCount||0)+1;}
 
   const st=getStat(item);st.attempts++;
-  if(ok){st.correct++;}else{st.wrong++;st.needsReview=true;st.lastWrongAt=Date.now();if(quizSession?.mastery)quizSession.nextRound.push(item)}
+  if(ok){st.correct++;}else{
+    st.wrong++;st.needsReview=true;st.lastWrongAt=Date.now();
+    if(quizSession?.mastery)quizSession.nextRound.push(item);
+  }
   markBankStatsCloud();
 }
 function clearWrong(item){const st=getStat(item);st.needsReview=false;markBankStatsCloud();renderQuiz()}
@@ -3641,7 +3648,7 @@ function adventureSessionFromSnapshot(saved){
     index:Math.min(saved.index||0,items.length-1),answered:!!saved.answered,selected:saved.selected??null,showAnswer:!!saved.showAnswer,draft:saved.draft||"",
     round:saved.round||1,nextRound:(saved.nextRoundIds||[]).map(id=>byId.get(id)).filter(Boolean),
     deferred:(saved.deferredIds||[]).map(id=>byId.get(id)).filter(Boolean),rangeLabel:saved.rangeLabel||sheet.name,
-    mastery:saved.mastery!==false,choices:Array.isArray(saved.choices)?saved.choices:[],
+    mastery:true,choices:Array.isArray(saved.choices)?saved.choices:[],
     quizMode:saved.mode||cfg.mode,quizOrder:saved.order||cfg.order,adventure:{...adv}
   };
   if(activeQuizMode()==="choice"&&!quizSession.choices.length)buildChoices();
@@ -3750,7 +3757,9 @@ function nextQuiz(){
       const seen=new Set(),remain=quizSession.nextRound.filter(x=>{const k=canonicalProblemId(x);if(seen.has(k))return false;seen.add(k);return true});
       quizSession.items=activeQuizOrder()==="random"?shuffled(remain):remain;
       quizSession.index=0;quizSession.round++;quizSession.nextRound=[];quizSession.answered=false;quizSession.selected=null;quizSession.showAnswer=false;quizSession.draft="";
-      buildChoices();saveQuizSessionLocal();toast(`${quizSession.round}회차 · ${quizSession.items.length}문제 남음`);renderQuizQuestion();return;
+      buildChoices();saveQuizSessionLocal();
+      toast(quizSession.adventure?`오답 ${quizSession.items.length}문제 다시`:`${quizSession.round}회차 · ${quizSession.items.length}문제 남음`);
+      renderQuizQuestion();return;
     }
     finishQuiz();return;
   }
@@ -4085,15 +4094,17 @@ function renderQuizQuestion(){
     quizSession.choices.forEach((text,i)=>{
       const b=document.createElement("button");b.className="choice";
       if(quizSession.answered){
-        if(norm(text)===norm(item.answer))b.classList.add("correct");
-        else if(i===quizSession.selected)b.classList.add("wrong");
+        const isCorrect=norm(text)===norm(item.answer);
+        if(i===quizSession.selected)b.classList.add(isCorrect?"correct":"wrong");
+        else if(isCorrect)b.classList.add("correct");
       }
       const n=document.createElement("span");n.className="num";n.textContent=i+1;
       const tx=document.createElement("span");tx.className="choice-text";tx.textContent=text;
       const mark=document.createElement("span");mark.className="choice-mark";
       if(quizSession.answered){
-        if(norm(text)===norm(item.answer))mark.textContent="✓";
-        else if(i===quizSession.selected)mark.textContent="×";
+        const isCorrect=norm(text)===norm(item.answer);
+        if(i===quizSession.selected)mark.textContent=isCorrect?"✓":"×";
+        else if(isCorrect)mark.textContent="✓";
       }
       b.append(n,tx,mark);
       b.onclick=()=>selectChoice(i);choices.append(b);
@@ -4108,7 +4119,12 @@ function renderQuizQuestion(){
   }else{
     const ta=document.createElement("textarea");ta.className="write-answer";ta.value=quizSession.draft||"";ta.placeholder="내 답 작성";ta.oninput=e=>{quizSession.draft=e.target.value;saveQuizSessionLocal()};card.append(ta);
   }
-  if(quizSession.showAnswer&&item.answer){const ans=document.createElement("div");ans.className="answer-panel";ans.textContent=item.answer+(item.memo?`\n\n${item.memo}`:"");card.append(ans)}
+  if(quizSession.showAnswer&&item.answer){
+    const ans=document.createElement("div");ans.className="answer-panel";ans.textContent=item.answer+(item.memo?`\n\n${item.memo}`:"");card.append(ans)
+  }else if(mode==="choice"&&quizSession.adventure&&quizSession.answered&&quizSession.selected!=null&&item.memo){
+    const memo=document.createElement("div");memo.className="answer-panel adventure-explanation";
+    memo.textContent=item.memo;card.append(memo);
+  }
   const actions=document.createElement("div");actions.className="quiz-actions";
   const stop=document.createElement("button");stop.textContent=quizSession.adventure?"나가기":"중단";stop.onclick=requestQuizStop;actions.append(stop);
   const later=document.createElement("button");later.textContent="나중에";later.onclick=()=>{quizSession.deferred=quizSession.deferred||[];quizSession.deferred.push(item);nextQuiz()};actions.append(later);
@@ -4136,16 +4152,20 @@ function renderQuizQuestion(){
   if((quizSession.answered||quizSession.showAnswer)&&mode!=="choice"){
     const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=nextQuiz;actions.append(next);
   }
-  if(mode==="choice"&&quizSession.adventure&&quizSession.answered&&quizSession.showAnswer){
-    const next=document.createElement("button");next.className="primary adventure-continue";next.textContent="계속";next.onclick=nextQuiz;actions.append(next);
+  if(mode==="choice"&&quizSession.adventure&&quizSession.answered&&quizSession.selected!=null&&item.memo){
+    const selectedText=quizSession.choices[quizSession.selected]||"";
+    if(norm(selectedText)!==norm(item.answer)){
+      const next=document.createElement("button");next.className="primary adventure-explanation-next";next.textContent="계속";next.onclick=nextQuiz;actions.append(next);
+    }
   }
   card.append(actions);area.append(card);
 }
 function selectChoice(i){
   if(!quizSession||quizSession.answered||i<0||i>=quizSession.choices.length)return;
   const item=currentQuizItem(),text=quizSession.choices[i],ok=norm(text)===norm(item.answer);
-  quizSession.selected=i;quizSession.answered=true;quizSession.showAnswer=!ok;recordQuiz(item,ok);saveQuizSessionLocal();renderQuizQuestion();
-  if(ok||!quizSession?.adventure)setTimeout(()=>{if(quizSession?.answered)nextQuiz()}, ok?450:1000);
+  quizSession.selected=i;quizSession.answered=true;quizSession.showAnswer=!ok&&!quizSession.adventure;recordQuiz(item,ok);saveQuizSessionLocal();renderQuizQuestion();
+  const holdForExplanation=!!(quizSession?.adventure&&!ok&&item.memo);
+  if(!holdForExplanation)setTimeout(()=>{if(quizSession?.answered)nextQuiz()},ok?450:900);
 }
 function checkSubjective(input){
   if(!quizSession||quizSession.answered||!quizSession.draft.trim())return;
