@@ -1670,14 +1670,6 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .quiz-advanced>summary::-webkit-details-marker{display:none}
 .quiz-advanced[open]>summary{color:#34353a;font-weight:650}
 .quick-selection-count{font-size:11px;color:#65666c;padding:6px 2px}
-.path-sheet-group{margin:0 0 16px}
-.path-sheet-group-title{font-size:11px;font-weight:750;color:#77787d;margin:0 2px 5px}
-.path-sheet-list{display:grid;gap:5px}
-.path-sheet-card{position:relative;width:100%;text-align:left;border:1px solid #e2e2e5;background:#fff;border-radius:8px;padding:10px 38px 10px 11px;min-height:58px}
-.path-sheet-card:active{background:#f5f5f6}
-.path-sheet-name{display:block;font-size:13px;font-weight:720;color:#242428;margin-bottom:4px}
-.path-sheet-meta{display:block;font-size:10.5px;color:#85868c}
-.path-sheet-arrow{position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:22px;color:#aaaab0}
 .path-head{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px;margin:2px 0 10px}
 .path-back,.path-settings-btn{border:0;background:transparent;min-height:36px;padding:6px 8px;color:#686970;font-size:11px}
 .path-title{min-width:0;text-align:center}
@@ -1800,13 +1792,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 #songMapView .song-map-head{margin-top:0}
 
 /* 진도 학습: 현재 경로 하나만 초록 진행률로 표시 */
-.path-sheet-card{padding-bottom:17px!important}
-.path-sheet-progress{
-  position:absolute;left:11px;right:38px;bottom:7px;height:3px;border-radius:2px;
-  background:#eceeef;overflow:hidden
-}
-.path-sheet-progress i,.path-progress-bar i{display:block;height:100%;background:#65a878;border-radius:inherit}
-.path-sheet-progress-label{position:absolute;right:39px;bottom:10px;font-size:8.5px;color:#6c8d75}
+.path-progress-bar i{display:block;height:100%;background:#65a878;border-radius:inherit}
 .path-progress-bar{height:4px;margin:-2px 2px 8px;background:#eceeef;border-radius:3px;overflow:hidden}
 .path-order-tabs{display:grid;grid-template-columns:1fr 1fr;gap:3px;margin:3px 0 8px;padding:3px;background:#f0f0f2;border-radius:8px}
 .path-order-tabs button{min-height:34px;border:0;background:transparent;border-radius:6px;font-size:11px;color:#77787d}
@@ -1840,6 +1826,61 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 
 .progress-hub-head{font-size:15px;font-weight:760;margin:2px 2px 10px;color:#292a2e}
 
+
+/* 진도 첫 화면: 과목별 한 줄 + 시트명 들어간 작은 칸 */
+.path-subject-row{
+  display:grid;grid-template-columns:62px minmax(0,1fr);align-items:start;gap:8px;
+  padding:6px 0 8px;border-bottom:1px solid #eeeeef
+}
+.path-subject-name{
+  padding:8px 2px 0;font-size:11.5px;font-weight:760;color:#4e4f54;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.path-sheet-strip{
+  display:flex;gap:6px;overflow-x:auto;overscroll-behavior-x:contain;
+  scrollbar-width:none;padding:2px 1px 3px
+}
+.path-sheet-strip::-webkit-scrollbar{display:none}
+.path-sheet-pill{
+  position:relative;flex:0 0 auto;
+  width:96px;min-height:44px;padding:7px 8px 10px;
+  border:1px solid #dedee2;border-radius:7px;background:#fff;
+  text-align:center;color:#303136;overflow:hidden
+}
+.path-sheet-pill:active{background:#f5f5f6}
+.path-sheet-pill-name{
+  position:relative;z-index:1;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;
+  overflow:hidden;font-size:10.5px;line-height:1.25;font-weight:680;word-break:keep-all
+}
+.path-sheet-pill-progress{
+  position:absolute;left:0;right:0;bottom:0;height:4px;background:#eceeef
+}
+.path-sheet-pill-progress i{display:block;height:100%;background:#65a878}
+.path-sheet-pill.done{border-color:#9fc6aa;background:#f4faf6}
+.path-sheet-pill.active-progress{box-shadow:inset 0 0 0 1px #b8a9d7!important}
+@media(max-width:640px){
+  .path-subject-row{grid-template-columns:50px minmax(0,1fr);gap:6px}
+  .path-subject-name{font-size:10.5px}
+  .path-sheet-pill{width:88px;min-height:42px;padding:6px 7px 9px}
+  .path-sheet-pill-name{font-size:10px}
+}
+
+
+/* 시트 전체 노래는 복습/편집 옆에 항상 표시 */
+#memoryModebar .memory-tabs{display:flex;align-items:center;gap:1px;min-width:0}
+.sheet-song-toolbar{
+  display:inline-flex;align-items:center;min-width:0;max-width:min(42vw,320px);
+  margin-left:4px;padding-left:5px;border-left:1px solid #e5e5e8
+}
+.sheet-song-toolbar:empty{display:none}
+.sheet-song-toolbar .study-song-hint{
+  max-width:100%!important;font-size:9.5px!important;padding:3px 2px!important
+}
+@media(max-width:640px){
+  .sheet-song-toolbar{max-width:34vw;margin-left:2px;padding-left:4px}
+  .sheet-song-toolbar .study-song-hint{font-size:9px!important}
+}
+
 </style>
 </head>
 <body>
@@ -1871,6 +1912,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
     <div class="memory-tabs">
       <button id="studyBtn" class="active">복습</button>
       <button id="editBtn">편집</button>
+      <span id="sheetSongInline" class="sheet-song-toolbar"></span>
     </div>
     <div class="memory-tools">
       <button class="study-all-answer" id="toggleAllAnswers">답 전체</button>
@@ -2984,8 +3026,14 @@ function makeStudySongHint(rowId=""){
 function renderStudy(){
   const studyTitle=document.getElementById("studyTitle");studyTitle.innerHTML="";
   const titleText=document.createElement("span");titleText.textContent=sh().name;studyTitle.append(titleText);
-  const sheetSongHint=makeStudySongHint("");
-  if(sheetSongHint){sheetSongHint.classList.add("sheet-song-inline");studyTitle.append(sheetSongHint)}
+
+  const songSlot=document.getElementById("sheetSongInline");
+  if(songSlot){
+    songSlot.innerHTML="";
+    const sheetSongHint=makeStudySongHint("");
+    if(sheetSongHint){sheetSongHint.classList.add("sheet-song-inline");songSlot.append(sheetSongHint)}
+  }
+
   const allBtn=document.getElementById("toggleAllAnswers");
   if(allBtn)allBtn.textContent=app.ui.showAllStudyAnswers?"답 숨김":"답 전체";
   const memoAllBtn=document.getElementById("toggleAllMemos");
@@ -4058,27 +4106,28 @@ function renderAdventureSheetPicker(area){
     groups.get(meta.subject).push(sheet);
   });
   groups.forEach((arr,subject)=>{
-    const group=document.createElement("section");group.className="path-sheet-group";
-    const head=document.createElement("div");head.className="path-sheet-group-title";head.textContent=subject;group.append(head);
-    const list=document.createElement("div");list.className="path-sheet-list";
+    const row=document.createElement("section");row.className="path-subject-row";
+    const head=document.createElement("div");head.className="path-subject-name";head.textContent=subject;
+    const scroller=document.createElement("div");scroller.className="path-sheet-strip";
     arr.forEach(sheet=>{
       const state=adventureSheetState(sheet.id),order=state.lastOrder||state.activeOrder||"sequence";
       const cfg=adventureConfig(sheet.id,{quiet:true,order}),meta=bankSheetMeta(sheet);
       const items=adventureBaseItems(sheet,cfg.mode),progress=adventureProgress(cfg);
       const active=Object.keys(cfg.activeSessions||{}).length;
-      const b=document.createElement("button");b.className="path-sheet-card";
-      const label=order==="random"?"랜덤":"순서";
-      b.innerHTML=`<span class="path-sheet-name">${escapeHtml(meta.area||sheet.name)}</span>
-        <span class="path-sheet-meta">${items.length}문제 · ${label}${active?" · 진행중":""}</span>
-        <span class="path-sheet-progress-label">${progress.pct}%</span>
-        <span class="path-sheet-progress"><i style="width:${progress.pct}%"></i></span>
-        <span class="path-sheet-arrow">›</span>`;
+      const b=document.createElement("button");b.className="path-sheet-pill";
+      if(progress.pct>=100)b.classList.add("done");
+      if(active)b.classList.add("active-progress");
+      const label=meta.area||sheet.name;
+      b.innerHTML=`<span class="path-sheet-pill-name">${escapeHtml(label)}</span>
+        <span class="path-sheet-pill-progress"><i style="width:${progress.pct}%"></i></span>`;
+      b.title=`${label} · ${progress.pct}% · ${items.length}문제 · ${order==="random"?"랜덤":"순서"}`;
       b.onclick=()=>{store.activeSheetId=sheet.id;state.activeOrder=order;saveLocal();renderQuiz()};
-      list.append(b);
+      scroller.append(b);
     });
-    group.append(list);area.append(group);
+    row.append(head,scroller);area.append(row);
   });
-}function renderAdventurePath(area,sheetId){
+}
+function renderAdventurePath(area,sheetId){
   const store=adventureStore(),sheet=adventureSheet(sheetId);
   if(!sheet){store.activeSheetId="";saveLocal();renderAdventureSheetPicker(area);return}
   const state=adventureSheetState(sheetId),cfg=adventureConfig(sheetId),meta=bankSheetMeta(sheet),totalSets=adventureSetCount(cfg),total=cfg.orderIds.length;
