@@ -1643,6 +1643,20 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 /* Remove the old expanded pseudo hit area; actual button is now the hit target. */
 #studyView .star::before{display:none!important}
 
+
+/* ===== iPad mode switch reliability ===== */
+#memoryModebar .memory-tabs{
+  position:relative!important;
+  z-index:90!important;
+  pointer-events:auto!important;
+}
+#studyBtn,#editBtn{
+  position:relative!important;
+  z-index:91!important;
+  pointer-events:auto!important;
+  touch-action:manipulation!important;
+}
+
 </style>
 </head>
 <body>
@@ -1845,6 +1859,8 @@ setPersistence(auth,browserLocalPersistence).catch(()=>{});
 
 const OLD_KEY="study-min-v1";
 const KEY="study-jew-v4";
+const STUDY_DRAFT_KEY=KEY+"-study-drafts";
+const STUDY_EDIT_KEY=KEY+"-study-edit";
 const uid=()=>crypto.randomUUID?.()||("id_"+Date.now()+"_"+Math.random().toString(36).slice(2));
 const studyRow=()=>({id:uid(),type:"item",category:"",correct:"",memo:"",color:"",user:"",flagged:false,flagCount:0,last:"",revealed:false});
 const sectionRow=()=>({id:uid(),type:"section",title:"",level:"sub",color:"",memorize:false,user:"",last:"",revealed:false});
@@ -1890,6 +1906,10 @@ function migrate(){
   }catch{return initialApp()}
 }
 let app=migrate();
+try{
+  const quickStudy=JSON.parse(localStorage.getItem(STUDY_EDIT_KEY)||"null");
+  if(quickStudy?.study&&(quickStudy.updatedAt||0)>=(app.study.updatedAt||0))app.study=quickStudy.study;
+}catch(e){console.warn("study quick restore failed",e)}
 let cloudUser=null,studyUnsub=null,bankIndexUnsub=null,cloudTimer=null;
 let applyingRemote=false;
 let quizSession=null;
@@ -2129,10 +2149,62 @@ function localStoragePayload(){
   })));
   return {...app,study};
 }
-function saveLocal(){localStorage.setItem(KEY,JSON.stringify(localStoragePayload()))}
-function flushTypingSave(){}
-window.addEventListener("pagehide",()=>{});
-function markStudyCloud(){app.study.updatedAt=Date.now();saveLocal();scheduleStudyCloud()}
+let localSaveTimer=null;
+function saveLocalNow(){
+  clearTimeout(localSaveTimer);localSaveTimer=null;
+  try{localStorage.setItem(KEY,JSON.stringify(localStoragePayload()))}
+  catch(e){console.warn("local save failed",e)}
+}
+function saveLocal(){
+  clearTimeout(localSaveTimer);
+  // 전체 문제은행 직렬화는 입력 중 프레임을 막을 수 있으므로 충분히 쉬었을 때 한 번만 저장.
+  localSaveTimer=setTimeout(saveLocalNow,1200);
+}
+let studyQuickTimer=null;
+function saveStudyQuickNow(){
+  clearTimeout(studyQuickTimer);studyQuickTimer=null;
+  try{
+    localStorage.setItem(STUDY_EDIT_KEY,JSON.stringify({study:app.study,updatedAt:Date.now()}));
+  }catch(e){console.warn("study quick save failed",e)}
+}
+function saveStudyQuick(){
+  clearTimeout(studyQuickTimer);
+  studyQuickTimer=setTimeout(saveStudyQuickNow,180);
+}
+
+let studyDraftTimer=null;
+function studyDraftPayload(){
+  const rows={};
+  app.study.subjects?.forEach(subject=>subject.sheets?.forEach(sheet=>sheet.rows?.forEach(r=>{
+    if(!r?.id)return;
+    if(r.user||r.last||r.revealed)rows[r.id]={user:r.user||"",last:r.last||"",revealed:!!r.revealed};
+  })));
+  return {rows,updatedAt:Date.now()};
+}
+function saveStudyDraftsNow(){
+  clearTimeout(studyDraftTimer);studyDraftTimer=null;
+  try{localStorage.setItem(STUDY_DRAFT_KEY,JSON.stringify(studyDraftPayload()))}catch(e){console.warn("study draft save failed",e)}
+}
+function scheduleStudyDraftSave(){
+  clearTimeout(studyDraftTimer);
+  studyDraftTimer=setTimeout(saveStudyDraftsNow,120);
+}
+function restoreStudyDrafts(){
+  try{
+    const saved=JSON.parse(localStorage.getItem(STUDY_DRAFT_KEY)||"null");
+    if(!saved?.rows)return;
+    app.study.subjects?.forEach(subject=>subject.sheets?.forEach(sheet=>sheet.rows?.forEach(r=>{
+      const d=saved.rows[r.id];if(!d)return;
+      r.user=d.user||"";r.last=d.last||"";r.revealed=!!d.revealed;
+    })));
+  }catch(e){console.warn("study draft restore failed",e)}
+}
+restoreStudyDrafts();
+function flushTypingSave(){saveStudyDraftsNow();saveStudyQuickNow();saveLocalNow()}
+window.addEventListener("pagehide",flushTypingSave);
+window.addEventListener("beforeunload",flushTypingSave);
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushTypingSave()});
+function markStudyCloud(){app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();saveStudyDraftsNow();scheduleStudyCloud()}
 function markBankStatsCloud(){app.bank.statsUpdatedAt=Date.now();saveLocal();scheduleBankStatsCloud()}
 function sub(){return app.study.subjects.find(x=>x.id===app.study.subjectId)||app.study.subjects[0]}
 function sh(){return sub().sheets.find(x=>x.id===sub().currentId)||sub().sheets[0]}
@@ -2259,8 +2331,15 @@ function bindLongPressReorder(button,getButtons,getIndex,onMove){
   button.addEventListener("pointerup",finish);button.addEventListener("pointercancel",finish);
 }
 document.addEventListener("click",()=>closeAllMenus());
-window.addEventListener("resize",()=>closeAllMenus());
-window.addEventListener("orientationchange",()=>closeAllMenus());
+let lastLayoutWidth=window.innerWidth;
+window.addEventListener("resize",()=>{
+  const w=window.innerWidth;
+  if(Math.abs(w-lastLayoutWidth)<20)return; // iPad 키보드 높이 변화는 무시
+  lastLayoutWidth=w;
+  closeAllMenus();
+  renderSubjects();
+});
+window.addEventListener("orientationchange",()=>{closeAllMenus();lastLayoutWidth=window.innerWidth});
 
 function closeAllMenus(except=null){
   document.querySelectorAll(".menu").forEach(m=>{
@@ -2309,7 +2388,7 @@ function renderSubjects(){
   app.study.subjects.forEach(subject=>{
     const b=document.createElement("button");b.className="chip"+(subject.id===app.study.subjectId?" active":"");
     b.textContent=subject.name;b.title=subject.name;
-    b.onclick=()=>{if(b.dataset.skipClick)return;app.study.subjectId=subject.id;saveLocal();render()};
+    bindModeSwitchTap(b,()=>{app.study.subjectId=subject.id;saveLocal();render()});
     el.append(b);
     bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>app.study.subjects.indexOf(subject),(from,to)=>{reorderArray(app.study.subjects,from,to);markStudyCloud();render()});
   });
@@ -2326,7 +2405,7 @@ function renderSubjects(){
   tools.append(plus,wrap);
 
   const settingsBtn=document.createElement("button");settingsBtn.className="icon settings-btn";settingsBtn.textContent="⚙";settingsBtn.title="설정";settingsBtn.setAttribute("aria-label","설정");
-  settingsBtn.onclick=e=>{e.stopPropagation();openSettings()};
+  bindModeSwitchTap(settingsBtn,openSettings);
   global.append(settingsBtn);
 
   const syncWrap=document.createElement("div");syncWrap.className="sync-wrap";
@@ -2349,7 +2428,7 @@ function renderSheets(){
   const el=document.getElementById("sheets");el.innerHTML="";
   sub().sheets.forEach(sheet=>{
     const b=document.createElement("button");b.className="chip"+(sheet.id===sub().currentId?" active":"");b.textContent=sheet.name;
-    b.onclick=()=>{if(b.dataset.skipClick)return;sub().currentId=sheet.id;setHeaderCollapsed(true);saveLocal();render()};
+    bindModeSwitchTap(b,()=>{sub().currentId=sheet.id;setHeaderCollapsed(true);saveLocal();render()});
     el.append(b);
     bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>sub().sheets.indexOf(sheet),(from,to)=>{reorderArray(sub().sheets,from,to);markStudyCloud();render()});
   });
@@ -2379,9 +2458,53 @@ function focusNextStudyField(current){
   if(i>=0&&i<fields.length-1){const next=fields[i+1];focusStudyField(next);if(next.select)next.select()}
   else current.blur();
 }
+function renderStudyKeepPosition(rowId=""){
+  let anchor=null;
+  if(rowId){
+    anchor=document.querySelector(`[data-study-row-id="${CSS.escape(rowId)}"]`);
+  }else{
+    anchor=[...document.querySelectorAll("[data-study-row-id]")].find(el=>{
+      const r=el.getBoundingClientRect();
+      return r.bottom>0&&r.top<window.innerHeight;
+    })||null;
+  }
+  const anchorId=anchor?.dataset.studyRowId||"";
+  const beforeTop=anchor?.getBoundingClientRect().top;
+  const oldY=window.scrollY;
+  const restore=()=>{
+    if(anchorId&&Number.isFinite(beforeTop)){
+      const after=document.querySelector(`[data-study-row-id="${CSS.escape(anchorId)}"]`);
+      if(after){
+        const delta=after.getBoundingClientRect().top-beforeTop;
+        if(Math.abs(delta)>.5)window.scrollBy(0,delta);
+        return;
+      }
+    }
+    window.scrollTo({top:oldY,left:window.scrollX,behavior:"auto"});
+  };
+  renderStudy();
+  requestAnimationFrame(restore);
+  // iPad 키보드/visual viewport 전환이 한 프레임 뒤 끝나는 경우 한 번 더 보정.
+  setTimeout(restore,180);
+}
 function toggleSectionCollapsed(sectionId){
   app.ui.collapsedSections[sectionId]=!app.ui.collapsedSections[sectionId];
-  saveLocal();renderStudy();
+  saveLocal();renderStudyKeepPosition(sectionId);
+}
+function keepStudyInputFocusOnTap(button){
+  if(!button)return;
+  button.addEventListener("pointerdown",e=>{
+    const a=document.activeElement;
+    if(a?.classList?.contains("study-answer")||a?.classList?.contains("section-memory-input")){
+      e.preventDefault();
+    }
+  });
+}
+function releaseActiveField(){
+  const a=document.activeElement;
+  if(a&&(a.tagName==="INPUT"||a.tagName==="TEXTAREA"||a.tagName==="SELECT")){
+    try{a.blur()}catch{}
+  }
 }
 function renderStudy(){
   document.getElementById("studyTitle").textContent=sh().name;
@@ -2397,20 +2520,22 @@ function renderStudy(){
   rows.forEach(r=>{
     if(r.type==="section"){
       hiddenBySection=!!app.ui.collapsedSections[r.id];
-      const head=document.createElement("div");head.className="section-study-head "+(r.level==="major"?"major":"sub")+(hiddenBySection?" collapsed":"");
+      const head=document.createElement("div");head.className="section-study-head "+(r.level==="major"?"major":"sub")+(hiddenBySection?" collapsed":"");head.dataset.studyRowId=r.id;
       applyStudyColor(head,r.color,true);
       const content=document.createElement("div");content.className="section-title";
       if(sh().sectionMemorize){
         const field=document.createElement("div");field.className="study-field section-field";
-        const showingAnswer=!!(r.revealed||app.ui.showAllStudyAnswers);
+        const isSectionAnswerShowing=()=>!!(r.revealed||app.ui.showAllStudyAnswers);
         const input=document.createElement("input");input.className="section-memory-input";input.type="text";
-        input.value=showingAnswer?(r.title||""):(r.user||"");
-        input.readOnly=showingAnswer;
         const status=document.createElement("span");status.className="answer-status";status.setAttribute("aria-hidden","true");
         const paintSectionState=()=>{
+          const showing=isSectionAnswerShowing();
+          input.value=showing?(r.title||""):(r.user||"");
+          input.readOnly=false;
+          input.setAttribute("aria-readonly",showing?"true":"false");
           input.classList.remove("correct","wrong","showing-answer");
           status.classList.remove("correct","wrong");status.textContent="";
-          if(showingAnswer){input.classList.add("showing-answer");return}
+          if(showing){input.classList.add("showing-answer");return}
           if(r.user&&r.last===r.user){
             const ok=norm(r.user)===norm(r.title);
             input.classList.add(ok?"correct":"wrong");
@@ -2419,38 +2544,48 @@ function renderStudy(){
           }
         };
         paintSectionState();
-        input.autocomplete="off";input.spellcheck=false;input.autocorrect="off";input.autocapitalize="off";input.enterKeyHint="next";input.autocorrect="off";input.autocapitalize="off";input.enterKeyHint="next";
+        input.autocomplete="off";input.spellcheck=false;input.autocorrect="off";input.autocapitalize="off";input.enterKeyHint="next";
+        input.addEventListener("beforeinput",e=>{if(isSectionAnswerShowing())e.preventDefault()});
         input.oninput=e=>{
-          if(showingAnswer||e.isComposing)return;
-          r.user=e.target.value;r.last="";r.revealed=false;paintSectionState()
+          if(isSectionAnswerShowing()||e.isComposing)return;
+          r.user=e.target.value;r.last="";r.revealed=false;paintSectionState();scheduleStudyDraftSave()
         };
-        input.addEventListener("compositionend",()=>{if(showingAnswer)return;r.user=input.value;r.last="";r.revealed=false;paintSectionState()});
-        const checkSectionAnswer=()=>{if(showingAnswer)return;r.user=input.value;if(!r.user)return;r.last=r.user;paintSectionState()};
+        input.addEventListener("compositionend",()=>{if(isSectionAnswerShowing())return;r.user=input.value;r.last="";r.revealed=false;paintSectionState();scheduleStudyDraftSave()});
+        const checkSectionAnswer=()=>{if(isSectionAnswerShowing())return;r.user=input.value;if(!r.user)return;r.last=r.user;paintSectionState();scheduleStudyDraftSave()};
         input.onchange=checkSectionAnswer;
-        bindSafeEnter(input,()=>{if(showingAnswer){r.revealed=false;renderStudy();return}checkSectionAnswer();focusNextStudyField(input)});
+        bindSafeEnter(input,()=>{if(isSectionAnswerShowing()){r.revealed=false;paintSectionState();scheduleStudyDraftSave();return}checkSectionAnswer();focusNextStudyField(input)});
         field.append(input,status);
 
-        const reveal=document.createElement("button");reveal.className="section-memory-reveal";
+        const reveal=document.createElement("button");reveal.type="button";reveal.className="section-memory-reveal";
+        keepStudyInputFocusOnTap(reveal);
         reveal.textContent="?";
-        reveal.setAttribute("aria-label",showingAnswer?"정답 숨기기":"정답 보기");
-        reveal.title=showingAnswer?"정답 숨기기":"정답 보기";
-        reveal.onclick=e=>{e.stopPropagation();r.revealed=!r.revealed;renderStudy()};
+        const syncSectionRevealButton=()=>{
+          const showing=isSectionAnswerShowing();
+          reveal.setAttribute("aria-label",showing?"정답 숨기기":"정답 보기");
+          reveal.title=showing?"정답 숨기기":"정답 보기";
+        };
+        syncSectionRevealButton();
+        reveal.onclick=e=>{
+          e.preventDefault();e.stopPropagation();reveal.blur();
+          if(app.ui.showAllStudyAnswers)return;
+          r.revealed=!r.revealed;paintSectionState();syncSectionRevealButton();scheduleStudyDraftSave();
+        };
         content.append(field,reveal);      }else{
         content.textContent=r.title||"";
         content.onclick=()=>toggleSectionCollapsed(r.id);
       }
       const w=document.createElement("div");w.className="section-menu-wrap";
-      const b=document.createElement("button");b.className="more section-more compact-more";b.textContent="•••";
+      const b=document.createElement("button");b.type="button";b.className="more section-more compact-more";keepStudyInputFocusOnTap(b);b.textContent="•••";
       const m=document.createElement("div");m.className="menu hidden";
       const collapse=document.createElement("button");collapse.textContent=hiddenBySection?"펼치기":"접기";collapse.onclick=e=>{e.stopPropagation();toggleSectionCollapsed(r.id)};
       const clear=document.createElement("button");clear.textContent="이 구간 입력 지우기";
-      clear.onclick=e=>{e.stopPropagation();const original=sh().rows.indexOf(r);clearReviewRow(r);const [a,z]=sectionRange(sh().rows,original);for(let i=a;i<z;i++)clearReviewRow(sh().rows[i]);renderStudy()};
+      clear.onclick=e=>{e.preventDefault();e.stopPropagation();const original=sh().rows.indexOf(r);clearReviewRow(r);const [a,z]=sectionRange(sh().rows,original);for(let i=a;i<z;i++)clearReviewRow(sh().rows[i]);saveStudyDraftsNow();renderStudyKeepPosition(r.id)};
       m.append(collapse,clear);b.onclick=e=>{e.preventDefault();e.stopPropagation();toggleFloatingMenu(b,m)};m.onclick=e=>e.stopPropagation();w.append(b,m);
       head.append(content,w);list.append(head);return;
     }
     if(hiddenBySection)return;
 
-    const row=document.createElement("div");row.className="study-row"+(r.flagged?" flagged":"");
+    const row=document.createElement("div");row.className="study-row"+(r.flagged?" flagged":"");row.dataset.studyRowId=r.id;
     applyStudyColor(row,r.color,false);
 
     if(r.category){
@@ -2458,31 +2593,38 @@ function renderStudy(){
     }
 
     const line=document.createElement("div");line.className="answer-line";
-    const star=document.createElement("button");star.className="star"+(r.flagged?" on":"");
+    const star=document.createElement("button");star.type="button";star.className="star"+(r.flagged?" on":"");keepStudyInputFocusOnTap(star);
     const starGlyph=document.createElement("span");starGlyph.className="star-glyph";starGlyph.textContent=r.flagged?"★":"☆";
     const starCount=document.createElement("span");starCount.className="star-count";starCount.textContent=r.flagCount?String(r.flagCount):"";
     star.append(starGlyph,starCount);
     star.title=r.flagCount?`헷갈림 ${r.flagCount}회`:"헷갈리면 표시";
-    star.type="button";
     star.onclick=e=>{
       e.preventDefault();e.stopPropagation();
       if(!r.flagged){r.flagged=true;r.flagCount=(r.flagCount||0)+1}
       else r.flagged=false;
-      markStudyCloud();renderStudy();
+      row.classList.toggle("flagged",!!r.flagged);
+      star.classList.toggle("on",!!r.flagged);
+      starGlyph.textContent=r.flagged?"★":"☆";
+      starCount.textContent=r.flagCount?String(r.flagCount):"";
+      star.title=r.flagCount?`헷갈림 ${r.flagCount}회`:"헷갈리면 표시";
+      markStudyCloud();
     };
 
     const field=document.createElement("div");field.className="study-field";
-    const showingAnswer=!!(r.revealed||app.ui.showAllStudyAnswers);
+    const isAnswerShowing=()=>!!(r.revealed||app.ui.showAllStudyAnswers);
     const input=document.createElement("input");input.className="study-answer";input.type="text";
-    input.value=showingAnswer?(r.correct||""):(r.user||"");
-    input.readOnly=showingAnswer;
-    input.autocomplete="off";input.spellcheck=false;
+    input.autocomplete="off";input.spellcheck=false;input.autocorrect="off";input.autocapitalize="off";input.enterKeyHint="next";
+    input.addEventListener("beforeinput",e=>{if(isAnswerShowing())e.preventDefault()});
 
     const status=document.createElement("span");status.className="answer-status";status.setAttribute("aria-hidden","true");
     const paintState=()=>{
+      const showing=isAnswerShowing();
+      input.value=showing?(r.correct||""):(r.user||"");
+      input.readOnly=false;
+      input.setAttribute("aria-readonly",showing?"true":"false");
       input.classList.remove("correct","wrong","showing-answer");
       status.classList.remove("correct","wrong");status.textContent="";
-      if(showingAnswer){input.classList.add("showing-answer");return}
+      if(showing){input.classList.add("showing-answer");return}
       if(r.user&&r.last===r.user){
         const ok=norm(r.user)===norm(r.correct);
         input.classList.add(ok?"correct":"wrong");
@@ -2492,28 +2634,37 @@ function renderStudy(){
     };
     paintState();
     input.oninput=e=>{
-      if(showingAnswer||e.isComposing)return;
-      r.user=e.target.value;r.last="";r.revealed=false;paintState()
+      if(isAnswerShowing()||e.isComposing)return;
+      r.user=e.target.value;r.last="";r.revealed=false;paintState();scheduleStudyDraftSave()
     };
-    input.addEventListener("compositionend",()=>{if(showingAnswer)return;r.user=input.value;r.last="";r.revealed=false;paintState()});
-    input.onchange=()=>{if(showingAnswer)return;r.user=input.value;submitStudyAnswer(r,input);paintState()};
+    input.addEventListener("compositionend",()=>{if(isAnswerShowing())return;r.user=input.value;r.last="";r.revealed=false;paintState();scheduleStudyDraftSave()});
+    input.onchange=()=>{if(isAnswerShowing())return;r.user=input.value;submitStudyAnswer(r,input);paintState();scheduleStudyDraftSave()};
     bindSafeEnter(input,()=>{
-      if(showingAnswer){r.revealed=false;renderStudy();return}
-      submitStudyAnswer(r,input);paintState();focusNextStudyField(input)
+      if(isAnswerShowing()){r.revealed=false;paintState();scheduleStudyDraftSave();return}
+      submitStudyAnswer(r,input);paintState();scheduleStudyDraftSave();focusNextStudyField(input)
     });
     field.append(input,status);
 
-    const reveal=document.createElement("button");reveal.className="study-action answer-toggle";
+    const reveal=document.createElement("button");reveal.type="button";reveal.className="study-action answer-toggle";
+    keepStudyInputFocusOnTap(reveal);
     reveal.textContent="?";
-    reveal.setAttribute("aria-label",showingAnswer?"정답 숨기기":"정답 보기");
-    reveal.title=showingAnswer?"정답 숨기기":"정답 보기";
-    reveal.onclick=e=>{e.stopPropagation();r.revealed=!r.revealed;renderStudy()};
+    const syncRevealButton=()=>{
+      const showing=isAnswerShowing();
+      reveal.setAttribute("aria-label",showing?"정답 숨기기":"정답 보기");
+      reveal.title=showing?"정답 숨기기":"정답 보기";
+    };
+    syncRevealButton();
+    reveal.onclick=e=>{
+      e.preventDefault();e.stopPropagation();reveal.blur();
+      if(app.ui.showAllStudyAnswers)return;
+      r.revealed=!r.revealed;paintState();syncRevealButton();scheduleStudyDraftSave();
+    };
 
     let memo=null;
     if(r.memo){memo=document.createElement("div");memo.className="memo"+(app.ui.showAllStudyMemos?" show":"");memo.textContent=r.memo}
 
     const rowMenuWrap=document.createElement("div");rowMenuWrap.className="study-row-menu-wrap";
-    const rowMore=document.createElement("button");rowMore.className="study-action row-more";rowMore.textContent="•••";rowMore.setAttribute("aria-label","항목 메뉴");
+    const rowMore=document.createElement("button");rowMore.type="button";rowMore.className="study-action row-more";keepStudyInputFocusOnTap(rowMore);rowMore.textContent="•••";rowMore.setAttribute("aria-label","항목 메뉴");
     const rowMenu=document.createElement("div");rowMenu.className="menu study-row-menu hidden";
     if(r.memo){
       const memoToggle=document.createElement("button");memoToggle.textContent=app.ui.showAllStudyMemos?"메모 숨기기":"메모 보기";
@@ -2521,16 +2672,16 @@ function renderStudy(){
       rowMenu.append(memoToggle);
     }
     const clear=document.createElement("button");clear.textContent="현재 입력 지우기";
-    clear.onclick=e=>{e.stopPropagation();r.user="";r.last="";r.revealed=false;rowMenu.classList.add("hidden");renderStudy()};
+    clear.onclick=e=>{e.preventDefault();e.stopPropagation();r.user="";r.last="";r.revealed=false;rowMenu.classList.add("hidden");saveStudyDraftsNow();renderStudyKeepPosition(r.id)};
     rowMenu.append(clear);
     if(r.flagged||r.flagCount){
       const clearStar=document.createElement("button");
       clearStar.textContent="★ 기록 지우기";
       clearStar.onclick=e=>{
-        e.stopPropagation();
+        e.preventDefault();e.stopPropagation();
         r.flagged=false;r.flagCount=0;
         rowMenu.classList.add("hidden");
-        markStudyCloud();renderStudy();
+        markStudyCloud();renderStudyKeepPosition(r.id);
       };
       rowMenu.append(clearStar);
     }
@@ -2633,12 +2784,33 @@ function makeItemRow(r,i,isDraft=false){
   const memo=document.createElement("input");memo.type="text";memo.className="edit-memo";memo.value=r.memo||"";memo.placeholder=isDraft?"메모":"";
   if(isDraft){
     let committed=false;
-    const commit=(field,value)=>{if(committed||!value)return;committed=true;const n=studyRow();n[field]=value;sh().rows.push(n);markStudyCloud();renderEdit()};
-    cat.oninput=e=>commit("category",e.target.value);cor.oninput=e=>commit("correct",e.target.value);memo.oninput=e=>commit("memo",e.target.value);
+    const editDraft=(field,value)=>{
+      r[field]=value;
+      if(!committed&&value){
+        committed=true;
+        sh().rows.push(r);
+        app.study.updatedAt=Date.now();
+        saveStudyQuickNow();saveLocal();scheduleStudyCloud();
+      }else if(committed){
+        saveStudyQuick();saveLocal();
+      }
+    };
+    cat.oninput=e=>editDraft("category",e.target.value);
+    cor.oninput=e=>editDraft("correct",e.target.value);
+    memo.oninput=e=>editDraft("memo",e.target.value);
+    const finishDraft=()=>{
+      if(!committed)return;
+      markStudyCloud();
+      // 다른 필드로 이동하는 중에는 DOM을 갈아엎지 않음.
+      setTimeout(()=>{
+        if(!tr.contains(document.activeElement))renderEdit();
+      },0);
+    };
+    cat.onchange=finishDraft;cor.onchange=finishDraft;memo.onchange=finishDraft;
   }else{
-    cat.oninput=e=>{r.category=e.target.value;saveLocal()};cat.onchange=markStudyCloud;
-    cor.oninput=e=>{r.correct=e.target.value;saveLocal()};cor.onchange=markStudyCloud;
-    memo.oninput=e=>{r.memo=e.target.value;saveLocal()};memo.onchange=markStudyCloud;
+    cat.oninput=e=>{r.category=e.target.value;saveStudyQuick();saveLocal()};cat.onchange=markStudyCloud;
+    cor.oninput=e=>{r.correct=e.target.value;saveStudyQuick();saveLocal()};cor.onchange=markStudyCloud;
+    memo.oninput=e=>{r.memo=e.target.value;saveStudyQuick();saveLocal()};memo.onchange=markStudyCloud;
     bindSafeEnter(cat,()=>{cor.focus();cor.select()});
     bindSafeEnter(cor,()=>{memo.focus();memo.select()});
     bindSafeEnter(memo,()=>{let next=i+1;while(next<sh().rows.length&&sh().rows[next].type==="section")next++;const target=[...document.querySelectorAll(".edit-correct")].find(x=>Number(x.dataset.rowIndex)===next);if(target){target.focus();target.select()}else document.querySelector(".draft-row .edit-correct")?.focus()});
@@ -2663,7 +2835,7 @@ function renderEdit(){
       level.textContent=r.level==="major"?"대":"소";level.title=r.level==="major"?"대주제":"소주제";
       level.onclick=e=>{e.stopPropagation();r.level=r.level==="major"?"sub":"major";markStudyCloud();renderEdit();renderStudy()};
       const input=document.createElement("input");input.value=r.title||"";
-      input.oninput=e=>{r.title=e.target.value;saveLocal()};input.onchange=markStudyCloud;
+      input.oninput=e=>{r.title=e.target.value;saveStudyQuick();saveLocal()};input.onchange=markStudyCloud;
       wrap.append(level,input);td.append(wrap);tr.append(td,makeActionMenu(i));body.append(tr);
     }else body.append(makeItemRow(r,i,false));
   });
@@ -3712,30 +3884,56 @@ onAuthStateChanged(auth,async user=>{
 });
 
 /* controls */
+function bindModeSwitchTap(el,handler,{release=true}={}){
+  if(!el)return;
+  let sx=0,sy=0,lastTouch=0;
+  const run=()=>{
+    flushTypingSave();
+    if(release)releaseActiveField();
+    closeAllMenus();
+    handler();
+  };
+  el.addEventListener("touchstart",e=>{
+    const t=e.touches?.[0];if(!t)return;sx=t.clientX;sy=t.clientY;
+  },{passive:true});
+  el.addEventListener("touchend",e=>{
+    const t=e.changedTouches?.[0];if(!t)return;
+    if(el.dataset.skipClick||el.classList.contains("reorder-dragging"))return;
+    if(Math.hypot(t.clientX-sx,t.clientY-sy)>14)return;
+    lastTouch=Date.now();
+    e.preventDefault();e.stopPropagation();
+    run();
+  },{passive:false});
+  el.onclick=e=>{
+    if(el.dataset.skipClick||el.classList.contains("reorder-dragging"))return;
+    if(Date.now()-lastTouch<700){e.preventDefault();e.stopPropagation();return}
+    e.preventDefault();e.stopPropagation();
+    run();
+  };
+}
 document.getElementById("headerToggle").onclick=()=>{const h=document.getElementById("memoryHeader");setHeaderCollapsed(!h.classList.contains("collapsed"))};
-document.getElementById("memorySummaryBtn").onclick=()=>{const h=document.getElementById("memoryHeader");setHeaderCollapsed(!h.classList.contains("collapsed"))};
-document.getElementById("memorySpace").onclick=()=>{app.ui.workspace="memory";saveLocal();renderMode()};
-document.getElementById("bankSpace").onclick=()=>{
+bindModeSwitchTap(document.getElementById("memorySummaryBtn"),()=>{const h=document.getElementById("memoryHeader");setHeaderCollapsed(!h.classList.contains("collapsed"))});
+bindModeSwitchTap(document.getElementById("memorySpace"),()=>{app.ui.workspace="memory";saveLocal();renderMode()});
+bindModeSwitchTap(document.getElementById("bankSpace"),()=>{
   app.ui.workspace="bank";
   document.getElementById("studyMenu")?.classList.add("hidden");
   saveLocal();renderMode();
-};
-document.getElementById("studyBtn").onclick=e=>{e.stopPropagation();app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode()};
-document.getElementById("editBtn").onclick=e=>{e.stopPropagation();app.study.mode="edit";app.ui.workspace="memory";saveLocal();renderMode()};
+});
+bindModeSwitchTap(document.getElementById("studyBtn"),()=>{app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode()});
+bindModeSwitchTap(document.getElementById("editBtn"),()=>{app.study.mode="edit";app.ui.workspace="memory";saveLocal();renderMode()});
 document.getElementById("quizBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="quiz";saveLocal();renderMode()};
 document.getElementById("bankEditBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="edit";saveLocal();renderMode()};
-document.getElementById("toggleAllAnswers").onclick=e=>{e.stopPropagation();app.ui.showAllStudyAnswers=!app.ui.showAllStudyAnswers;renderStudy()};
-document.getElementById("toggleAllMemos").onclick=e=>{e.stopPropagation();app.ui.showAllStudyMemos=!app.ui.showAllStudyMemos;saveLocal();renderStudy()};
-document.getElementById("studyMenuBtn").onclick=e=>{
-  e.preventDefault();e.stopPropagation();
-  const menu=document.getElementById("studyMenu"),btn=e.currentTarget;
+bindModeSwitchTap(document.getElementById("toggleAllAnswers"),()=>{app.ui.showAllStudyAnswers=!app.ui.showAllStudyAnswers;renderStudyKeepPosition()});
+bindModeSwitchTap(document.getElementById("toggleAllMemos"),()=>{app.ui.showAllStudyMemos=!app.ui.showAllStudyMemos;saveLocal();renderStudyKeepPosition()});
+bindModeSwitchTap(document.getElementById("studyMenuBtn"),()=>{
+  const menu=document.getElementById("studyMenu"),btn=document.getElementById("studyMenuBtn");
   toggleFloatingMenu(btn,menu);
   btn.setAttribute("aria-expanded",menu.classList.contains("hidden")?"false":"true");
-};
+});
 document.getElementById("studyMenu").onclick=e=>e.stopPropagation();
-document.getElementById("clearSheetReview").onclick=e=>{e.stopPropagation();if(!confirm(`'${sh().name}'의 현재 입력내용을 전부 지울까요?`))return;sh().rows.forEach(clearReviewRow);saveLocal();renderStudy()};
-document.getElementById("clearSheetStars").onclick=e=>{e.stopPropagation();sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});markStudyCloud();renderStudy()};
-document.getElementById("clearSheetStarCounts").onclick=e=>{e.stopPropagation();if(!confirm("이 시트의 ★ 누적 횟수를 0으로 초기화할까요?"))return;sh().rows.forEach(r=>{if(r.type!=="section"){r.flagCount=0;r.flagged=false}});markStudyCloud();renderStudy()};
+document.getElementById("clearSheetReview").onclick=e=>{e.stopPropagation();if(!confirm(`'${sh().name}'의 현재 입력내용을 전부 지울까요?`))return;sh().rows.forEach(clearReviewRow);saveStudyDraftsNow();renderStudyKeepPosition()};
+document.getElementById("clearSheetStars").onclick=e=>{e.stopPropagation();sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});markStudyCloud();renderStudyKeepPosition()};
+document.getElementById("clearSheetStarCounts").onclick=e=>{e.stopPropagation();if(!confirm("이 시트의 ★ 누적 횟수를 0으로 초기화할까요?"))return;sh().rows.forEach(r=>{if(r.type!=="section"){r.flagCount=0;r.flagged=false}});markStudyCloud();renderStudyKeepPosition()};
 document.getElementById("addSheet").onclick=()=>{const n=prompt("시트 이름");if(!n)return;const name=n.trim();if(!name||sub().sheets.some(s=>s.name===name))return;const x=studySheet(name);sub().sheets.push(x);sub().currentId=x.id;markStudyCloud();render()};
 document.getElementById("deleteSheet").onclick=()=>{if(sub().sheets.length<=1)return alert("시트는 하나 이상 있어야 합니다.");const cur=sh();if(!confirm(`'${cur.name}' 시트를 삭제할까요?`))return;const i=sub().sheets.indexOf(cur);sub().sheets.splice(i,1);sub().currentId=sub().sheets[Math.min(i,sub().sheets.length-1)].id;markStudyCloud();render()};
 document.getElementById("sheetName").onchange=e=>{const name=e.target.value.trim();if(!name)return;const cur=sh();if(sub().sheets.some(s=>s!==cur&&s.name===name))return alert("같은 이름의 시트가 있습니다.");cur.name=name;markStudyCloud();render()};
@@ -3812,7 +4010,6 @@ document.getElementById("settingsResetAll").onclick=async()=>{
   saveLocal();applyAppearanceSettings();toast("설정 초기화됨");
 };
 
-window.addEventListener("resize",()=>renderSubjects());
 applyAppearanceSettings();
 restoreLocalFont();
 render();
