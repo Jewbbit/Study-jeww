@@ -1838,6 +1838,8 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .section-title:has(.section-field)>.study-song-hint{margin-left:4px!important}
 .study-row-meta .row-song-inline{margin-left:auto!important;max-width:45%!important}
 
+.progress-hub-head{font-size:15px;font-weight:760;margin:2px 2px 10px;color:#292a2e}
+
 </style>
 </head>
 <body>
@@ -2165,11 +2167,13 @@ function saveQuizSessionLocal(){
   app.ui.quizDraft=snapshot;
   if(quizSession.adventure){
     const adv=quizSession.adventure;
-    const cfg=app.ui.quizAdventure?.configs?.[adv.sheetId];
+    const cfg=adventureConfig(adv.sheetId,{quiet:true,order:adv.order||quizSession.quizOrder});
     if(cfg){
       if(!cfg.activeSessions||typeof cfg.activeSessions!=="object")cfg.activeSessions={};
       cfg.activeSessions[adv.sessionKey]=snapshot;
       cfg.lastTouchedAt=Date.now();
+      const state=adventureSheetState(adv.sheetId);
+      state.activeOrder=cfg.order;state.lastOrder=cfg.order;
     }
   }
   saveLocal();
@@ -2248,11 +2252,13 @@ function requestQuizStop(){
   if(quizSession.adventure){
     saveQuizSessionLocal();
     const sheetId=quizSession.adventure.sheetId;
+    saveLocalNow();
     quizSession=null;delete app.ui.quizDraft;
     document.body.classList.remove("quiz-running");
     app.ui.quizHomeMode="path";
     if(sheetId)app.ui.quizAdventure.activeSheetId=sheetId;
     markAdventureCloud();
+    saveLocalNow();
     renderQuiz();toast("진행 위치 저장됨");
     return;
   }
@@ -2656,7 +2662,9 @@ function renderSubjects(){
   bindModeSwitchTap(pathBtn,()=>{
     app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="path";
     adventureStore().activeSheetId="";
-    quizLastComplete=null;saveLocal();renderMode();
+    quizLastComplete=null;
+    if(!quizSession)document.body.classList.remove("quiz-running");
+    saveLocal();renderMode();
   });
   const songBtn=document.createElement("button");songBtn.className="icon melody-index-btn";songBtn.textContent="♪";songBtn.title="멜로디 인덱스";songBtn.setAttribute("aria-label","멜로디 인덱스");
   bindModeSwitchTap(songBtn,()=>{app.study.mode="songs";app.ui.workspace="memory";saveLocal();renderMode()});
@@ -4038,6 +4046,11 @@ function renderResumeSlots(area){
 }
 function renderAdventureSheetPicker(area){
   const store=adventureStore(),sheets=app.bank.sheets.filter(s=>!s.legacyWrong);
+  if(!sheets.length){
+    const empty=document.createElement("div");empty.className="bank-empty";
+    empty.textContent="진도 학습에 사용할 문제 시트가 없습니다.";
+    area.append(empty);return;
+  }
   const groups=new Map();
   sheets.forEach(sheet=>{
     const meta=bankSheetMeta(sheet);
@@ -4157,8 +4170,11 @@ function renderAdventureSheetPicker(area){
 }
 function renderAdventureHome(area){
   const store=adventureStore();
-  if(store.activeSheetId)renderAdventurePath(area,store.activeSheetId);
-  else renderAdventureSheetPicker(area);
+  if(!store.activeSheetId){
+    const head=document.createElement("div");head.className="progress-hub-head";
+    head.textContent="진도 학습";area.append(head);
+    renderAdventureSheetPicker(area);
+  }else renderAdventurePath(area,store.activeSheetId);
 }
 
 function renderQuiz(){
@@ -4552,7 +4568,11 @@ function renderMode(){
     document.getElementById("bankEditView").classList.toggle("hidden",bm!=="edit");
     document.getElementById("quizBtn").classList.toggle("active",bm==="quiz");
     document.getElementById("bankEditBtn").classList.toggle("active",bm==="edit");
-    if(bm==="quiz")renderQuiz();else renderBankEditor();
+    if(progressHub&&bm==="quiz"){
+      document.getElementById("bankToolbar").innerHTML="";
+      const area=document.getElementById("quizArea");area.innerHTML="";
+      renderAdventureHome(area);
+    }else if(bm==="quiz")renderQuiz();else renderBankEditor();
   }
 }
 function render(){renderSubjects();renderSheets();updateMemorySummary();renderStudy();renderEdit();renderMode()}
