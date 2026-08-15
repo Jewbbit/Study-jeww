@@ -1881,6 +1881,21 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   .sheet-song-toolbar .study-song-hint{font-size:9px!important}
 }
 
+
+/* 암기 툴바는 기호만 표시 */
+#memoryModebar .compact-study-tool{
+  width:30px;min-width:30px;height:30px;min-height:30px;
+  padding:0!important;border-radius:6px;font-size:15px;line-height:30px;text-align:center
+}
+#memoryModebar .compact-study-tool.active{background:#ededf0;color:#242428}
+#memoryModebar .clear-input-all{font-size:17px;font-weight:500}
+@media(pointer:coarse){
+  #memoryModebar .compact-study-tool{
+    width:40px!important;min-width:40px!important;height:40px!important;min-height:40px!important;
+    line-height:40px!important
+  }
+}
+
 </style>
 </head>
 <body>
@@ -1915,14 +1930,14 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
       <span id="sheetSongInline" class="sheet-song-toolbar"></span>
     </div>
     <div class="memory-tools">
-      <button class="study-all-answer" id="toggleAllAnswers">답 전체</button>
-      <button class="study-all-answer" id="toggleAllMemos">메모 전체</button>
+      <button class="study-all-answer compact-study-tool" id="toggleAllAnswers" title="답 전체" aria-label="답 전체">?</button>
+      <button class="study-all-answer compact-study-tool" id="toggleAllMemos" title="메모 전체" aria-label="메모 전체">✎</button>
+      <button class="study-all-answer compact-study-tool clear-input-all" id="clearSheetReview" title="현재 입력 전체 지우기" aria-label="현재 입력 전체 지우기">×</button>
       <div class="study-menu-wrap">
         <button class="icon" id="studyMenuBtn" aria-label="암기판 메뉴" aria-expanded="false">•••</button>
         <div class="menu hidden" id="studyMenu">
           <button id="linkSheetSong">♪ 현재 시트 노래 연결</button>
           <div class="menu-sep"></div>
-          <button id="clearSheetReview">현재 입력 전체 지우기</button>
           <button id="clearSheetStars">★ 표시 전체 해제</button>
           <button id="clearSheetStarCounts">★ 횟수 초기화</button>
         </div>
@@ -3035,9 +3050,19 @@ function renderStudy(){
   }
 
   const allBtn=document.getElementById("toggleAllAnswers");
-  if(allBtn)allBtn.textContent=app.ui.showAllStudyAnswers?"답 숨김":"답 전체";
+  if(allBtn){
+    allBtn.textContent="?";
+    allBtn.classList.toggle("active",!!app.ui.showAllStudyAnswers);
+    allBtn.title=app.ui.showAllStudyAnswers?"답 전체 숨기기":"답 전체 보기";
+    allBtn.setAttribute("aria-label",allBtn.title);
+  }
   const memoAllBtn=document.getElementById("toggleAllMemos");
-  if(memoAllBtn)memoAllBtn.textContent=app.ui.showAllStudyMemos?"메모 숨김":"메모 전체";
+  if(memoAllBtn){
+    memoAllBtn.textContent="✎";
+    memoAllBtn.classList.toggle("active",!!app.ui.showAllStudyMemos);
+    memoAllBtn.title=app.ui.showAllStudyMemos?"메모 전체 숨기기":"메모 전체 보기";
+    memoAllBtn.setAttribute("aria-label",memoAllBtn.title);
+  }
 
   const list=document.getElementById("studyList");list.innerHTML="";
   let rows=sh().rows.filter(r=>r.type==="section"?(r.title||"").trim():(r.correct||r.category||r.memo));
