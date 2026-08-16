@@ -2034,6 +2034,38 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   color:#55565b;white-space:normal;word-break:keep-all
 }
 
+
+/* 암기판 타자연습 */
+.typing-practice-row .answer-line{align-items:center}
+.typing-practice-field{
+  position:relative;min-width:0;flex:1;
+}
+.typing-practice-guide{
+  position:absolute;inset:0;display:flex;align-items:center;
+  padding:0 var(--memory-input-xpad,9px);box-sizing:border-box;
+  color:#b7b8bd;pointer-events:none;white-space:pre;overflow:hidden;
+  font:inherit;line-height:inherit;
+}
+.typing-practice-input{
+  position:relative;z-index:1;width:100%;box-sizing:border-box;
+  background:transparent!important;color:#25262a!important;
+}
+.typing-practice-input.done{border-color:#9abca1!important}
+.typing-practice-input.mismatch{border-color:#d6a4a4!important}
+.typing-practice-stats{
+  flex:0 0 auto;min-width:86px;text-align:right;
+  font-size:10px;line-height:1.2;color:#777980;white-space:nowrap;
+}
+.typing-practice-stats.done{color:#4f7b58}
+.typing-sheet-summary{
+  display:inline-flex;align-items:center;margin-left:8px;
+  font-size:10px;color:#777980;font-weight:400;white-space:nowrap;
+}
+@media(max-width:640px){
+  .typing-practice-stats{min-width:70px;font-size:9px}
+  .typing-sheet-summary{display:none}
+}
+
 </style>
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#f7f7f8">
@@ -2072,6 +2104,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   <div class="modebar memory-toolbar" id="memoryModebar">
     <div class="memory-tabs">
       <button id="studyBtn" class="active">복습</button>
+      <button id="typingPracticeBtn">타자</button>
       <button id="editBtn">편집</button>
       <span id="sheetSongInline" class="sheet-song-toolbar"></span>
     </div>
@@ -2536,6 +2569,7 @@ function cleanup(){
   if(!app.ui.workspace)app.ui.workspace="memory";if(!app.ui.bankMode)app.ui.bankMode="quiz";
   if(!app.ui.settings)app.ui.settings={fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"};
   if(app.ui.showAllStudyMemos==null)app.ui.showAllStudyMemos=false;
+  if(app.ui.typingPractice==null)app.ui.typingPractice=false;
   if(!Number.isFinite(app.ui.settings.memoryFontSize))app.ui.settings.memoryFontSize=14;
   if(!Number.isFinite(app.ui.settings.quizFontSize))app.ui.settings.quizFontSize=17;
   app.ui.settings.memoryFontSize=Math.max(12,Math.min(20,app.ui.settings.memoryFontSize));
@@ -3296,9 +3330,121 @@ function makeStudySongHint(rowId=""){
   return b;
 }
 
+
+let typingPracticeTimer=null;
+const typingPracticeSessions=new Map();
+
+function typingTargetText(row){
+  return row?.type==="section"?(row.title||""):(row.correct||"");
+}
+function typingCharCount(text){
+  // IME keydown 횟수가 아니라 완성된 문자열 길이로 계산하여 한글 입력에서도 안정적.
+  return Array.from(String(text||"")).length;
+}
+function typingSpeed(chars,elapsedMs){
+  if(!elapsedMs||elapsedMs<1)return 0;
+  return Math.round(chars/(elapsedMs/60000));
+}
+function typingSession(rowId){
+  let session=typingPracticeSessions.get(rowId);
+  if(!session){
+    session={startedAt:0,endedAt:0,chars:0,value:""};
+    typingPracticeSessions.set(rowId,session);
+  }
+  return session;
+}
+function stopTypingPracticeTicker(){
+  if(typingPracticeTimer){clearInterval(typingPracticeTimer);typingPracticeTimer=null}
+}
+function startTypingPracticeTicker(){
+  if(typingPracticeTimer)return;
+  typingPracticeTimer=setInterval(()=>{
+    if(!app.ui.typingPractice){stopTypingPracticeTicker();return}
+    document.querySelectorAll("[data-typing-row-id]").forEach(el=>{
+      const id=el.dataset.typingRowId,session=typingPracticeSessions.get(id);
+      if(!session?.startedAt||session.endedAt)return;
+      const stats=el.querySelector(".typing-practice-stats");if(!stats)return;
+      const elapsed=Date.now()-session.startedAt;
+      stats.textContent=`${(elapsed/1000).toFixed(1)}초 · ${typingSpeed(session.chars,elapsed)}타`;
+    });
+  },100);
+}
+function resetTypingPracticeSessions(){
+  stopTypingPracticeTicker();typingPracticeSessions.clear();
+}
+function setTypingPractice(on){
+  app.ui.typingPractice=!!on;
+  app.study.mode="study";app.ui.workspace="memory";
+  resetTypingPracticeSessions();
+  saveLocal();renderMode();renderStudy();
+}
+function makeTypingPracticeField(row,target){
+  const wrap=document.createElement("div");wrap.className="typing-practice-field";wrap.dataset.typingRowId=row.id;
+  const guide=document.createElement("div");guide.className="typing-practice-guide";guide.textContent=target;
+  const input=document.createElement("input");input.type="text";input.className="study-answer typing-practice-input";
+  input.autocomplete="off";input.spellcheck=false;input.autocorrect="off";input.autocapitalize="off";
+  input.enterKeyHint="next";
+  const stats=document.createElement("span");stats.className="typing-practice-stats";stats.textContent="0.0초 · 0타";
+
+  const session=typingSession(row.id);
+  input.value=session.value||"";
+
+  const paint=()=>{
+    const value=input.value;
+    const targetChars=Array.from(target),valueChars=Array.from(value);
+    let prefixOk=true;
+    for(let i=0;i<valueChars.length;i++){
+      if(valueChars[i]!==targetChars[i]){prefixOk=false;break}
+    }
+    input.classList.toggle("mismatch",!!value&&!prefixOk);
+    const done=value===target&&target.length>0;
+    input.classList.toggle("done",done);
+    stats.classList.toggle("done",done);
+    if(done&&session.startedAt&&!session.endedAt){
+      session.endedAt=Date.now();
+      const elapsed=session.endedAt-session.startedAt;
+      stats.textContent=`${(elapsed/1000).toFixed(1)}초 · ${typingSpeed(session.chars,elapsed)}타 ✓`;
+    }else if(!done&&session.endedAt){
+      session.endedAt=0;
+    }
+  };
+
+  input.addEventListener("input",e=>{
+    const value=e.target.value;
+    if(!session.startedAt&&value){
+      session.startedAt=Date.now();session.endedAt=0;session.chars=0;
+      startTypingPracticeTicker();
+    }
+    session.value=value;
+    session.chars=typingCharCount(value);
+    paint();
+  });
+  input.addEventListener("compositionend",()=>{
+    session.value=input.value;
+    session.chars=typingCharCount(input.value);
+    if(!session.startedAt&&input.value)session.startedAt=Date.now();
+    paint();startTypingPracticeTicker();
+  });
+  bindSafeEnter(input,()=>focusNextStudyField(input));
+  bindStudyArrowNavigation(input);
+  paint();
+  wrap.append(guide,input);
+  return {wrap,stats,input};
+}
+
 function renderStudy(){
   const studyTitle=document.getElementById("studyTitle");studyTitle.innerHTML="";
   const titleText=document.createElement("span");titleText.textContent=sh().name;studyTitle.append(titleText);
+  if(app.ui.typingPractice){
+    const hint=document.createElement("span");hint.className="typing-sheet-summary";hint.textContent="회색 문장을 그대로 입력 · 첫 글자부터 측정";
+    studyTitle.append(hint);startTypingPracticeTicker();
+  }else stopTypingPracticeTicker();
+
+  const typingBtn=document.getElementById("typingPracticeBtn");
+  if(typingBtn){
+    typingBtn.classList.toggle("active",!!app.ui.typingPractice);
+    typingBtn.title=app.ui.typingPractice?"타자연습 종료":"타자연습";
+  }
 
   const songSlot=document.getElementById("sheetSongInline");
   if(songSlot){
@@ -3333,6 +3479,11 @@ function renderStudy(){
       applyStudyColor(head,r.color,true);
       const content=document.createElement("div");content.className="section-title";
       if(sh().sectionMemorize){
+        if(app.ui.typingPractice){
+          const typing=makeTypingPracticeField(r,r.title||"");
+          typing.wrap.classList.add("section-field");
+          content.append(typing.wrap,typing.stats);
+        }else{
         const field=document.createElement("div");field.className="study-field section-field";
         const isSectionAnswerShowing=()=>!!(r.revealed||app.ui.showAllStudyAnswers);
         const input=document.createElement("input");input.className="section-memory-input";input.type="text";
@@ -3380,7 +3531,9 @@ function renderStudy(){
           if(app.ui.showAllStudyAnswers)return;
           r.revealed=!r.revealed;paintSectionState();syncSectionRevealButton();scheduleStudyDraftSave();
         };
-        content.append(field,reveal);      }else{
+        content.append(field,reveal);
+        }
+      }else{
         content.textContent=r.title||"";
         content.onclick=()=>toggleSectionCollapsed(r.id);
       }
@@ -3410,6 +3563,18 @@ function renderStudy(){
     }
 
     const line=document.createElement("div");line.className="answer-line";
+    if(app.ui.typingPractice){
+      row.classList.add("typing-practice-row");
+      const typing=makeTypingPracticeField(r,r.correct||"");
+      line.append(typing.wrap,typing.stats);
+      row.append(line);
+      if(r.memo){
+        const memo=document.createElement("div");memo.className="memo"+(app.ui.showAllStudyMemos?" show":"");memo.textContent=r.memo;row.append(memo);
+      }
+      row.onclick=e=>{if(e.target.closest("input,button,.memo"))return;focusStudyField(typing.input)};
+      list.append(row);return;
+    }
+
     const star=document.createElement("button");star.type="button";star.className="star"+(r.flagged?" on":"");keepStudyInputFocusOnTap(star);
     const starGlyph=document.createElement("span");starGlyph.className="star-glyph";starGlyph.textContent=r.flagged?"★":"☆";
     const starCount=document.createElement("span");starCount.className="star-count";starCount.textContent=r.flagCount?String(r.flagCount):"";
@@ -5024,7 +5189,8 @@ function renderMode(){
     document.getElementById("editView").classList.toggle("hidden",mode!=="edit");
     document.getElementById("songMapView").classList.toggle("hidden",mode!=="songs");
     document.getElementById("quizView").classList.add("hidden");document.getElementById("bankEditView").classList.add("hidden");
-    document.getElementById("studyBtn").classList.toggle("active",mode==="study");
+    document.getElementById("studyBtn").classList.toggle("active",mode==="study"&&!app.ui.typingPractice);
+    document.getElementById("typingPracticeBtn")?.classList.toggle("active",mode==="study"&&!!app.ui.typingPractice);
     document.getElementById("editBtn").classList.toggle("active",mode==="edit");
     if(mode==="songs")renderSongMap();
   }else{
@@ -5279,8 +5445,9 @@ bindModeSwitchTap(document.getElementById("bankSpace"),()=>{
   document.getElementById("studyMenu")?.classList.add("hidden");
   saveLocal();renderMode();
 });
-bindModeSwitchTap(document.getElementById("studyBtn"),()=>{app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode()});
-bindModeSwitchTap(document.getElementById("editBtn"),()=>{app.study.mode="edit";app.ui.workspace="memory";saveLocal();renderMode()});
+bindModeSwitchTap(document.getElementById("studyBtn"),()=>{app.ui.typingPractice=false;resetTypingPracticeSessions();app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode();renderStudy()});
+bindModeSwitchTap(document.getElementById("typingPracticeBtn"),()=>{setTypingPractice(!app.ui.typingPractice)});
+bindModeSwitchTap(document.getElementById("editBtn"),()=>{app.ui.typingPractice=false;resetTypingPracticeSessions();app.study.mode="edit";app.ui.workspace="memory";saveLocal();renderMode()});
 document.getElementById("quizBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="quick";saveLocal();renderMode()};
 document.getElementById("bankEditBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="edit";saveLocal();renderMode()};
 bindModeSwitchTap(document.getElementById("toggleAllAnswers"),()=>{app.ui.showAllStudyAnswers=!app.ui.showAllStudyAnswers;renderStudyKeepPosition()});
