@@ -2619,64 +2619,6 @@ function saveLocal(){
   localSaveTimer=setTimeout(saveLocalNow,1200);
 }
 
-/* 큰 문제은행은 localStorage 용량을 넘을 수 있으므로 IndexedDB에도 로컬 캐시.
-   새로고침 때 이 캐시를 먼저 보여주고, 클라우드는 뒤에서 최신 여부만 확인한다. */
-const BANK_CACHE_DB="study-jew-bank-cache-v1";
-const BANK_CACHE_STORE="cache";
-let bankCacheTimer=null;
-function openBankCacheDb(){
-  return new Promise((resolve,reject)=>{
-    const req=indexedDB.open(BANK_CACHE_DB,1);
-    req.onupgradeneeded=()=>{
-      const db=req.result;
-      if(!db.objectStoreNames.contains(BANK_CACHE_STORE))db.createObjectStore(BANK_CACHE_STORE);
-    };
-    req.onsuccess=()=>resolve(req.result);
-    req.onerror=()=>reject(req.error);
-  });
-}
-async function saveBankCacheNow(){
-  clearTimeout(bankCacheTimer);bankCacheTimer=null;
-  try{
-    const db=await openBankCacheDb();
-    await new Promise((resolve,reject)=>{
-      const tx=db.transaction(BANK_CACHE_STORE,"readwrite");
-      tx.objectStore(BANK_CACHE_STORE).put({
-        sheets:app.bank.sheets,
-        contentUpdatedAt:app.bank.contentUpdatedAt||0
-      },"bank");
-      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
-    });
-    db.close();
-  }catch(e){console.warn("bank cache save failed",e)}
-}
-function scheduleBankCacheSave(){
-  clearTimeout(bankCacheTimer);
-  bankCacheTimer=setTimeout(saveBankCacheNow,250);
-}
-async function restoreBankCache(){
-  try{
-    const db=await openBankCacheDb();
-    const cached=await new Promise((resolve,reject)=>{
-      const tx=db.transaction(BANK_CACHE_STORE,"readonly");
-      const req=tx.objectStore(BANK_CACHE_STORE).get("bank");
-      req.onsuccess=()=>resolve(req.result||null);req.onerror=()=>reject(req.error);
-    });
-    db.close();
-    if(!cached?.sheets?.length)return false;
-    const localAt=app.bank.contentUpdatedAt||0;
-    const cacheAt=cached.contentUpdatedAt||0;
-    if(!app.bank.sheets.length||cacheAt>localAt){
-      app.bank.sheets=cached.sheets;
-      app.bank.contentUpdatedAt=cacheAt;
-      saveLocal();
-      renderQuiz();renderBankEditor();
-      return true;
-    }
-  }catch(e){console.warn("bank cache restore failed",e)}
-  return false;
-}
-const bankCacheReady=restoreBankCache();
 let studyQuickTimer=null;
 function saveStudyQuickNow(){
   clearTimeout(studyQuickTimer);studyQuickTimer=null;
@@ -2718,7 +2660,7 @@ function restoreStudyDrafts(){
 }
 restoreStudyDrafts();
 function flushTypingSave(){saveStudyDraftsNow();saveStudyQuickNow();saveLocalNow()}
-window.addEventListener("pagehide",()=>{flushTypingSave();if(app.bank.sheets?.length)saveBankCacheNow()});
+window.addEventListener("pagehide",flushTypingSave);
 window.addEventListener("beforeunload",flushTypingSave);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushTypingSave()});
 function markStudyCloud(){app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();saveStudyDraftsNow();scheduleStudyCloud()}
@@ -3798,7 +3740,7 @@ async function importBankFiles(files){
       }
 
       app.bank.contentUpdatedAt=Date.now();
-      saveLocal();scheduleBankCacheSave();
+      saveLocal();
 
       // 가장 중요: 화면에는 로컬 데이터를 즉시 보여준다.
       // Firestore 업로드가 끝날 때까지 기다리지 않는다.
@@ -4403,7 +4345,7 @@ function renderAdventureSheetPicker(area){
   const store=adventureStore(),sheets=app.bank.sheets.filter(s=>!s.legacyWrong);
   if(!sheets.length){
     const empty=document.createElement("div");empty.className="bank-empty";
-    empty.textContent=cloudUser?"문제 시트 불러오는 중…":"진도 학습에 사용할 문제 시트가 없습니다.";
+    empty.textContent="진도 학습에 사용할 문제 시트가 없습니다.";
     area.append(empty);return;
   }
   const groups=new Map();
@@ -4707,8 +4649,7 @@ function renderWrong(){
 
 
 function touchBankSheet(sheet){
-  sheet.updatedAt=Date.now();app.bank.contentUpdatedAt=Date.now();
-  saveLocal();scheduleBankCacheSave();scheduleBankSheetCloud(sheet);
+  sheet.updatedAt=Date.now();app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankSheetCloud(sheet);
 }
 let bankSheetTimer=null,bankSheetPending=null;
 function scheduleBankSheetCloud(sheet){
@@ -5084,19 +5025,13 @@ let statsTimer=null;
 function scheduleBankStatsCloud(){
   if(!cloudUser||applyingRemote)return;
   clearTimeout(statsTimer);statsTimer=setTimeout(async()=>{
-    try{
-      await setDoc(bankStatsDoc(cloudUser.uid),{
-        stats:app.bank.stats,
-        adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},
-        updatedAt:app.bank.statsUpdatedAt||Date.now()
-      });
-      updateSync("✓",true)
-    }catch(e){console.error(e);updateSync("!",false)}
+    try{await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt||Date.now()});updateSync("✓",true)}
+    catch(e){console.error(e);updateSync("!",false)}
   },700);
 }
 async function saveBankIndexCloud(){
   if(!cloudUser)return;
-  app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankCacheSave();
+  app.bank.contentUpdatedAt=Date.now();saveLocal();
   await setDoc(bankIndexDoc(cloudUser.uid),{sheets:app.bank.sheets.map(s=>({id:s.id,source:s.source,name:s.name,legacyWrong:!!s.legacyWrong,updatedAt:s.updatedAt||0})),updatedAt:app.bank.contentUpdatedAt});
 }
 async function syncImportedBankSheets(sheets,deleted=[]){
@@ -5113,8 +5048,7 @@ async function deleteBankSheetsCloud(ids){if(!cloudUser)return;try{await Promise
 async function loadBankFromCloud(u,index){
   if(!index?.sheets)return;
   const docs=await Promise.all(index.sheets.map(async x=>{const snap=await getDoc(bankSheetDoc(u,x.id));return snap.exists()?snap.data():null}));
-  app.bank.sheets=docs.filter(Boolean);app.bank.contentUpdatedAt=index.updatedAt||app.bank.contentUpdatedAt;
-  saveLocal();await saveBankCacheNow();renderQuiz();renderBankEditor();
+  app.bank.sheets=docs.filter(Boolean);app.bank.contentUpdatedAt=index.updatedAt||app.bank.contentUpdatedAt;saveLocal();renderQuiz();renderBankEditor();
 }
 onAuthStateChanged(auth,async user=>{
   cloudUser=user;if(studyUnsub){studyUnsub();studyUnsub=null}if(bankIndexUnsub){bankIndexUnsub();bankIndexUnsub=null}
@@ -5127,27 +5061,12 @@ onAuthStateChanged(auth,async user=>{
       else scheduleStudyCloud();
     }else scheduleStudyCloud();
     studyUnsub=onSnapshot(sref,snap=>{if(!snap.exists())return;const d=snap.data();if(d.study&&(d.updatedAt||0)>(app.study.updatedAt||0)){applyingRemote=true;mergeCloudStudy(d.study);applyingRemote=false;render()}});
-    await bankCacheReady;
     const bref=bankIndexDoc(user.uid),bi=await getDoc(bref);
     if(bi.exists()){const d=bi.data();if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d)}
     else if(app.bank.sheets.length)await syncImportedBankSheets(app.bank.sheets);
     bankIndexUnsub=onSnapshot(bref,async snap=>{if(!snap.exists())return;const d=snap.data();if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d)});
     const stat=await getDoc(bankStatsDoc(user.uid));
-    if(stat.exists()){
-      const d=stat.data();
-      if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){
-        app.bank.stats=d.stats||{};
-        // 원격에 진도 데이터가 실제로 있을 때만 교체. 없으면 이 기기의 기존 진도를 절대 지우지 않음.
-        if(d.adventure&&typeof d.adventure==="object"&&d.adventure.configs){
-          app.ui.quizAdventure=d.adventure;
-        }
-        app.bank.statsUpdatedAt=d.updatedAt||0;
-        saveLocal();renderQuiz();
-      }else if(!(d.adventure&&typeof d.adventure==="object"&&d.adventure.configs)){
-        // 직전 버전에서 adventure 필드가 빠졌다면 현재 기기의 진도를 다시 클라우드에 복구 저장.
-        scheduleBankStatsCloud();
-      }
-    }else scheduleBankStatsCloud();
+    if(stat.exists()){const d=stat.data();if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){app.bank.stats=d.stats||{};if(d.adventure&&typeof d.adventure==="object")app.ui.quizAdventure=d.adventure;app.bank.statsUpdatedAt=d.updatedAt||0;saveLocal();renderQuiz();}}
     updateSync("✓",true);
   }catch(e){console.error(e);updateSync(e.code==="permission-denied"?"규칙":"!",false)}
 });
