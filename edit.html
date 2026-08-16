@@ -3372,14 +3372,13 @@ function typingPracticeKey(mode=typingPracticeMode()){
   return `${sub().id}::${sh().id}::${mode}`;
 }
 function typingNormalize(text){
-  // 암기 확인용: 띄어쓰기·문장부호·대소문자는 무시하고 실제 글자/숫자만 비교.
   return String(text||"")
     .normalize("NFC")
     .toLocaleLowerCase()
     .replace(/[^\p{L}\p{N}]+/gu,"");
 }
 function typingCharCount(text){
-  return Array.from(typingNormalize(text)).length;
+  return Array.from(String(text||"")).length;
 }
 function typingSpeed(chars,elapsedMs){
   if(!elapsedMs||elapsedMs<1)return 0;
@@ -3392,7 +3391,6 @@ function formatTypingTime(ms){
   return `${m}:${r.toFixed(1).padStart(4,"0")}`;
 }
 function legacyTypingRecord(){
-  // 이전 단일 타자 기록은 '보고 치기' 기록으로만 이어받음.
   if(typingPracticeMode()!=="copy")return null;
   return app.study.typingRecords?.[`${sub().id}::${sh().id}`]||null;
 }
@@ -3402,13 +3400,15 @@ function typingRecord(){
   if(!Array.isArray(rec.recent))rec.recent=[];
   return rec;
 }
-function typingBestMs(){return Number(typingRecord().bestMs)||0}
 function ensureTypingChallenge(){
   const key=typingPracticeKey();
   if(!typingPracticeChallenge||typingPracticeChallenge.key!==key){
     stopTypingPracticeTicker();
     typingPracticeSessions.clear();
-    typingPracticeChallenge={key,startedAt:0,endedAt:0,completed:false,newBest:false,hints:0};
+    typingPracticeChallenge={
+      key,startedAt:0,endedAt:0,completed:false,newBest:false,hints:0,
+      rows:new Map(),remaining:0,typedChars:0,targetChars:0
+    };
   }
   return typingPracticeChallenge;
 }
@@ -3420,14 +3420,17 @@ function typingSession(rowId){
   }
   return session;
 }
-function typingChallengeInputs(){
-  return [...document.querySelectorAll(".typing-practice-input")];
-}
-function typingChallengeTypedChars(){
-  return typingChallengeInputs().reduce((n,el)=>n+typingCharCount(el.value),0);
-}
-function typingChallengeTargetChars(){
-  return typingChallengeInputs().reduce((n,el)=>n+typingCharCount(el.dataset.target||""),0);
+function registerTypingRow(rowId,target,input){
+  const c=ensureTypingChallenge();
+  if(c.rows.has(rowId))return c.rows.get(rowId);
+  const answer=typingNormalize(target),typed=typingNormalize(input?.value||"");
+  const done=!!answer&&typed===answer;
+  const state={answer,typed,done};
+  c.rows.set(rowId,state);
+  c.targetChars+=typingCharCount(answer);
+  c.typedChars+=typingCharCount(typed);
+  if(!done)c.remaining++;
+  return state;
 }
 function setTypingPracticeMode(mode){
   if(!["copy","recall"].includes(mode)||typingPracticeMode()===mode)return;
@@ -3436,24 +3439,46 @@ function setTypingPracticeMode(mode){
   saveLocal();renderStudy();
   setTimeout(()=>focusStudyField(document.querySelector(".typing-practice-input")),20);
 }
+function buildTypingSummaryBar(box){
+  if(box.dataset.ready==="1")return;
+  box.dataset.ready="1";
+  const modes=document.createElement("div");modes.className="typing-mode-switch";
+  [["copy","보고 치기"],["recall","안 보고 치기"]].forEach(([value,label])=>{
+    const b=document.createElement("button");b.type="button";b.textContent=label;b.dataset.typingMode=value;
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();setTypingPracticeMode(value)};
+    modes.append(b);
+  });
+  const info=document.createElement("div");info.className="typing-record-main";
+  const strong=document.createElement("strong");
+  const small=document.createElement("span");
+  info.append(strong,small);
+  const retry=document.createElement("button");retry.type="button";retry.className="typing-retry";retry.textContent="다시";
+  retry.onclick=e=>{e.preventDefault();e.stopPropagation();resetTypingPracticeChallenge(true)};
+  box.append(modes,info,retry);
+}
 function updateTypingChallengeSummary(){
   const box=document.querySelector(".typing-record-bar");
   if(!box||!app.ui.typingPractice)return;
+  buildTypingSummaryBar(box);
   const c=ensureTypingChallenge(),rec=typingRecord(),best=Number(rec.bestMs)||0,mode=typingPracticeMode();
-  let main="",subtext="";
+  const strong=box.querySelector(".typing-record-main strong");
+  const small=box.querySelector(".typing-record-main span");
+  box.querySelectorAll("[data-typing-mode]").forEach(b=>b.classList.toggle("active",b.dataset.typingMode===mode));
   box.classList.toggle("best",!!c.newBest);
 
+  let main="",subtext="";
   if(c.completed&&c.startedAt&&c.endedAt){
     const elapsed=c.endedAt-c.startedAt;
     main=`완료 ${formatTypingTime(elapsed)}`;
-    subtext=`${typingSpeed(typingChallengeTargetChars(),elapsed)}타`;
+    subtext=`${typingSpeed(c.targetChars,elapsed)}타`;
     if(mode==="recall"&&c.hints)subtext+=` · 힌트 ${c.hints}`;
     if(c.newBest)subtext+=" · 최고 기록!";
     else if(best)subtext+=` · 최고 ${formatTypingTime(best)}`;
   }else if(c.startedAt){
     const elapsed=Date.now()-c.startedAt;
     main=formatTypingTime(elapsed);
-    subtext=`${typingSpeed(typingChallengeTypedChars(),elapsed)}타`;
+    subtext=`${typingSpeed(c.typedChars,elapsed)}타`;
+    if(c.remaining)subtext+=` · 남은 ${c.remaining}`;
     if(mode==="recall"&&c.hints)subtext+=` · 힌트 ${c.hints}`;
     if(best)subtext+=` · 최고 ${formatTypingTime(best)}`;
   }else{
@@ -3463,22 +3488,8 @@ function updateTypingChallengeSummary(){
       subtext=`최고 ${formatTypingTime(best)}${recent?` · 최근 ${recent}`:""}`;
     }else subtext="기록 없음";
   }
-
-  box.innerHTML="";
-  const modes=document.createElement("div");modes.className="typing-mode-switch";
-  [["copy","보고 치기"],["recall","안 보고 치기"]].forEach(([value,label])=>{
-    const b=document.createElement("button");b.type="button";b.textContent=label;
-    b.classList.toggle("active",mode===value);
-    b.onclick=e=>{e.preventDefault();e.stopPropagation();setTypingPracticeMode(value)};
-    modes.append(b);
-  });
-  const info=document.createElement("div");info.className="typing-record-main";
-  const strong=document.createElement("strong");strong.textContent=main;
-  const small=document.createElement("span");small.textContent=subtext;
-  info.append(strong,small);
-  const retry=document.createElement("button");retry.type="button";retry.className="typing-retry";retry.textContent="다시";
-  retry.onclick=e=>{e.preventDefault();e.stopPropagation();resetTypingPracticeChallenge(true)};
-  box.append(modes,info,retry);
+  if(strong.textContent!==main)strong.textContent=main;
+  if(small.textContent!==subtext)small.textContent=subtext;
 }
 function stopTypingPracticeTicker(){
   if(typingPracticeTimer){clearInterval(typingPracticeTimer);typingPracticeTimer=null}
@@ -3490,17 +3501,29 @@ function startTypingPracticeTicker(){
     updateTypingChallengeSummary();
   },100);
 }
+function rebuildTypingChallengeFromDom(){
+  const c=ensureTypingChallenge();
+  c.rows=new Map();c.remaining=0;c.typedChars=0;c.targetChars=0;
+  document.querySelectorAll(".typing-practice-input").forEach(input=>{
+    const rowId=input.closest("[data-typing-row-id]")?.dataset.typingRowId||uid();
+    registerTypingRow(rowId,input.dataset.target||"",input);
+  });
+}
 function resetTypingPracticeChallenge(focusFirst=false){
   stopTypingPracticeTicker();
   typingPracticeSessions.forEach(session=>{if(session.hintTimer)clearTimeout(session.hintTimer)});
   typingPracticeSessions.clear();
-  typingPracticeChallenge={key:typingPracticeKey(),startedAt:0,endedAt:0,completed:false,newBest:false,hints:0};
+  typingPracticeChallenge={
+    key:typingPracticeKey(),startedAt:0,endedAt:0,completed:false,newBest:false,hints:0,
+    rows:new Map(),remaining:0,typedChars:0,targetChars:0
+  };
   document.querySelectorAll(".typing-practice-input").forEach(el=>{
     el.value="";el.classList.remove("done","mismatch");
   });
   document.querySelectorAll(".typing-practice-guide").forEach(el=>{
     el.classList.toggle("hidden-guide",typingPracticeMode()==="recall");
   });
+  rebuildTypingChallengeFromDom();
   updateTypingChallengeSummary();
   if(focusFirst)setTimeout(()=>focusStudyField(document.querySelector(".typing-practice-input")),20);
 }
@@ -3524,20 +3547,16 @@ function storeTypingResult(elapsed,hints=0){
   app.study.typingRecords[key]={bestMs:newBest?elapsed:best,recent,updatedAt:Date.now()};
   return newBest;
 }
-function checkTypingChallengeComplete(){
+function finishTypingChallenge(){
   const c=ensureTypingChallenge();
-  if(!c.startedAt||c.completed)return;
-  const inputs=typingChallengeInputs();
-  if(!inputs.length)return;
-  const allDone=inputs.every(el=>typingNormalize(el.value)===typingNormalize(el.dataset.target||""));
-  if(!allDone)return;
+  if(!c.startedAt||c.completed||c.remaining>0)return;
   c.completed=true;c.endedAt=Date.now();
   stopTypingPracticeTicker();
   const elapsed=c.endedAt-c.startedAt;
   c.newBest=storeTypingResult(elapsed,c.hints);
   markStudyCloud();
   updateTypingChallengeSummary();
-  const speed=typingSpeed(typingChallengeTargetChars(),elapsed);
+  const speed=typingSpeed(c.targetChars,elapsed);
   const hintText=typingPracticeMode()==="recall"&&c.hints?` · 힌트 ${c.hints}`:"";
   toast(c.newBest?`최고 기록 ${formatTypingTime(elapsed)} · ${speed}타${hintText}`:`완료 ${formatTypingTime(elapsed)} · ${speed}타${hintText}`);
 }
@@ -3567,28 +3586,48 @@ function makeTypingPracticeField(row,target){
 
   const session=typingSession(row.id);
   input.value=session.value||"";
+  const state=registerTypingRow(row.id,target,input);
 
-  const paint=()=>{
-    const typed=typingNormalize(input.value),answer=typingNormalize(target);
-    const done=!!answer&&typed===answer;
-    const prefixOk=!typed||answer.startsWith(typed);
+  const applyState=(typed)=>{
+    const c=ensureTypingChallenge();
+    const wasDone=state.done;
+    const done=!!state.answer&&typed===state.answer;
+    if(state.typed!==typed){
+      c.typedChars+=typingCharCount(typed)-typingCharCount(state.typed);
+      state.typed=typed;
+    }
+    if(done!==wasDone){
+      state.done=done;
+      c.remaining+=done?-1:1;
+    }
+    const prefixOk=!typed||state.answer.startsWith(typed);
     input.classList.toggle("done",done);
     input.classList.toggle("mismatch",!!typed&&!done&&!prefixOk);
+    return done;
   };
   const changed=()=>{
     const c=ensureTypingChallenge();
-    if(!c.startedAt&&typingNormalize(input.value)){
+    const typed=typingNormalize(input.value); // 현재 칸 하나만 비교
+    if(!c.startedAt&&typed){
       c.startedAt=Date.now();c.endedAt=0;c.completed=false;c.newBest=false;
       startTypingPracticeTicker();
     }
     session.value=input.value;
-    paint();checkTypingChallengeComplete();updateTypingChallengeSummary();
+    const done=applyState(typed);
+    if(done&&c.remaining===0)finishTypingChallenge();
   };
-  input.addEventListener("input",e=>{if(!e.isComposing)changed()});
+
+  // 타건 중에는 현재 입력칸만 검사. 전체 DOM/전체 문항 순회 없음.
+  input.addEventListener("input",changed);
+  // 한글 IME 마지막 조합 보정은 compositionend/blur에서 현재 칸만 한 번 더 검사.
   input.addEventListener("compositionend",changed);
+  input.addEventListener("blur",changed);
   bindSafeEnter(input,()=>{
-    paint();
-    if(typingNormalize(input.value)===typingNormalize(target))focusNextStudyField(input);
+    const done=applyState(typingNormalize(input.value));
+    if(done){
+      if(ensureTypingChallenge().remaining===0)finishTypingChallenge();
+      focusNextStudyField(input);
+    }
   });
   bindStudyArrowNavigation(input);
 
@@ -3600,7 +3639,7 @@ function makeTypingPracticeField(row,target){
     hint.onclick=e=>{e.preventDefault();e.stopPropagation();showTypingHint(row.id,guide)};
     line.append(hint);
   }
-  paint();
+  applyState(typingNormalize(input.value));
   wrap.append(guide,line);
   return {wrap,input};
 }
