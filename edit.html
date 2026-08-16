@@ -2028,6 +2028,12 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 .song-map-add:active{background:#ededf0!important}
 
+
+.song-card-note{
+  display:block;margin-top:3px;font-style:normal;font-size:10px;line-height:1.35;
+  color:#55565b;white-space:normal;word-break:keep-all
+}
+
 </style>
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#f7f7f8">
@@ -3061,14 +3067,22 @@ function createAndLinkSong(){
   input.value="";markStudyCloud();renderSongLinkModal();renderStudy();toast("노래 연결됨");
 }
 function createStandaloneSong(){
+  const subjects=app.study.subjects||[];
+  if(!subjects.length)return toast("먼저 과목을 만들어 주세요");
+  const subjectList=subjects.map((x,i)=>`${i+1}. ${x.name}`).join("\n");
+  const picked=prompt(`노래 과목을 선택하세요.\n\n${subjectList}\n\n번호 입력`);
+  if(picked==null)return;
+  const subject=subjects[Number(picked)-1];
+  if(!subject)return toast("과목 번호를 다시 확인해 주세요");
   const raw=prompt("노래 이름");
   if(raw==null)return;
   const name=raw.trim();
   if(!name)return;
-  const existing=songStore().find(x=>x.name.trim().toLowerCase()===name.toLowerCase());
-  if(existing)return toast("이미 등록된 노래입니다");
-  songStore().push({id:uid(),name,note:"",links:[]});
-  markStudyCloud();renderSongMap();renderStudy();toast("노래 추가됨");
+  const existing=songStore().find(x=>x.name.trim().toLowerCase()===name.toLowerCase()&&x.subjectId===subject.id);
+  if(existing)return toast("이 과목에 이미 등록된 노래입니다");
+  const memoRaw=prompt("이 노래로 외우는 내용 메모 (선택)")??"";
+  songStore().push({id:uid(),name,note:memoRaw.trim(),subjectId:subject.id,links:[]});
+  markStudyCloud();renderSongMap();renderStudy();toast(`${subject.name} · 노래 추가됨`);
 }
 function revealSongTarget(sheet,rowId){
   if(!rowId)return;
@@ -3116,6 +3130,11 @@ function editSong(song){
   const name=next.trim();if(!name)return;
   song.name=name;markStudyCloud();renderSongMap();renderStudy();
 }
+function editSongNote(song){
+  const next=prompt("이 노래로 외우는 내용 메모",song.note||"");
+  if(next==null)return;
+  song.note=next.trim();markStudyCloud();renderSongMap();renderStudy();
+}
 function deleteSong(song){
   if(!confirm(`'${song.name}' 노래 메모를 삭제할까요?`))return;
   app.study.songs=app.study.songs.filter(x=>x.id!==song.id);
@@ -3124,6 +3143,12 @@ function deleteSong(song){
 function renderSongMap(){
   const area=document.getElementById("songMapArea");if(!area)return;area.innerHTML="";
   const songs=songStore();
+  songs.forEach(song=>{
+    if(!song.subjectId){
+      const ids=[...new Set((song.links||[]).map(x=>x.subjectId).filter(Boolean))];
+      if(ids.length===1)song.subjectId=ids[0];
+    }
+  });
   if(!songs.length){
     const empty=document.createElement("div");empty.className="song-map-empty";
     empty.innerHTML="<strong>아직 노래가 없어요.</strong><span>오른쪽 ＋로 노래만 먼저 추가하거나, 암기판에서 연결할 수 있습니다.</span>";
@@ -3133,7 +3158,7 @@ function renderSongMap(){
   app.study.subjects.forEach(subject=>groups.set(subject.id,{subject,songs:[]}));
   const orphan=[];
   songs.forEach(song=>{
-    const subjectIds=[...new Set((song.links||[]).map(x=>x.subjectId))];
+    const subjectIds=[...new Set([song.subjectId,...(song.links||[]).map(x=>x.subjectId)].filter(Boolean))];
     let placed=false;
     subjectIds.forEach(id=>{
       const g=groups.get(id);if(g){g.songs.push(song);placed=true}
@@ -3155,13 +3180,14 @@ function renderSongMap(){
         if(valid.length>1)destination+=`  +${valid.length-1}`;
       }
       if(missing)destination+=`  / 확인 필요 ${missing}`;
-      main.innerHTML=`<strong>♪ ${escapeHtml(song.name)}</strong><span>${escapeHtml(destination)}</span>`;
+      main.innerHTML=`<strong>♪ ${escapeHtml(song.name)}</strong>${song.note?`<em class="song-card-note">${escapeHtml(song.note)}</em>`:""}<span>${escapeHtml(destination)}</span>`;
       main.onclick=()=>openSongDestination(song);
       const more=document.createElement("button");more.className="song-card-more";more.textContent="•••";more.setAttribute("aria-label","노래 메뉴");
       const menu=document.createElement("div");menu.className="menu hidden";
       const rename=document.createElement("button");rename.textContent="이름 변경";rename.onclick=e=>{e.stopPropagation();menu.classList.add("hidden");editSong(song)};
+      const note=document.createElement("button");note.textContent=song.note?"메모 수정":"메모 추가";note.onclick=e=>{e.stopPropagation();menu.classList.add("hidden");editSongNote(song)};
       const del=document.createElement("button");del.className="danger";del.textContent="삭제";del.onclick=e=>{e.stopPropagation();menu.classList.add("hidden");deleteSong(song)};
-      menu.append(rename,del);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();
+      menu.append(rename,note,del);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();
       card.append(main,more,menu);grid.append(card);
     });
     section.append(grid);area.append(section);
@@ -4098,7 +4124,16 @@ function finishAdventureQuiz(){
   app.ui.quizHomeMode="path";adventureStore().activeSheetId=sheetId;
   markAdventureCloud();renderQuiz();toast(adv.review?"복습 완료 ✓":"세트 완료 ✓");return true;
 }
-function markAdventureCloud(){app.bank.statsUpdatedAt=Date.now();saveLocal();scheduleBankStatsCloud()}
+function markAdventureCloud(){
+  app.bank.statsUpdatedAt=Date.now();
+  const sheetId=quizSession?.adventure?.sheetId||adventureStore().activeSheetId||"";
+  if(sheetId){
+    const order=quizSession?.adventure?.order||adventureSheetState(sheetId).activeOrder||"sequence";
+    const cfg=adventureConfig(sheetId,{quiet:true,order});
+    if(cfg){cfg.lastTouchedAt=Date.now();scheduleAdventurePathCloud(sheetId,order)}
+  }
+  saveLocal();scheduleBankStatsCloud();
+}
 let quizLastComplete=null;
 function startQuiz(customItems=null,appendCount=null){
   const full=customItems?[...customItems]:quizPool();
@@ -4979,6 +5014,61 @@ function studyDoc(u){return doc(db,"users",u,"study","state")}
 function bankIndexDoc(u){return doc(db,"users",u,"bank","index")}
 function bankSheetDoc(u,id){return doc(db,"users",u,"bankSheets",id)}
 function bankStatsDoc(u){return doc(db,"users",u,"quiz","stats")}
+function adventurePathDoc(u,sheetId,order){
+  return doc(db,"users",u,"quizPaths",`${sheetId}__${order}`);
+}
+function cloneAdventurePath(cfg){
+  if(!cfg)return null;
+  return JSON.parse(JSON.stringify(cfg));
+}
+function applyAdventurePathRemote(sheetId,order,remote){
+  if(!remote||!["sequence","random"].includes(order))return;
+  const state=adventureSheetState(sheetId);
+  const local=state.paths[order]||newAdventurePath(order);
+  const localAt=local.lastTouchedAt||0,remoteAt=remote.lastTouchedAt||remote.updatedAt||0;
+  if(remoteAt<localAt)return;
+  const incoming=cloneAdventurePath(remote);
+  delete incoming.updatedAt;
+  incoming.order=order;
+  state.paths[order]=incoming;
+  if(!state.activeOrder)state.activeOrder=order;
+  if(!state.lastOrder)state.lastOrder=order;
+}
+async function loadAdventurePathsCloud(u,legacyAdventure=null){
+  const legacyConfigs=legacyAdventure?.configs||{};
+  let changed=false;
+  for(const sheet of app.bank.sheets.filter(x=>!x.legacyWrong)){
+    const state=adventureSheetState(sheet.id);
+    for(const order of ["sequence","random"]){
+      const ref=adventurePathDoc(u,sheet.id,order);
+      const snap=await getDoc(ref);
+      if(snap.exists()){
+        const d=snap.data();
+        const before=state.paths[order]?.lastTouchedAt||0;
+        applyAdventurePathRemote(sheet.id,order,d.path||d);
+        if((state.paths[order]?.lastTouchedAt||0)!==before)changed=true;
+        continue;
+      }
+      // 최초 전환 시 기존 통짜리 진도를 새 경로 문서로 그대로 이관.
+      const legacyState=legacyConfigs[sheet.id];
+      const remoteLegacy=legacyState?.paths?.[order] ||
+        ((legacyState?.order===order||legacyState?.activeOrder===order)?legacyState:null);
+      const localPath=state.paths[order];
+      // 최초 이관에서도 더 최근에 사용한 쪽을 선택하여 기존 진도를 잃지 않음.
+      const remoteAt=remoteLegacy?.lastTouchedAt||0,localAt=localPath?.lastTouchedAt||0;
+      const legacyPath=(remoteLegacy&&remoteAt>localAt)?remoteLegacy:(localPath||remoteLegacy);
+      if(legacyPath){
+        const path=cloneAdventurePath(legacyPath);
+        path.order=order;
+        if(!path.lastTouchedAt)path.lastTouchedAt=Math.max(remoteAt,localAt,Date.now());
+        state.paths[order]=path;
+        await setDoc(ref,{sheetId:sheet.id,order,path,updatedAt:path.lastTouchedAt});
+        changed=true;
+      }
+    }
+  }
+  if(changed){saveLocalNow();renderQuiz()}
+}
 function updateSync(text,signed=false){const b=document.getElementById("syncBtn");if(!b)return;b.textContent=text;b.classList.toggle("signed",signed)}
 async function startLogin(){
   try{await signInWithPopup(auth,provider)}
@@ -4995,9 +5085,30 @@ let statsTimer=null;
 function scheduleBankStatsCloud(){
   if(!cloudUser||applyingRemote)return;
   clearTimeout(statsTimer);statsTimer=setTimeout(async()=>{
-    try{await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt||Date.now()});updateSync("✓",true)}
-    catch(e){console.error(e);updateSync("!",false)}
+    try{
+      // 문제 통계와 진도 경로를 분리: 다른 기기의 다른 길을 통째로 덮어쓰지 않음.
+      await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt||Date.now()});
+      updateSync("✓",true)
+    }catch(e){console.error(e);updateSync("!",false)}
   },700);
+}
+const adventureCloudTimers=new Map();
+function scheduleAdventurePathCloud(sheetId,order){
+  if(!cloudUser||applyingRemote||!sheetId||!["sequence","random"].includes(order))return;
+  const key=`${sheetId}__${order}`;
+  clearTimeout(adventureCloudTimers.get(key));
+  const timer=setTimeout(async()=>{
+    adventureCloudTimers.delete(key);
+    try{
+      const cfg=adventureConfig(sheetId,{quiet:true,order});if(!cfg)return;
+      if(!cfg.lastTouchedAt)cfg.lastTouchedAt=Date.now();
+      await setDoc(adventurePathDoc(cloudUser.uid,sheetId,order),{
+        sheetId,order,path:cloneAdventurePath(cfg),updatedAt:cfg.lastTouchedAt
+      });
+      updateSync("✓",true)
+    }catch(e){console.error(e);updateSync("!",false)}
+  },350);
+  adventureCloudTimers.set(key,timer);
 }
 async function saveBankIndexCloud(){
   if(!cloudUser)return;
@@ -5036,7 +5147,18 @@ onAuthStateChanged(auth,async user=>{
     else if(app.bank.sheets.length)await syncImportedBankSheets(app.bank.sheets);
     bankIndexUnsub=onSnapshot(bref,async snap=>{if(!snap.exists())return;const d=snap.data();if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d)});
     const stat=await getDoc(bankStatsDoc(user.uid));
-    if(stat.exists()){const d=stat.data();if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){app.bank.stats=d.stats||{};if(d.adventure&&typeof d.adventure==="object")app.ui.quizAdventure=d.adventure;app.bank.statsUpdatedAt=d.updatedAt||0;saveLocal();renderQuiz();}}
+    let legacyAdventure=null;
+    if(stat.exists()){
+      const d=stat.data();
+      legacyAdventure=(d.adventure&&typeof d.adventure==="object")?d.adventure:null;
+      if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){
+        app.bank.stats=d.stats||{};
+        app.bank.statsUpdatedAt=d.updatedAt||0;
+        saveLocal();renderQuiz();
+      }
+    }
+    // 기존 진도를 지우지 않고 시트+순서/랜덤별 독립 문서로 이관/불러오기.
+    await loadAdventurePathsCloud(user.uid,legacyAdventure);
     updateSync("✓",true);
   }catch(e){console.error(e);updateSync(e.code==="permission-denied"?"규칙":"!",false)}
 });
