@@ -2035,43 +2035,42 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 
 
-/* 암기판 타자연습: 복습 화면의 폭을 그대로 사용 */
+/* 암기판 타자연습: 복습 화면 그대로 + 시트 전체 타임어택 */
 .typing-practice-row .answer-line{
   display:block!important;
   grid-template-columns:none!important;
 }
 .typing-practice-field{
-  position:relative!important;
-  width:100%!important;
-  min-width:0!important;
-  display:block!important;
+  width:100%!important;min-width:0!important;display:block!important;
 }
 .typing-practice-guide{
-  position:absolute;left:0;right:0;top:0;height:31px;
-  display:flex;align-items:center;
-  padding:6px 28px 6px 9px;box-sizing:border-box;
-  color:#b7b8bd;pointer-events:none;white-space:nowrap;overflow:hidden;
-  font-size:var(--memory-font-size)!important;line-height:19px!important;
+  display:block;
+  margin:0 2px 4px;
+  color:#8d8f95;
+  font-size:calc(var(--memory-font-size) - 1px)!important;
+  line-height:1.35;
+  white-space:pre-wrap;
+  word-break:keep-all;
 }
 .typing-practice-input{
-  position:relative;z-index:1;width:100%!important;box-sizing:border-box!important;
-  background:transparent!important;color:#25262a!important;
+  width:100%!important;box-sizing:border-box!important;
 }
-.typing-practice-input.done{border-color:#78b892!important}
-.typing-practice-input.mismatch{border-color:#d98d86!important}
-.typing-practice-stats{
-  display:block;margin-top:3px;text-align:right;
-  font-size:10px;line-height:1.2;color:#777980;white-space:nowrap;
-}
-.typing-practice-stats.done{color:#4f7b58}
+.typing-practice-input.done{border-color:#78b892!important;background:#f5faf6!important}
+.typing-practice-input.mismatch{border-color:#d98d86!important;background:#fff7f6!important}
 .typing-sheet-summary{
-  display:inline-flex;align-items:center;margin-left:8px;
+  display:inline-flex;align-items:center;gap:7px;margin-left:8px;
   font-size:10px;color:#777980;font-weight:400;white-space:nowrap;
+}
+.typing-sheet-summary strong{font-size:11px;color:#44454a}
+.typing-sheet-summary.best strong{color:#2f7d50}
+.typing-retry{
+  border:0!important;background:transparent!important;padding:1px 3px!important;
+  min-height:auto!important;font-size:10px!important;color:#777980!important
 }
 #typingPracticeBtn.active{font-weight:700}
 @media(max-width:640px){
-  .typing-practice-stats{font-size:9px}
-  .typing-sheet-summary{display:none}
+  .typing-sheet-summary{font-size:9px;gap:4px;margin-left:5px}
+  .typing-sheet-summary strong{font-size:10px}
 }
 
 </style>
@@ -2578,6 +2577,7 @@ function cleanup(){
   if(!app.ui.settings)app.ui.settings={fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"};
   if(app.ui.showAllStudyMemos==null)app.ui.showAllStudyMemos=false;
   if(app.ui.typingPractice==null)app.ui.typingPractice=false;
+  if(!app.study.typingRecords||typeof app.study.typingRecords!=="object")app.study.typingRecords={};
   if(!Number.isFinite(app.ui.settings.memoryFontSize))app.ui.settings.memoryFontSize=14;
   if(!Number.isFinite(app.ui.settings.quizFontSize))app.ui.settings.quizFontSize=17;
   app.ui.settings.memoryFontSize=Math.max(12,Math.min(20,app.ui.settings.memoryFontSize));
@@ -3340,26 +3340,98 @@ function makeStudySongHint(rowId=""){
 
 
 let typingPracticeTimer=null;
+let typingPracticeChallenge=null;
 const typingPracticeSessions=new Map();
 
-function typingTargetText(row){
-  return row?.type==="section"?(row.title||""):(row.correct||"");
+function typingPracticeKey(){
+  return `${sub().id}::${sh().id}`;
+}
+function typingNormalize(text){
+  // 띄어쓰기/문장부호/대소문자는 무시하고 실제 글자·숫자만 비교.
+  return String(text||"")
+    .normalize("NFC")
+    .toLocaleLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu,"");
 }
 function typingCharCount(text){
-  // IME keydown 횟수가 아니라 완성된 문자열 길이로 계산하여 한글 입력에서도 안정적.
-  return Array.from(String(text||"")).length;
+  return Array.from(typingNormalize(text)).length;
 }
 function typingSpeed(chars,elapsedMs){
   if(!elapsedMs||elapsedMs<1)return 0;
   return Math.round(chars/(elapsedMs/60000));
 }
+function formatTypingTime(ms){
+  const sec=Math.max(0,Number(ms)||0)/1000;
+  if(sec<60)return `${sec.toFixed(1)}초`;
+  const m=Math.floor(sec/60),r=sec-m*60;
+  return `${m}:${r.toFixed(1).padStart(4,"0")}`;
+}
+function typingRecord(){
+  const key=typingPracticeKey();
+  const rec=app.study.typingRecords?.[key];
+  if(!rec||typeof rec!=="object")return {bestMs:0,recent:[]};
+  if(!Array.isArray(rec.recent))rec.recent=[];
+  return rec;
+}
+function typingBestMs(){return Number(typingRecord().bestMs)||0}
+function ensureTypingChallenge(){
+  const key=typingPracticeKey();
+  if(!typingPracticeChallenge||typingPracticeChallenge.key!==key){
+    stopTypingPracticeTicker();
+    typingPracticeSessions.clear();
+    typingPracticeChallenge={key,startedAt:0,endedAt:0,completed:false,newBest:false};
+  }
+  return typingPracticeChallenge;
+}
 function typingSession(rowId){
   let session=typingPracticeSessions.get(rowId);
   if(!session){
-    session={startedAt:0,endedAt:0,chars:0,value:""};
+    session={value:""};
     typingPracticeSessions.set(rowId,session);
   }
   return session;
+}
+function typingChallengeInputs(){
+  return [...document.querySelectorAll(".typing-practice-input")];
+}
+function typingChallengeTypedChars(){
+  return typingChallengeInputs().reduce((n,el)=>n+typingCharCount(el.value),0);
+}
+function typingChallengeTargetChars(){
+  return typingChallengeInputs().reduce((n,el)=>n+typingCharCount(el.dataset.target||""),0);
+}
+function updateTypingChallengeSummary(){
+  const box=document.querySelector(".typing-sheet-summary");
+  if(!box||!app.ui.typingPractice)return;
+  const c=ensureTypingChallenge(),rec=typingRecord(),best=Number(rec.bestMs)||0;
+  let main="",subtext="";
+  box.classList.toggle("best",!!c.newBest);
+
+  if(c.completed&&c.startedAt&&c.endedAt){
+    const elapsed=c.endedAt-c.startedAt;
+    main=`완료 ${formatTypingTime(elapsed)}`;
+    subtext=`${typingSpeed(typingChallengeTargetChars(),elapsed)}타`;
+    if(c.newBest)subtext+=" · 최고 기록!";
+    else if(best)subtext+=` · 최고 ${formatTypingTime(best)}`;
+  }else if(c.startedAt){
+    const elapsed=Date.now()-c.startedAt;
+    main=formatTypingTime(elapsed);
+    subtext=`${typingSpeed(typingChallengeTypedChars(),elapsed)}타`;
+    if(best)subtext+=` · 최고 ${formatTypingTime(best)}`;
+  }else{
+    main="첫 글자부터 시작";
+    if(best){
+      const recent=(rec.recent||[]).slice(0,3).map(x=>formatTypingTime(x.ms)).join(" / ");
+      subtext=`최고 ${formatTypingTime(best)}${recent?` · 최근 ${recent}`:""}`;
+    }else subtext="기록 없음";
+  }
+
+  box.innerHTML="";
+  const strong=document.createElement("strong");strong.textContent=main;
+  const small=document.createElement("span");small.textContent=subtext;
+  const retry=document.createElement("button");retry.type="button";retry.className="typing-retry";retry.textContent="다시";
+  retry.onclick=e=>{e.preventDefault();e.stopPropagation();resetTypingPracticeChallenge(true)};
+  box.append(strong,small,retry);
 }
 function stopTypingPracticeTicker(){
   if(typingPracticeTimer){clearInterval(typingPracticeTimer);typingPracticeTimer=null}
@@ -3368,17 +3440,21 @@ function startTypingPracticeTicker(){
   if(typingPracticeTimer)return;
   typingPracticeTimer=setInterval(()=>{
     if(!app.ui.typingPractice){stopTypingPracticeTicker();return}
-    document.querySelectorAll("[data-typing-row-id]").forEach(el=>{
-      const id=el.dataset.typingRowId,session=typingPracticeSessions.get(id);
-      if(!session?.startedAt||session.endedAt)return;
-      const stats=el.querySelector(".typing-practice-stats");if(!stats)return;
-      const elapsed=Date.now()-session.startedAt;
-      stats.textContent=`${(elapsed/1000).toFixed(1)}초 · ${typingSpeed(session.chars,elapsed)}타`;
-    });
+    updateTypingChallengeSummary();
   },100);
 }
+function resetTypingPracticeChallenge(focusFirst=false){
+  stopTypingPracticeTicker();
+  typingPracticeSessions.clear();
+  typingPracticeChallenge={key:typingPracticeKey(),startedAt:0,endedAt:0,completed:false,newBest:false};
+  document.querySelectorAll(".typing-practice-input").forEach(el=>{
+    el.value="";el.classList.remove("done","mismatch");
+  });
+  updateTypingChallengeSummary();
+  if(focusFirst)setTimeout(()=>focusStudyField(document.querySelector(".typing-practice-input")),20);
+}
 function resetTypingPracticeSessions(){
-  stopTypingPracticeTicker();typingPracticeSessions.clear();
+  stopTypingPracticeTicker();typingPracticeSessions.clear();typingPracticeChallenge=null;
 }
 function setTypingPractice(on){
   app.ui.typingPractice=!!on;
@@ -3386,66 +3462,76 @@ function setTypingPractice(on){
   resetTypingPracticeSessions();
   saveLocal();renderMode();renderStudy();
 }
+function storeTypingResult(elapsed){
+  const key=typingPracticeKey();
+  if(!app.study.typingRecords||typeof app.study.typingRecords!=="object")app.study.typingRecords={};
+  const old=typingRecord(),best=Number(old.bestMs)||0;
+  const recent=[{ms:elapsed,at:Date.now()},...(old.recent||[])].slice(0,5);
+  const newBest=!best||elapsed<best;
+  app.study.typingRecords[key]={bestMs:newBest?elapsed:best,recent,updatedAt:Date.now()};
+  return newBest;
+}
+function checkTypingChallengeComplete(){
+  const c=ensureTypingChallenge();
+  if(!c.startedAt||c.completed)return;
+  const inputs=typingChallengeInputs();
+  if(!inputs.length)return;
+  const allDone=inputs.every(el=>typingNormalize(el.value)===typingNormalize(el.dataset.target||""));
+  if(!allDone)return;
+  c.completed=true;c.endedAt=Date.now();
+  stopTypingPracticeTicker();
+  const elapsed=c.endedAt-c.startedAt;
+  c.newBest=storeTypingResult(elapsed);
+  markStudyCloud();
+  updateTypingChallengeSummary();
+}
 function makeTypingPracticeField(row,target){
   const wrap=document.createElement("div");wrap.className="typing-practice-field";wrap.dataset.typingRowId=row.id;
   const guide=document.createElement("div");guide.className="typing-practice-guide";guide.textContent=target;
   const input=document.createElement("input");input.type="text";input.className="study-answer typing-practice-input";
+  input.dataset.target=target;
   input.autocomplete="off";input.spellcheck=false;input.autocorrect="off";input.autocapitalize="off";
   input.enterKeyHint="next";
-  const stats=document.createElement("span");stats.className="typing-practice-stats";stats.textContent="0.0초 · 0타";
-
   const session=typingSession(row.id);
   input.value=session.value||"";
 
   const paint=()=>{
-    const value=input.value;
-    const targetChars=Array.from(target),valueChars=Array.from(value);
-    let prefixOk=true;
-    for(let i=0;i<valueChars.length;i++){
-      if(valueChars[i]!==targetChars[i]){prefixOk=false;break}
-    }
-    input.classList.toggle("mismatch",!!value&&!prefixOk);
-    const done=value===target&&target.length>0;
+    const typed=typingNormalize(input.value),answer=typingNormalize(target);
+    const done=!!answer&&typed===answer;
+    const prefixOk=!typed||answer.startsWith(typed);
     input.classList.toggle("done",done);
-    stats.classList.toggle("done",done);
-    if(done&&session.startedAt&&!session.endedAt){
-      session.endedAt=Date.now();
-      const elapsed=session.endedAt-session.startedAt;
-      stats.textContent=`${(elapsed/1000).toFixed(1)}초 · ${typingSpeed(session.chars,elapsed)}타 ✓`;
-    }else if(!done&&session.endedAt){
-      session.endedAt=0;
-    }
+    input.classList.toggle("mismatch",!!typed&&!done&&!prefixOk);
   };
-
-  input.addEventListener("input",e=>{
-    const value=e.target.value;
-    if(!session.startedAt&&value){
-      session.startedAt=Date.now();session.endedAt=0;session.chars=0;
+  const changed=()=>{
+    const c=ensureTypingChallenge();
+    if(!c.startedAt&&typingNormalize(input.value)){
+      c.startedAt=Date.now();c.endedAt=0;c.completed=false;c.newBest=false;
       startTypingPracticeTicker();
     }
-    session.value=value;
-    session.chars=typingCharCount(value);
-    paint();
-  });
-  input.addEventListener("compositionend",()=>{
     session.value=input.value;
-    session.chars=typingCharCount(input.value);
-    if(!session.startedAt&&input.value)session.startedAt=Date.now();
-    paint();startTypingPracticeTicker();
+    paint();checkTypingChallengeComplete();updateTypingChallengeSummary();
+  };
+  input.addEventListener("input",e=>{if(!e.isComposing)changed()});
+  input.addEventListener("compositionend",changed);
+  bindSafeEnter(input,()=>{
+    paint();
+    if(typingNormalize(input.value)===typingNormalize(target))focusNextStudyField(input);
   });
-  bindSafeEnter(input,()=>focusNextStudyField(input));
   bindStudyArrowNavigation(input);
   paint();
-  wrap.append(guide,input,stats);
-  return {wrap,stats,input};
+  wrap.append(guide,input);
+  return {wrap,input};
 }
 
 function renderStudy(){
   const studyTitle=document.getElementById("studyTitle");studyTitle.innerHTML="";
   const titleText=document.createElement("span");titleText.textContent=sh().name;studyTitle.append(titleText);
   if(app.ui.typingPractice){
-    const hint=document.createElement("span");hint.className="typing-sheet-summary";hint.textContent="회색 문장을 그대로 입력 · 첫 글자부터 측정";
-    studyTitle.append(hint);startTypingPracticeTicker();
+    ensureTypingChallenge();
+    const hint=document.createElement("span");hint.className="typing-sheet-summary";
+    studyTitle.append(hint);
+    requestAnimationFrame(updateTypingChallengeSummary);
+    if(typingPracticeChallenge?.startedAt&&!typingPracticeChallenge.completed)startTypingPracticeTicker();
   }else stopTypingPracticeTicker();
 
   const typingBtn=document.getElementById("typingPracticeBtn");
@@ -3484,7 +3570,7 @@ function renderStudy(){
   let hiddenBySection=false;
   rows.forEach(r=>{
     if(r.type==="section"){
-      hiddenBySection=!!app.ui.collapsedSections[r.id];
+      hiddenBySection=app.ui.typingPractice?false:!!app.ui.collapsedSections[r.id];
       const head=document.createElement("div");head.className="section-study-head "+(r.level==="major"?"major":"sub")+(hiddenBySection?" collapsed":"");head.dataset.studyRowId=r.id;
       applyStudyColor(head,r.color,true);
       const content=document.createElement("div");content.className="section-title";
