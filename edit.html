@@ -2035,25 +2035,32 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 
 
-/* 암기판 타자연습 */
-.typing-practice-row .answer-line{align-items:center}
+/* 암기판 타자연습: 복습 화면의 폭을 그대로 사용 */
+.typing-practice-row .answer-line{
+  display:block!important;
+  grid-template-columns:none!important;
+}
 .typing-practice-field{
-  position:relative;min-width:0;flex:1;
+  position:relative!important;
+  width:100%!important;
+  min-width:0!important;
+  display:block!important;
 }
 .typing-practice-guide{
-  position:absolute;inset:0;display:flex;align-items:center;
-  padding:0 var(--memory-input-xpad,9px);box-sizing:border-box;
-  color:#b7b8bd;pointer-events:none;white-space:pre;overflow:hidden;
-  font:inherit;line-height:inherit;
+  position:absolute;left:0;right:0;top:0;height:31px;
+  display:flex;align-items:center;
+  padding:6px 28px 6px 9px;box-sizing:border-box;
+  color:#b7b8bd;pointer-events:none;white-space:nowrap;overflow:hidden;
+  font-size:var(--memory-font-size)!important;line-height:19px!important;
 }
 .typing-practice-input{
-  position:relative;z-index:1;width:100%;box-sizing:border-box;
+  position:relative;z-index:1;width:100%!important;box-sizing:border-box!important;
   background:transparent!important;color:#25262a!important;
 }
-.typing-practice-input.done{border-color:#9abca1!important}
-.typing-practice-input.mismatch{border-color:#d6a4a4!important}
+.typing-practice-input.done{border-color:#78b892!important}
+.typing-practice-input.mismatch{border-color:#d98d86!important}
 .typing-practice-stats{
-  flex:0 0 auto;min-width:86px;text-align:right;
+  display:block;margin-top:3px;text-align:right;
   font-size:10px;line-height:1.2;color:#777980;white-space:nowrap;
 }
 .typing-practice-stats.done{color:#4f7b58}
@@ -2061,8 +2068,9 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   display:inline-flex;align-items:center;margin-left:8px;
   font-size:10px;color:#777980;font-weight:400;white-space:nowrap;
 }
+#typingPracticeBtn.active{font-weight:700}
 @media(max-width:640px){
-  .typing-practice-stats{min-width:70px;font-size:9px}
+  .typing-practice-stats{font-size:9px}
   .typing-sheet-summary{display:none}
 }
 
@@ -2104,11 +2112,11 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   <div class="modebar memory-toolbar" id="memoryModebar">
     <div class="memory-tabs">
       <button id="studyBtn" class="active">복습</button>
-      <button id="typingPracticeBtn">타자</button>
       <button id="editBtn">편집</button>
       <span id="sheetSongInline" class="sheet-song-toolbar"></span>
     </div>
     <div class="memory-tools">
+      <button class="study-all-answer compact-study-tool" id="typingPracticeBtn" title="타자연습" aria-label="타자연습">□ 타자</button>
       <button class="study-all-answer compact-study-tool" id="toggleAllAnswers" title="답 전체" aria-label="답 전체">?</button>
       <button class="study-all-answer compact-study-tool" id="toggleAllMemos" title="메모 전체" aria-label="메모 전체">✎</button>
       <button class="study-all-answer compact-study-tool clear-input-all" id="clearSheetReview" title="현재 입력 전체 지우기" aria-label="현재 입력 전체 지우기">×</button>
@@ -3428,7 +3436,7 @@ function makeTypingPracticeField(row,target){
   bindSafeEnter(input,()=>focusNextStudyField(input));
   bindStudyArrowNavigation(input);
   paint();
-  wrap.append(guide,input);
+  wrap.append(guide,input,stats);
   return {wrap,stats,input};
 }
 
@@ -3443,7 +3451,9 @@ function renderStudy(){
   const typingBtn=document.getElementById("typingPracticeBtn");
   if(typingBtn){
     typingBtn.classList.toggle("active",!!app.ui.typingPractice);
-    typingBtn.title=app.ui.typingPractice?"타자연습 종료":"타자연습";
+    typingBtn.textContent=app.ui.typingPractice?"✓ 타자":"□ 타자";
+    typingBtn.title=app.ui.typingPractice?"타자연습 끄기":"타자연습 켜기";
+    typingBtn.setAttribute("aria-label",typingBtn.title);
   }
 
   const songSlot=document.getElementById("sheetSongInline");
@@ -3482,7 +3492,7 @@ function renderStudy(){
         if(app.ui.typingPractice){
           const typing=makeTypingPracticeField(r,r.title||"");
           typing.wrap.classList.add("section-field");
-          content.append(typing.wrap,typing.stats);
+          content.append(typing.wrap);
         }else{
         const field=document.createElement("div");field.className="study-field section-field";
         const isSectionAnswerShowing=()=>!!(r.revealed||app.ui.showAllStudyAnswers);
@@ -3566,7 +3576,7 @@ function renderStudy(){
     if(app.ui.typingPractice){
       row.classList.add("typing-practice-row");
       const typing=makeTypingPracticeField(r,r.correct||"");
-      line.append(typing.wrap,typing.stats);
+      line.append(typing.wrap);
       row.append(line);
       if(r.memo){
         const memo=document.createElement("div");memo.className="memo"+(app.ui.showAllStudyMemos?" show":"");memo.textContent=r.memo;row.append(memo);
@@ -5189,7 +5199,7 @@ function renderMode(){
     document.getElementById("editView").classList.toggle("hidden",mode!=="edit");
     document.getElementById("songMapView").classList.toggle("hidden",mode!=="songs");
     document.getElementById("quizView").classList.add("hidden");document.getElementById("bankEditView").classList.add("hidden");
-    document.getElementById("studyBtn").classList.toggle("active",mode==="study"&&!app.ui.typingPractice);
+    document.getElementById("studyBtn").classList.toggle("active",mode==="study");
     document.getElementById("typingPracticeBtn")?.classList.toggle("active",mode==="study"&&!!app.ui.typingPractice);
     document.getElementById("editBtn").classList.toggle("active",mode==="edit");
     if(mode==="songs")renderSongMap();
@@ -5445,7 +5455,7 @@ bindModeSwitchTap(document.getElementById("bankSpace"),()=>{
   document.getElementById("studyMenu")?.classList.add("hidden");
   saveLocal();renderMode();
 });
-bindModeSwitchTap(document.getElementById("studyBtn"),()=>{app.ui.typingPractice=false;resetTypingPracticeSessions();app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode();renderStudy()});
+bindModeSwitchTap(document.getElementById("studyBtn"),()=>{app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode();renderStudy()});
 bindModeSwitchTap(document.getElementById("typingPracticeBtn"),()=>{setTypingPractice(!app.ui.typingPractice)});
 bindModeSwitchTap(document.getElementById("editBtn"),()=>{app.ui.typingPractice=false;resetTypingPracticeSessions();app.study.mode="edit";app.ui.workspace="memory";saveLocal();renderMode()});
 document.getElementById("quizBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="quick";saveLocal();renderMode()};
