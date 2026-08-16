@@ -2035,7 +2035,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 
 
-/* 암기판 타자연습: 복습 화면 그대로 + 시트 전체 타임어택 */
+/* 암기판 타자연습: 보고 치기 / 안 보고 치기 + 시트 전체 기록 */
 .typing-practice-row .answer-line{
   display:block!important;
   grid-template-columns:none!important;
@@ -2052,25 +2052,46 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   white-space:pre-wrap;
   word-break:keep-all;
 }
-.typing-practice-input{
-  width:100%!important;box-sizing:border-box!important;
-}
+.typing-practice-guide.hidden-guide{display:none!important}
+.typing-input-line{display:flex;align-items:center;gap:3px;width:100%}
+.typing-practice-input{flex:1 1 auto;min-width:0!important;box-sizing:border-box!important}
 .typing-practice-input.done{border-color:#78b892!important;background:#f5faf6!important}
 .typing-practice-input.mismatch{border-color:#d98d86!important;background:#fff7f6!important}
-.typing-sheet-summary{
-  display:inline-flex;align-items:center;gap:7px;margin-left:8px;
-  font-size:10px;color:#777980;font-weight:400;white-space:nowrap;
+.typing-hint-btn{
+  flex:0 0 29px;width:29px;height:31px;min-height:31px!important;padding:0!important;
+  border:0!important;border-radius:6px!important;background:transparent!important;
+  color:#68686e!important;font-size:11px!important
 }
-.typing-sheet-summary strong{font-size:11px;color:#44454a}
-.typing-sheet-summary.best strong{color:#2f7d50}
+.typing-hint-btn:active{background:#f0f0f2!important}
+.typing-record-bar{
+  position:sticky;top:44px;z-index:18;
+  display:flex;align-items:center;gap:7px;flex-wrap:wrap;
+  min-height:31px;padding:4px 2px;margin:0 0 4px;
+  background:rgba(255,255,255,.96);border-bottom:1px solid #ececef;
+  font-size:10px;color:#777980;
+}
+.typing-record-main{display:flex;align-items:center;gap:6px;white-space:nowrap;min-width:0}
+.typing-record-main strong{font-size:12px;color:#44454a}
+.typing-record-bar.best .typing-record-main strong{color:#2f7d50}
+.typing-mode-switch{
+  display:inline-flex;align-items:center;gap:1px;padding:1px;border:1px solid #e2e2e5;border-radius:6px;
+  background:#f8f8f9;
+}
+.typing-mode-switch button{
+  border:0!important;background:transparent!important;min-height:24px!important;padding:3px 6px!important;
+  border-radius:4px!important;font-size:10px!important;color:#73747a!important
+}
+.typing-mode-switch button.active{background:#fff!important;color:#303136!important;font-weight:700;box-shadow:0 0 0 1px #dddde1}
 .typing-retry{
-  border:0!important;background:transparent!important;padding:1px 3px!important;
+  border:0!important;background:transparent!important;padding:2px 4px!important;
   min-height:auto!important;font-size:10px!important;color:#777980!important
 }
 #typingPracticeBtn.active{font-weight:700}
 @media(max-width:640px){
-  .typing-sheet-summary{font-size:9px;gap:4px;margin-left:5px}
-  .typing-sheet-summary strong{font-size:10px}
+  .typing-record-bar{gap:4px}
+  .typing-record-main{font-size:9px;gap:4px}
+  .typing-record-main strong{font-size:10px}
+  .typing-mode-switch button{padding:3px 5px!important;font-size:9px!important}
 }
 
 </style>
@@ -2577,6 +2598,7 @@ function cleanup(){
   if(!app.ui.settings)app.ui.settings={fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"};
   if(app.ui.showAllStudyMemos==null)app.ui.showAllStudyMemos=false;
   if(app.ui.typingPractice==null)app.ui.typingPractice=false;
+  if(!["copy","recall"].includes(app.ui.typingPracticeMode))app.ui.typingPracticeMode="copy";
   if(!app.study.typingRecords||typeof app.study.typingRecords!=="object")app.study.typingRecords={};
   if(!Number.isFinite(app.ui.settings.memoryFontSize))app.ui.settings.memoryFontSize=14;
   if(!Number.isFinite(app.ui.settings.quizFontSize))app.ui.settings.quizFontSize=17;
@@ -3343,11 +3365,14 @@ let typingPracticeTimer=null;
 let typingPracticeChallenge=null;
 const typingPracticeSessions=new Map();
 
-function typingPracticeKey(){
-  return `${sub().id}::${sh().id}`;
+function typingPracticeMode(){
+  return app.ui.typingPracticeMode==="recall"?"recall":"copy";
+}
+function typingPracticeKey(mode=typingPracticeMode()){
+  return `${sub().id}::${sh().id}::${mode}`;
 }
 function typingNormalize(text){
-  // 띄어쓰기/문장부호/대소문자는 무시하고 실제 글자·숫자만 비교.
+  // 암기 확인용: 띄어쓰기·문장부호·대소문자는 무시하고 실제 글자/숫자만 비교.
   return String(text||"")
     .normalize("NFC")
     .toLocaleLowerCase()
@@ -3366,9 +3391,13 @@ function formatTypingTime(ms){
   const m=Math.floor(sec/60),r=sec-m*60;
   return `${m}:${r.toFixed(1).padStart(4,"0")}`;
 }
+function legacyTypingRecord(){
+  // 이전 단일 타자 기록은 '보고 치기' 기록으로만 이어받음.
+  if(typingPracticeMode()!=="copy")return null;
+  return app.study.typingRecords?.[`${sub().id}::${sh().id}`]||null;
+}
 function typingRecord(){
-  const key=typingPracticeKey();
-  const rec=app.study.typingRecords?.[key];
+  const rec=app.study.typingRecords?.[typingPracticeKey()]||legacyTypingRecord();
   if(!rec||typeof rec!=="object")return {bestMs:0,recent:[]};
   if(!Array.isArray(rec.recent))rec.recent=[];
   return rec;
@@ -3379,14 +3408,14 @@ function ensureTypingChallenge(){
   if(!typingPracticeChallenge||typingPracticeChallenge.key!==key){
     stopTypingPracticeTicker();
     typingPracticeSessions.clear();
-    typingPracticeChallenge={key,startedAt:0,endedAt:0,completed:false,newBest:false};
+    typingPracticeChallenge={key,startedAt:0,endedAt:0,completed:false,newBest:false,hints:0};
   }
   return typingPracticeChallenge;
 }
 function typingSession(rowId){
   let session=typingPracticeSessions.get(rowId);
   if(!session){
-    session={value:""};
+    session={value:"",hintVisible:false,hintTimer:null};
     typingPracticeSessions.set(rowId,session);
   }
   return session;
@@ -3400,10 +3429,17 @@ function typingChallengeTypedChars(){
 function typingChallengeTargetChars(){
   return typingChallengeInputs().reduce((n,el)=>n+typingCharCount(el.dataset.target||""),0);
 }
+function setTypingPracticeMode(mode){
+  if(!["copy","recall"].includes(mode)||typingPracticeMode()===mode)return;
+  app.ui.typingPracticeMode=mode;
+  resetTypingPracticeSessions();
+  saveLocal();renderStudy();
+  setTimeout(()=>focusStudyField(document.querySelector(".typing-practice-input")),20);
+}
 function updateTypingChallengeSummary(){
-  const box=document.querySelector(".typing-sheet-summary");
+  const box=document.querySelector(".typing-record-bar");
   if(!box||!app.ui.typingPractice)return;
-  const c=ensureTypingChallenge(),rec=typingRecord(),best=Number(rec.bestMs)||0;
+  const c=ensureTypingChallenge(),rec=typingRecord(),best=Number(rec.bestMs)||0,mode=typingPracticeMode();
   let main="",subtext="";
   box.classList.toggle("best",!!c.newBest);
 
@@ -3411,12 +3447,14 @@ function updateTypingChallengeSummary(){
     const elapsed=c.endedAt-c.startedAt;
     main=`완료 ${formatTypingTime(elapsed)}`;
     subtext=`${typingSpeed(typingChallengeTargetChars(),elapsed)}타`;
+    if(mode==="recall"&&c.hints)subtext+=` · 힌트 ${c.hints}`;
     if(c.newBest)subtext+=" · 최고 기록!";
     else if(best)subtext+=` · 최고 ${formatTypingTime(best)}`;
   }else if(c.startedAt){
     const elapsed=Date.now()-c.startedAt;
     main=formatTypingTime(elapsed);
     subtext=`${typingSpeed(typingChallengeTypedChars(),elapsed)}타`;
+    if(mode==="recall"&&c.hints)subtext+=` · 힌트 ${c.hints}`;
     if(best)subtext+=` · 최고 ${formatTypingTime(best)}`;
   }else{
     main="첫 글자부터 시작";
@@ -3427,11 +3465,20 @@ function updateTypingChallengeSummary(){
   }
 
   box.innerHTML="";
+  const modes=document.createElement("div");modes.className="typing-mode-switch";
+  [["copy","보고 치기"],["recall","안 보고 치기"]].forEach(([value,label])=>{
+    const b=document.createElement("button");b.type="button";b.textContent=label;
+    b.classList.toggle("active",mode===value);
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();setTypingPracticeMode(value)};
+    modes.append(b);
+  });
+  const info=document.createElement("div");info.className="typing-record-main";
   const strong=document.createElement("strong");strong.textContent=main;
   const small=document.createElement("span");small.textContent=subtext;
+  info.append(strong,small);
   const retry=document.createElement("button");retry.type="button";retry.className="typing-retry";retry.textContent="다시";
   retry.onclick=e=>{e.preventDefault();e.stopPropagation();resetTypingPracticeChallenge(true)};
-  box.append(strong,small,retry);
+  box.append(modes,info,retry);
 }
 function stopTypingPracticeTicker(){
   if(typingPracticeTimer){clearInterval(typingPracticeTimer);typingPracticeTimer=null}
@@ -3445,16 +3492,22 @@ function startTypingPracticeTicker(){
 }
 function resetTypingPracticeChallenge(focusFirst=false){
   stopTypingPracticeTicker();
+  typingPracticeSessions.forEach(session=>{if(session.hintTimer)clearTimeout(session.hintTimer)});
   typingPracticeSessions.clear();
-  typingPracticeChallenge={key:typingPracticeKey(),startedAt:0,endedAt:0,completed:false,newBest:false};
+  typingPracticeChallenge={key:typingPracticeKey(),startedAt:0,endedAt:0,completed:false,newBest:false,hints:0};
   document.querySelectorAll(".typing-practice-input").forEach(el=>{
     el.value="";el.classList.remove("done","mismatch");
+  });
+  document.querySelectorAll(".typing-practice-guide").forEach(el=>{
+    el.classList.toggle("hidden-guide",typingPracticeMode()==="recall");
   });
   updateTypingChallengeSummary();
   if(focusFirst)setTimeout(()=>focusStudyField(document.querySelector(".typing-practice-input")),20);
 }
 function resetTypingPracticeSessions(){
-  stopTypingPracticeTicker();typingPracticeSessions.clear();typingPracticeChallenge=null;
+  stopTypingPracticeTicker();
+  typingPracticeSessions.forEach(session=>{if(session.hintTimer)clearTimeout(session.hintTimer)});
+  typingPracticeSessions.clear();typingPracticeChallenge=null;
 }
 function setTypingPractice(on){
   app.ui.typingPractice=!!on;
@@ -3462,11 +3515,11 @@ function setTypingPractice(on){
   resetTypingPracticeSessions();
   saveLocal();renderMode();renderStudy();
 }
-function storeTypingResult(elapsed){
+function storeTypingResult(elapsed,hints=0){
   const key=typingPracticeKey();
   if(!app.study.typingRecords||typeof app.study.typingRecords!=="object")app.study.typingRecords={};
   const old=typingRecord(),best=Number(old.bestMs)||0;
-  const recent=[{ms:elapsed,at:Date.now()},...(old.recent||[])].slice(0,5);
+  const recent=[{ms:elapsed,at:Date.now(),hints:Number(hints)||0},...(old.recent||[])].slice(0,5);
   const newBest=!best||elapsed<best;
   app.study.typingRecords[key]={bestMs:newBest?elapsed:best,recent,updatedAt:Date.now()};
   return newBest;
@@ -3481,17 +3534,37 @@ function checkTypingChallengeComplete(){
   c.completed=true;c.endedAt=Date.now();
   stopTypingPracticeTicker();
   const elapsed=c.endedAt-c.startedAt;
-  c.newBest=storeTypingResult(elapsed);
+  c.newBest=storeTypingResult(elapsed,c.hints);
   markStudyCloud();
+  updateTypingChallengeSummary();
+  const speed=typingSpeed(typingChallengeTargetChars(),elapsed);
+  const hintText=typingPracticeMode()==="recall"&&c.hints?` · 힌트 ${c.hints}`:"";
+  toast(c.newBest?`최고 기록 ${formatTypingTime(elapsed)} · ${speed}타${hintText}`:`완료 ${formatTypingTime(elapsed)} · ${speed}타${hintText}`);
+}
+function showTypingHint(rowId,guide){
+  if(typingPracticeMode()!=="recall")return;
+  const session=typingSession(rowId),c=ensureTypingChallenge();
+  c.hints=(c.hints||0)+1;
+  session.hintVisible=true;
+  guide.classList.remove("hidden-guide");
+  if(session.hintTimer)clearTimeout(session.hintTimer);
+  session.hintTimer=setTimeout(()=>{
+    session.hintVisible=false;
+    guide.classList.add("hidden-guide");
+  },1800);
   updateTypingChallengeSummary();
 }
 function makeTypingPracticeField(row,target){
   const wrap=document.createElement("div");wrap.className="typing-practice-field";wrap.dataset.typingRowId=row.id;
   const guide=document.createElement("div");guide.className="typing-practice-guide";guide.textContent=target;
+  if(typingPracticeMode()==="recall")guide.classList.add("hidden-guide");
+
+  const line=document.createElement("div");line.className="typing-input-line";
   const input=document.createElement("input");input.type="text";input.className="study-answer typing-practice-input";
   input.dataset.target=target;
   input.autocomplete="off";input.spellcheck=false;input.autocorrect="off";input.autocapitalize="off";
   input.enterKeyHint="next";
+
   const session=typingSession(row.id);
   input.value=session.value||"";
 
@@ -3518,8 +3591,17 @@ function makeTypingPracticeField(row,target){
     if(typingNormalize(input.value)===typingNormalize(target))focusNextStudyField(input);
   });
   bindStudyArrowNavigation(input);
+
+  line.append(input);
+  if(typingPracticeMode()==="recall"){
+    const hint=document.createElement("button");hint.type="button";hint.className="typing-hint-btn";hint.textContent="?";
+    hint.title="정답 잠깐 보기";hint.setAttribute("aria-label","정답 잠깐 보기");
+    keepStudyInputFocusOnTap(hint);
+    hint.onclick=e=>{e.preventDefault();e.stopPropagation();showTypingHint(row.id,guide)};
+    line.append(hint);
+  }
   paint();
-  wrap.append(guide,input);
+  wrap.append(guide,line);
   return {wrap,input};
 }
 
@@ -3565,6 +3647,11 @@ function renderStudy(){
   }
 
   const list=document.getElementById("studyList");list.innerHTML="";
+  if(app.ui.typingPractice){
+    const recordBar=document.createElement("div");recordBar.className="typing-record-bar";
+    list.append(recordBar);
+    requestAnimationFrame(updateTypingChallengeSummary);
+  }
   let rows=sh().rows.filter(r=>r.type==="section"?(r.title||"").trim():(r.correct||r.category||r.memo));
 
   let hiddenBySection=false;
