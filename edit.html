@@ -2528,7 +2528,8 @@ function resumeQuiz(slotId){
 }
 function cleanup(){
   if(!app.study)app.study=initialApp().study;
-  if(!app.bank)app.bank={sheets:[],stats:{},contentUpdatedAt:0,statsUpdatedAt:0};
+  if(!app.bank)app.bank={sheets:[],trashSheets:[],stats:{},contentUpdatedAt:0,statsUpdatedAt:0};
+  if(!Array.isArray(app.bank.trashSheets))app.bank.trashSheets=[];
   if(app.bank.updatedAt && !app.bank.contentUpdatedAt)app.bank.contentUpdatedAt=app.bank.updatedAt;
   if(app.bank.updatedAt && !app.bank.statsUpdatedAt)app.bank.statsUpdatedAt=app.bank.updatedAt;
   if(!app.ui)app.ui={workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",quiz:{sheetId:"",mode:"choice",filter:"all",order:"sequence",mastery:true}};
@@ -2607,11 +2608,89 @@ function localStoragePayload(){
   })));
   return {...app,study};
 }
+
+/* 문제은행 본문은 커지면 localStorage 용량 한도를 넘을 수 있으므로 IndexedDB에 따로 보관.
+   진도/화면상태/암기판은 기존 localStorage 저장 구조를 그대로 사용한다. */
+const BANK_CACHE_DB="study-jew-bank-cache-v2";
+const BANK_CACHE_STORE="bank";
+let bankCacheSaveTimer=null;
+function openBankCacheDb(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(BANK_CACHE_DB,1);
+    req.onupgradeneeded=()=>{
+      const db=req.result;
+      if(!db.objectStoreNames.contains(BANK_CACHE_STORE))db.createObjectStore(BANK_CACHE_STORE);
+    };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function readBankCache(){
+  try{
+    const db=await openBankCacheDb();
+    const data=await new Promise((resolve,reject)=>{
+      const tx=db.transaction(BANK_CACHE_STORE,"readonly");
+      const req=tx.objectStore(BANK_CACHE_STORE).get("state");
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+    });
+    db.close();return data;
+  }catch(e){console.warn("bank cache read failed",e);return null}
+}
+async function writeBankCacheNow(){
+  clearTimeout(bankCacheSaveTimer);bankCacheSaveTimer=null;
+  try{
+    const db=await openBankCacheDb();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(BANK_CACHE_STORE,"readwrite");
+      tx.objectStore(BANK_CACHE_STORE).put({
+        sheets:app.bank.sheets,
+        trashSheets:app.bank.trashSheets||[],
+        contentUpdatedAt:app.bank.contentUpdatedAt||0
+      },"state");
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+    });
+    db.close();
+  }catch(e){console.warn("bank cache write failed",e)}
+}
+function scheduleBankCacheSave(){
+  clearTimeout(bankCacheSaveTimer);
+  bankCacheSaveTimer=setTimeout(writeBankCacheNow,250);
+}
+let bankCacheReadyPromise=null;
+async function restoreBankCache(){
+  const cached=await readBankCache();
+  if(!cached?.sheets?.length)return false;
+  const localAt=app.bank.contentUpdatedAt||0;
+  const cacheAt=cached.contentUpdatedAt||0;
+  if(!app.bank.sheets.length||cacheAt>=localAt){
+    app.bank.sheets=cached.sheets;
+    if(Array.isArray(cached.trashSheets))app.bank.trashSheets=cached.trashSheets;
+    app.bank.contentUpdatedAt=Math.max(localAt,cacheAt);
+    return true;
+  }
+  return false;
+}
+bankCacheReadyPromise=restoreBankCache().then(restored=>{
+  if(restored){renderQuiz();renderBankEditor()}
+  return restored;
+});
+
 let localSaveTimer=null;
 function saveLocalNow(){
   clearTimeout(localSaveTimer);localSaveTimer=null;
-  try{localStorage.setItem(KEY,JSON.stringify(localStoragePayload()))}
-  catch(e){console.warn("local save failed",e)}
+  const payload=localStoragePayload();
+  try{
+    localStorage.setItem(KEY,JSON.stringify(payload));
+  }catch(e){
+    // 큰 문제은행 때문에 전체 저장이 실패하면 문제은행 본문만 제외하고 나머지 상태는 반드시 보존.
+    try{
+      const slim=JSON.parse(JSON.stringify(payload));
+      if(slim.bank)slim.bank.sheets=[];
+      localStorage.setItem(KEY,JSON.stringify(slim));
+      scheduleBankCacheSave();
+    }catch(e2){console.warn("local save failed",e2)}
+  }
 }
 function saveLocal(){
   clearTimeout(localSaveTimer);
@@ -2660,7 +2739,7 @@ function restoreStudyDrafts(){
 }
 restoreStudyDrafts();
 function flushTypingSave(){saveStudyDraftsNow();saveStudyQuickNow();saveLocalNow()}
-window.addEventListener("pagehide",flushTypingSave);
+window.addEventListener("pagehide",()=>{flushTypingSave();if(app.bank.sheets?.length)writeBankCacheNow()});
 window.addEventListener("beforeunload",flushTypingSave);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushTypingSave()});
 function markStudyCloud(){app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();saveStudyDraftsNow();scheduleStudyCloud()}
@@ -3637,7 +3716,7 @@ async function importStudyFiles(files){
 
 /* Problem bank importer: A category / B question / C answer / D memo / E,F check flags / G tag */
 function bankSheetId(source,name){return "b_"+hashString(source+"\u0000"+name)}
-function makeBankItem(sheetId,rowNo,data){return {id:`${sheetId}_${rowNo}`,row:rowNo,...data}}
+function makeBankItem(sheetId,rowNo,data){return {id:uid(),row:rowNo,...data}}
 function isDerivedBankSheet(name){
   return name==="Sheet1"||name==="복습_문제은행";
 }
@@ -3648,7 +3727,7 @@ function parseBankWorksheet(ws,source,name){
   const hA=cellValue(ws,"A1"),hB=cellValue(ws,"B1"),hC=cellValue(ws,"C1");
   const looksLikeBank=/카테고리|분류/.test(hA)&&/문제|단어/.test(hB)&&/정답/.test(hC);
   if(!looksLikeBank)return null;
-  const sid=bankSheetId(source,name),items=[];let inheritedCategory="",section="";
+  const sid=uid(),items=[];let inheritedCategory="",section="";
   for(let r=1;r<=range.e.r;r++){
     const a=cellValue(ws,XLSX.utils.encode_cell({r,c:0}));
     const q=cellValue(ws,XLSX.utils.encode_cell({r,c:1}));
@@ -3697,25 +3776,60 @@ function parseBankWorksheet(ws,source,name){
   }
   return {id:sid,source,name,legacyWrong:isLegacyWrongSheet(name),items:deduped,updatedAt:Date.now()};
 }
+function uniqueBankSheetName(base){
+  const used=new Set(app.bank.sheets.map(x=>x.name));
+  if(!used.has(base))return base;
+  let n=2,name=`${base} (${n})`;
+  while(used.has(name)){n++;name=`${base} (${n})`}
+  return name;
+}
+function normalizeBankSheetRows(sheet){
+  (sheet.items||[]).forEach((item,i)=>{if(!item.id)item.id=uid();item.row=i+1});
+}
+function touchBankSheets(sheets){
+  const list=[...new Set((sheets||[]).filter(Boolean))];
+  if(!list.length)return;
+  const now=Date.now();
+  list.forEach(sh=>{sh.updatedAt=now;normalizeBankSheetRows(sh)});
+  app.bank.contentUpdatedAt=now;
+  saveLocal();scheduleBankCacheSave();
+  if(cloudUser){
+    updateSync("…",true);
+    syncImportedBankSheets(list).then(()=>updateSync("✓",true)).catch(e=>{console.error(e);updateSync("!",false)});
+  }
+}
+function moveBankItems(source,target,ids){
+  const set=new Set(ids);
+  const moving=source.items.filter(x=>set.has(x.id));
+  if(!moving.length)return 0;
+  source.items=source.items.filter(x=>!set.has(x.id));
+  target.items.push(...moving); // 문제 id 그대로 유지 → 오답/진도 정체성 유지
+  touchBankSheets([source,target]);
+  return moving.length;
+}
+function makeEmptyBankSheet(name,source="앱에서 생성"){
+  return {id:uid(),source,name,legacyWrong:false,items:[],updatedAt:Date.now()};
+}
 let bankImportBusy=false;
 async function importBankFiles(files){
   if(bankImportBusy)return toast("가져오는 중입니다");
   if(typeof XLSX==="undefined")return alert("엑셀 읽기 기능을 불러오지 못했습니다.");
   bankImportBusy=true;
-  const failed=[],newSheets=[],sources=[];
+  const failed=[],newSheets=[];
   try{
     toast("문제은행 읽는 중…");
     for(const file of files){
       try{
-        // iPad/Safari에서 큰 XLSM을 읽을 때 UI가 완전히 멎지 않도록 한 번 양보.
         await new Promise(r=>setTimeout(r,0));
         const source=file.name.replace(/\.(xlsx|xlsm|xlsb|xls)$/i,"");
         const wb=XLSX.read(await file.arrayBuffer(),{cellFormula:true,cellStyles:true});
-        sources.push(source);
         for(const name of wb.SheetNames){
           if(isDerivedBankSheet(name))continue;
           const parsed=parseBankWorksheet(wb.Sheets[name],source,name);
-          if(parsed)newSheets.push(parsed);
+          if(parsed){
+            parsed.name=uniqueBankSheetName(parsed.name);
+            newSheets.push(parsed);
+          }
         }
       }catch(e){
         console.error("bank import failed:",file.name,e);
@@ -3724,47 +3838,31 @@ async function importBankFiles(files){
     }
 
     if(newSheets.length){
-      const sourceSet=new Set(sources);
-      const oldIds=app.bank.sheets.filter(s=>sourceSet.has(s.source)).map(s=>s.id);
-
-      // 같은 원본 파일을 다시 올리면 그 파일에서 왔던 시트만 교체.
-      // 다른 원본 파일의 문제는 그대로 유지.
-      app.bank.sheets=app.bank.sheets.filter(s=>!sourceSet.has(s.source)).concat(newSheets);
+      // 업로드는 무조건 "추가". 기존 시트를 몰래 교체하거나 전체 통합 계산하지 않는다.
+      app.bank.sheets.push(...newSheets);
       cleanExistingBankData();
-
-      if(!app.ui.quiz.sheetId){
-        app.ui.quiz.sheetId="all";
-      }else if(app.ui.quiz.sheetId!=="all"&&!String(app.ui.quiz.sheetId).startsWith("name:")){
-        const oldSheet=app.bank.sheets.find(s=>s.id===app.ui.quiz.sheetId);
-        app.ui.quiz.sheetId=oldSheet?("name:"+encodeURIComponent(oldSheet.name)):"all";
-      }
-
+      app.ui.bankEditSheetId=newSheets[0].id;
+      if(!app.ui.quiz.sheetId)app.ui.quiz.sheetId="all";
       app.bank.contentUpdatedAt=Date.now();
-      saveLocal();
+      saveLocal();scheduleBankCacheSave();
 
-      // 가장 중요: 화면에는 로컬 데이터를 즉시 보여준다.
-      // Firestore 업로드가 끝날 때까지 기다리지 않는다.
       const total=newSheets.reduce((n,x)=>n+x.items.length,0);
-      const unique=mergeDuplicateQuizItems(bankQuestions(true)).length;
       renderQuiz();renderBankEditor();
-      toast(`${newSheets.length}개 시트 · ${total}문제 불러옴`);
+      toast(`${newSheets.length}개 시트 · ${total}문제 추가됨`);
 
-      const deleted=oldIds.filter(id=>!newSheets.some(s=>s.id===id));
       if(cloudUser){
         updateSync("…",true);
-        syncImportedBankSheets(newSheets,deleted).then(()=>{
+        syncImportedBankSheets(newSheets).then(()=>{
           updateSync("✓",true);
-          toast(`저장 완료 · 통합 ${unique}문제`);
+          toast("저장 완료");
         }).catch(e=>{
-          console.error(e);
-          updateSync("!",false);
+          console.error(e);updateSync("!",false);
           toast("기기에는 저장됨 · 클라우드 동기화 실패");
         });
       }
     }else if(!failed.length){
       alert("가져올 수 있는 문제 시트를 찾지 못했습니다.\nA열=카테고리/분류, B열=문제/단어, C열=정답 형식인지 확인해 주세요.");
     }
-
     if(failed.length)alert(`가져오지 못한 파일:\n${failed.join("\n")}`);
   }finally{
     bankImportBusy=false;
@@ -3821,7 +3919,7 @@ function cleanExistingBankData(){
   if(changed){app.bank.contentUpdatedAt=Date.now();saveLocal()}
 }
 function getStat(itemOrId){
-  const id=typeof itemOrId==="string"?itemOrId:canonicalProblemId(itemOrId);
+  const id=typeof itemOrId==="string"?itemOrId:(itemOrId?.id||canonicalProblemId(itemOrId));
   if(!app.bank.stats[id])app.bank.stats[id]={attempts:0,wrong:0,correct:0,needsReview:false,lastWrongAt:0,flagged:false,flagCount:0};
   if(app.bank.stats[id].flagged==null)app.bank.stats[id].flagged=false;
   if(app.bank.stats[id].flagCount==null)app.bank.stats[id].flagCount=0;
@@ -4000,21 +4098,31 @@ function adventureConfig(sheetId,{quiet=false,order=null}={}){
   const state=adventureSheetState(sheetId),which=order||state.activeOrder;
   const cfg=state.paths[which]||state.paths.sequence;
   const base=adventureBaseItems(sheet,cfg.mode),sig=adventureSignature(sheet,cfg.mode,base,cfg.order);
-  const freshIds=base.map(adventureItemId),validIds=new Set(freshIds);
-  const migratedOrder=migrateAdventureOrderIds(cfg,base);
-  if(migratedOrder){
-    cfg.orderIds=migratedOrder;
-    cfg.signature=sig;
-    saveLocal();
+  const freshIds=base.map(adventureItemId);
+
+  // 처음 만든 길
+  if(!Array.isArray(cfg.orderIds)||!cfg.orderIds.length){
+    cfg.orderIds=cfg.order==="random"?shuffled(freshIds):[...freshIds];
+    cfg.signature=sig;saveLocal();return cfg;
   }
-  const stale=cfg.signature!==sig||!Array.isArray(cfg.orderIds)||cfg.orderIds.length!==base.length||cfg.orderIds.some(id=>!validIds.has(id));
-  if(stale){
-    const hadProgress=Object.keys(cfg.completed).length||Object.keys(cfg.activeSessions).length;
-    cfg.signature=sig;
-    cfg.orderIds=cfg.order==="random"?shuffled(freshIds):freshIds;
-    cfg.completed={};cfg.reviews={};cfg.activeSessions={};
-    if(hadProgress&&!quiet)setTimeout(()=>toast("문제가 추가·삭제되어 이 경로를 새로 정리했어요"),0);
-    saveLocal();
+
+  // 기존 길은 유지하고, 현재 시트에 새로 생긴 문제만 길 뒤에 붙인다.
+  // 문제 이동은 id가 유지되므로 기존 길의 문제로 계속 인식된다.
+  const routeSet=new Set(cfg.orderIds);
+  let added=freshIds.filter(id=>!routeSet.has(id));
+  if(cfg.order==="random")added=shuffled(added);
+  if(added.length){
+    const oldLen=cfg.orderIds.length;
+    cfg.orderIds.push(...added);
+    // 마지막 세트가 이미 완료된 채로 덜 찬 상태였다면 새 문제를 건너뛰지 않도록 그 세트만 다시 열어 둠.
+    if(oldLen%(cfg.size||20)!==0){
+      const last=Math.floor((oldLen-1)/(cfg.size||20));
+      if(cfg.completed?.[String(last)])delete cfg.completed[String(last)];
+    }
+    cfg.signature=sig;cfg.lastTouchedAt=Date.now();saveLocal();
+    if(!quiet)setTimeout(()=>toast(`새 문제 ${added.length}개가 이 길 뒤에 추가됐어요`),0);
+  }else if(cfg.signature!==sig){
+    cfg.signature=sig;saveLocal();
   }
   return cfg;
 }
@@ -4025,8 +4133,12 @@ function setAdventureOrder(sheetId,order){
   adventureConfig(sheetId,{quiet:true,order});
   saveLocal();
 }
+function adventureGlobalItemMap(mode="choice"){
+  const all=quizItemsFromSheets(app.bank.sheets.filter(s=>!s.legacyWrong),{filter:"all",mode});
+  return new Map(all.map(x=>[adventureItemId(x),x]));
+}
 function adventureOrderedItems(sheet,cfg){
-  const base=adventureBaseItems(sheet,cfg.mode),byId=new Map(base.map(x=>[adventureItemId(x),x]));
+  const byId=adventureGlobalItemMap(cfg.mode);
   return (cfg.orderIds||[]).map(id=>byId.get(id)).filter(Boolean);
 }
 function adventureSetCount(cfg){return Math.ceil((cfg?.orderIds?.length||0)/(cfg?.size||20))}
@@ -4047,7 +4159,7 @@ function resetAdventureConfig(sheetId,patch){
   markAdventureCloud();return true;
 }
 function adventureItemsForIds(sheet,cfg,ids){
-  const byId=new Map(adventureBaseItems(sheet,cfg.mode).map(x=>[adventureItemId(x),x]));
+  const byId=adventureGlobalItemMap(cfg.mode);
   return ids.map(id=>byId.get(id)).filter(Boolean);
 }
 function adventureReviewItems(sheet,cfg,milestone){
@@ -4649,7 +4761,8 @@ function renderWrong(){
 
 
 function touchBankSheet(sheet){
-  sheet.updatedAt=Date.now();app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankSheetCloud(sheet);
+  sheet.updatedAt=Date.now();app.bank.contentUpdatedAt=Date.now();
+  saveLocal();scheduleBankCacheSave();scheduleBankSheetCloud(sheet);
 }
 let bankSheetTimer=null,bankSheetPending=null;
 function scheduleBankSheetCloud(sheet){
@@ -4675,7 +4788,7 @@ function currentBankEditSheet(){
 }
 function addBankQuestion(sheet){
   const item=makeBankItem(sheet.id,(sheet.items.at(-1)?.row||1)+1,{category:"",section:"",question:"",answer:"",memo:"",excelCheck:false,excelCheck2:false,tag:"",legacyWrong:false});
-  item.id=sheet.id+"_"+uid();item.canonicalId=canonicalProblemId(item);sheet.items.push(item);touchBankSheet(sheet);renderBankEditor();
+  item.canonicalId=canonicalProblemId(item);sheet.items.push(item);touchBankSheet(sheet);renderBankEditor();
   setTimeout(()=>document.querySelector(`[data-bank-id="${CSS.escape(item.id)}"] .bank-question`)?.focus(),30);
 }
 let bankUndo=null,bankUndoTimer=null;
@@ -4691,130 +4804,187 @@ function offerBankUndo(sheet,item,index){
   bankUndoTimer=setTimeout(()=>{bankUndo=null;t.classList.remove("show")},8000);
 }
 function renderBankEditor(){
-  const tb=document.getElementById("bankEditToolbar"),area=document.getElementById("bankEditArea");if(!tb||!area)return;tb.innerHTML="";area.innerHTML="";
+  const tb=document.getElementById("bankEditToolbar"),area=document.getElementById("bankEditArea");if(!tb||!area)return;
+  tb.innerHTML="";area.innerHTML="";
+  const selected=new Set();
   const row=document.createElement("div");row.className="bank-toolbar-row";
-  const importBtn=document.createElement("button");importBtn.textContent="엑셀 가져오기";importBtn.onclick=()=>document.getElementById("bankExcelFiles").click();
+
   const sel=document.createElement("select");
   app.bank.sheets.filter(s=>!s.legacyWrong).forEach(s=>{const o=document.createElement("option");o.value=s.id;o.textContent=s.name;sel.append(o)});
   const sheet=currentBankEditSheet();if(sheet)sel.value=sheet.id;
   sel.onchange=()=>{app.ui.bankEditSheetId=sel.value;saveLocal();renderBankEditor()};
-  const add=document.createElement("button");add.className="primary";add.textContent="＋ 문제";add.onclick=()=>{const x=currentBankEditSheet();if(x)addBankQuestion(x)};
-  const delSheet=document.createElement("button");delSheet.textContent="시트 삭제";delSheet.className="danger-sheet-btn";
-  delSheet.onclick=async()=>{
-    const target=currentBankEditSheet();if(!target)return;
-    if(!confirm(`'${target.name}' 시트를 통째로 삭제할까요?\n이 시트의 문제 ${target.items.length}개가 삭제됩니다.`))return;
 
-    // Remove only this physical imported sheet. If another workbook has a sheet with the same name, it remains.
-    app.bank.sheets=app.bank.sheets.filter(x=>x.id!==target.id);
+  const add=document.createElement("button");add.className="primary";add.textContent="＋ 문제";
+  add.onclick=()=>{const x=currentBankEditSheet();if(x)addBankQuestion(x)};
 
-    // Remove stats only for canonical questions that no longer exist anywhere else.
-    const remainingKeys=new Set(bankQuestions(true).map(x=>canonicalProblemId(x)));
-    for(const item of target.items){
-      const cid=canonicalProblemId(item);
-      if(!remainingKeys.has(cid))delete app.bank.stats[cid];
-    }
-
-    if(app.ui.bankEditSheetId===target.id)app.ui.bankEditSheetId="";
-    if(app.ui.quiz.sheetId===target.id)app.ui.quiz.sheetId="all";
-    if(app.ui.quizAdventure?.configs)delete app.ui.quizAdventure.configs[target.id];
-    if(app.ui.quizAdventure?.activeSheetId===target.id)app.ui.quizAdventure.activeSheetId="";
-
-    app.bank.contentUpdatedAt=Date.now();
-    app.bank.statsUpdatedAt=Date.now();
-    saveLocal();
-
-    // 로컬에서는 즉시 삭제해 화면이 멈춘 것처럼 보이지 않게 한다.
-    renderQuiz();renderBankEditor();toast("시트 삭제됨");
-
-    if(cloudUser){
-      updateSync("…",true);
-      (async()=>{
-        try{
-          await deleteDoc(bankSheetDoc(cloudUser.uid,target.id));
-          await saveBankIndexCloud();
-          await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt});
-          updateSync("✓",true);
-        }catch(e){console.error(e);updateSync("!",false);toast("기기에서는 삭제됨 · 클라우드 동기화 실패")}
-      })();
-    }
-  };
-
-  const resetAll=document.createElement("button");resetAll.textContent="전체 삭제";resetAll.className="danger-sheet-btn";
-  resetAll.onclick=async()=>{
-    if(!app.bank.sheets.length)return toast("삭제할 문제은행이 없습니다");
-    const total=app.bank.sheets.reduce((n,x)=>n+(x.items?.length||0),0);
-    const first=confirm(`문제은행을 완전히 비울까요?\n\n${app.bank.sheets.length}개 시트 · ${total}개 문제와 문제풀이 기록이 전부 삭제됩니다.`);
-    if(!first)return;
-    const second=confirm("정말 전체 삭제할까요?\n이 작업 후 엑셀을 다시 가져오면 새로 시작할 수 있습니다.");
-    if(!second)return;
-
-    const ids=app.bank.sheets.map(x=>x.id);
-    app.bank.sheets=[];
-    app.bank.stats={};
-    app.ui.quizAdventure={activeSheetId:"",configs:{}};
-    app.bank.contentUpdatedAt=Date.now();
-    app.bank.statsUpdatedAt=Date.now();
-    app.ui.bankEditSheetId="";
-    app.ui.quiz.sheetId="all";
-    quizSession=null;
-    clearSavedQuiz();
-    document.body.classList.remove("quiz-running");
-    saveLocal();
-
-    renderQuiz();renderBankEditor();toast("문제은행 전체 삭제됨");
-
-    if(cloudUser){
-      updateSync("…",true);
-      (async()=>{
-        try{
-          for(const id of ids)await deleteDoc(bankSheetDoc(cloudUser.uid,id));
-          await setDoc(bankIndexDoc(cloudUser.uid),{sheets:[],updatedAt:app.bank.contentUpdatedAt});
-          await setDoc(bankStatsDoc(cloudUser.uid),{stats:{},adventure:{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt});
-          updateSync("✓",true);
-        }catch(e){
-          console.error(e);
-          updateSync("!",false);
-          toast("기기는 초기화됨 · 클라우드 동기화 실패");
-        }
-      })();
+  const bulk=document.createElement("button");bulk.textContent="선택 이동";bulk.disabled=true;
+  const updateBulk=()=>{bulk.disabled=!selected.size;bulk.textContent=selected.size?`선택 이동 ${selected.size}`:"선택 이동"};
+  bulk.onclick=()=>{
+    const source=currentBankEditSheet();if(!source||!selected.size)return;
+    const others=app.bank.sheets.filter(x=>!x.legacyWrong&&x.id!==source.id);
+    const lines=["0 새 시트로 분리",...others.map((x,i)=>`${i+1} ${x.name}`)];
+    const raw=prompt(`선택한 ${selected.size}문제를 어디로 옮길까요?\n`+lines.join("\n"));
+    if(raw==null)return;
+    const n=Number(raw.trim());
+    if(n===0){
+      const name=(prompt("새 시트 이름")||"").trim();if(!name)return;
+      const target=makeEmptyBankSheet(uniqueBankSheetName(name));
+      app.bank.sheets.push(target);
+      moveBankItems(source,target,[...selected]);
+      app.ui.bankEditSheetId=target.id;
+      renderQuiz();renderBankEditor();toast("새 시트로 분리됨");
+    }else if(n>=1&&n<=others.length){
+      const target=others[n-1];
+      moveBankItems(source,target,[...selected]);
+      renderQuiz();renderBankEditor();toast(`${target.name}(으)로 이동됨`);
     }
   };
 
   const manageWrap=document.createElement("div");manageWrap.className="bank-editor-manage";
   const manageBtn=document.createElement("button");manageBtn.textContent="•••";
-  const manageMenu=document.createElement("div");manageMenu.className="menu hidden";
-  manageMenu.append(importBtn,delSheet,resetAll);manageBtn.onclick=e=>{e.stopPropagation();manageMenu.classList.toggle("hidden")};manageWrap.append(manageBtn,manageMenu);
-  row.append(sel,add,manageWrap);
+  const menu=document.createElement("div");menu.className="menu hidden";
+
+  const importBtn=document.createElement("button");importBtn.textContent="엑셀 가져오기";
+  importBtn.onclick=()=>document.getElementById("bankExcelFiles").click();
+
+  const newSheet=document.createElement("button");newSheet.textContent="빈 시트 추가";
+  newSheet.onclick=()=>{
+    const name=(prompt("시트 이름")||"").trim();if(!name)return;
+    const sh=makeEmptyBankSheet(uniqueBankSheetName(name));
+    app.bank.sheets.push(sh);app.ui.bankEditSheetId=sh.id;touchBankSheets([sh]);renderQuiz();renderBankEditor();
+  };
+
+  const rename=document.createElement("button");rename.textContent="시트 이름 변경";
+  rename.onclick=()=>{
+    const sh=currentBankEditSheet();if(!sh)return;
+    const name=(prompt("새 시트 이름",sh.name)||"").trim();if(!name||name===sh.name)return;
+    sh.name=uniqueBankSheetName(name);touchBankSheets([sh]);renderQuiz();renderBankEditor();
+  };
+
+  const moveUp=document.createElement("button");moveUp.textContent="시트 위로";
+  moveUp.onclick=()=>{const sh=currentBankEditSheet();if(!sh)return;const i=app.bank.sheets.indexOf(sh);if(i>0){reorderArray(app.bank.sheets,i,i-1);app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankCacheSave();if(cloudUser)saveBankIndexCloud();renderBankEditor()}};
+  const moveDown=document.createElement("button");moveDown.textContent="시트 아래로";
+  moveDown.onclick=()=>{const sh=currentBankEditSheet();if(!sh)return;const i=app.bank.sheets.indexOf(sh);if(i>=0&&i<app.bank.sheets.length-1){reorderArray(app.bank.sheets,i,i+1);app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankCacheSave();if(cloudUser)saveBankIndexCloud();renderBankEditor()}};
+
+  const merge=document.createElement("button");merge.textContent="다른 시트에 합치기";
+  merge.onclick=()=>{
+    const source=currentBankEditSheet();if(!source)return;
+    const others=app.bank.sheets.filter(x=>!x.legacyWrong&&x.id!==source.id);
+    if(!others.length)return toast("합칠 다른 시트가 없습니다");
+    const raw=prompt("어느 시트에 합칠까요?\n"+others.map((x,i)=>`${i+1} ${x.name}`).join("\n"));
+    const n=Number(raw);if(!n||n<1||n>others.length)return;
+    const target=others[n-1];
+    if(!confirm(`'${source.name}'의 ${source.items.length}문제를 '${target.name}'에 옮길까요?\n문제 기록은 문제 ID를 따라 유지됩니다.`))return;
+    moveBankItems(source,target,source.items.map(x=>x.id));
+    // 소스 시트는 안전을 위해 휴지통에 보관. 즉시 영구삭제하지 않음.
+    app.bank.trashSheets.push({...source,deletedAt:Date.now()});
+    app.bank.sheets=app.bank.sheets.filter(x=>x.id!==source.id);
+    app.ui.bankEditSheetId=target.id;
+    app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankCacheSave();
+    if(cloudUser)saveBankIndexCloud();
+    renderQuiz();renderBankEditor();toast("시트 합침 · 원본은 휴지통 보관");
+  };
+
+  const trashCurrent=document.createElement("button");trashCurrent.className="danger";trashCurrent.textContent="시트 휴지통";
+  trashCurrent.onclick=()=>{
+    const target=currentBankEditSheet();if(!target)return;
+    if(!confirm(`'${target.name}' 시트를 휴지통으로 보낼까요?\n나중에 복구할 수 있습니다.`))return;
+    app.bank.trashSheets.push({...target,deletedAt:Date.now()});
+    app.bank.sheets=app.bank.sheets.filter(x=>x.id!==target.id);
+    if(app.ui.bankEditSheetId===target.id)app.ui.bankEditSheetId="";
+    if(app.ui.quizAdventure?.activeSheetId===target.id)app.ui.quizAdventure.activeSheetId="";
+    app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankCacheSave();
+    if(cloudUser)saveBankIndexCloud(); // 문서 자체는 지우지 않음
+    renderQuiz();renderBankEditor();toast("휴지통으로 이동됨");
+  };
+
+  const restoreTrash=document.createElement("button");restoreTrash.textContent=`휴지통 복구${app.bank.trashSheets.length?` (${app.bank.trashSheets.length})`:""}`;
+  restoreTrash.onclick=()=>{
+    if(!app.bank.trashSheets.length)return toast("휴지통이 비어 있습니다");
+    const raw=prompt("복구할 시트를 고르세요\n"+app.bank.trashSheets.map((x,i)=>`${i+1} ${x.name}`).join("\n"));
+    const n=Number(raw);if(!n||n<1||n>app.bank.trashSheets.length)return;
+    const [restored]=app.bank.trashSheets.splice(n-1,1);
+    delete restored.deletedAt;
+    restored.name=uniqueBankSheetName(restored.name);
+    app.bank.sheets.push(restored);app.ui.bankEditSheetId=restored.id;
+    touchBankSheets([restored]);renderQuiz();renderBankEditor();toast("시트 복구됨");
+  };
+
+  const resetAll=document.createElement("button");resetAll.className="danger";resetAll.textContent="전체 삭제";
+  resetAll.onclick=async()=>{
+    if(!app.bank.sheets.length&&!app.bank.trashSheets.length)return toast("삭제할 문제은행이 없습니다");
+    const total=app.bank.sheets.reduce((n,x)=>n+(x.items?.length||0),0);
+    if(!confirm(`문제은행을 완전히 비울까요?\n${app.bank.sheets.length}개 시트 · ${total}개 문제 · 모든 진도/풀이 기록이 삭제됩니다.`))return;
+    if(!confirm("정말 새로 시작할까요?"))return;
+    const ids=[...app.bank.sheets,...app.bank.trashSheets].map(x=>x.id);
+    app.bank.sheets=[];app.bank.trashSheets=[];app.bank.stats={};
+    app.ui.quizAdventure={activeSheetId:"",configs:{}};
+    app.bank.contentUpdatedAt=Date.now();app.bank.statsUpdatedAt=Date.now();
+    app.ui.bankEditSheetId="";app.ui.quiz.sheetId="all";quizSession=null;clearSavedQuiz();
+    document.body.classList.remove("quiz-running");saveLocal();scheduleBankCacheSave();
+    renderQuiz();renderBankEditor();toast("문제은행 전체 삭제됨");
+    if(cloudUser){
+      updateSync("…",true);
+      try{
+        for(const id of ids)await deleteDoc(bankSheetDoc(cloudUser.uid,id));
+        await setDoc(bankIndexDoc(cloudUser.uid),{sheets:[],updatedAt:app.bank.contentUpdatedAt});
+        await setDoc(bankStatsDoc(cloudUser.uid),{stats:{},adventure:{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt});
+        updateSync("✓",true);
+      }catch(e){console.error(e);updateSync("!",false)}
+    }
+  };
+
+  menu.append(importBtn,newSheet,rename,moveUp,moveDown,merge,trashCurrent,restoreTrash,resetAll);
+  manageBtn.onclick=e=>{e.stopPropagation();toggleFloatingMenu(manageBtn,menu)};
+  menu.onclick=e=>e.stopPropagation();manageWrap.append(manageBtn,menu);
+  row.append(sel,add,bulk,manageWrap);
+
   if(sheet){
-    const dup=bankDuplicateAudit(sheet);
-    const audit=document.createElement("span");audit.className="mini-note";
-    audit.textContent=dup.length?`중복 후보 ${dup.length}쌍 · 원본에도 있을 수 있음`:`${sheet.items.length}문제`;
-    row.append(audit);
+    const note=document.createElement("span");note.className="mini-note";note.textContent=`${sheet.items.length}문제`;
+    row.append(note);
   }
   tb.append(row);
-  if(!sheet){area.innerHTML='<div class="bank-empty">문제은행 엑셀을 가져오거나 새 문제은행을 만들어 주세요.<br><button id="bankEditorImport">엑셀 가져오기</button></div>';document.getElementById("bankEditorImport").onclick=()=>document.getElementById("bankExcelFiles").click();return}
+
+  if(!sheet){
+    area.innerHTML='<div class="bank-empty">문제은행 엑셀을 가져오거나 빈 시트를 만들어 주세요.<br><button id="bankEditorImport">엑셀 가져오기</button></div>';
+    document.getElementById("bankEditorImport").onclick=()=>document.getElementById("bankExcelFiles").click();return;
+  }
+
   const wrap=document.createElement("div");wrap.className="bank-editor table-wrap";
   const table=document.createElement("table");table.className="bank-edit-table";
-  table.innerHTML='<thead><tr><th style="width:15%">카테고리</th><th style="width:35%">문제</th><th style="width:25%">정답</th><th>메모</th><th></th></tr></thead>';
+  table.innerHTML='<thead><tr><th style="width:34px"></th><th style="width:15%">카테고리</th><th style="width:35%">문제</th><th style="width:25%">정답</th><th>메모</th><th></th></tr></thead>';
   const body=document.createElement("tbody");
   sheet.items.forEach((item,index)=>{
     const tr=document.createElement("tr");tr.dataset.bankId=item.id;
+    const pickTd=document.createElement("td"),pick=document.createElement("input");pick.type="checkbox";
+    pick.onchange=()=>{if(pick.checked)selected.add(item.id);else selected.delete(item.id);updateBulk()};pickTd.append(pick);
+
     const makeCell=(field,cls,textarea=false)=>{
       const td=document.createElement("td"),el=document.createElement(textarea?"textarea":"input");el.className=cls;el.value=item[field]||"";
       if(field==="question"&&item.sourceLabel)el.title="원본 색인: "+item.sourceLabel;
       if(textarea){el.rows=1;el.style.overflow="hidden";requestAnimationFrame(()=>autoGrowTextarea(el))}
-      el.oninput=e=>{item[field]=e.target.value;if(field==="question"||field==="answer")item.canonicalId=canonicalProblemId({...item,canonicalId:null});if(textarea)autoGrowTextarea(el);saveLocal()};el.onchange=()=>touchBankSheet(sheet);td.append(el);return td;
+      el.oninput=e=>{item[field]=e.target.value;if(field==="question"||field==="answer")item.canonicalId=canonicalProblemId({...item,canonicalId:null});if(textarea)autoGrowTextarea(el);saveLocal()};
+      el.onchange=()=>touchBankSheet(sheet);td.append(el);return td;
     };
     const act=document.createElement("td");act.className="bank-row-actions";
     const more=document.createElement("button");more.textContent="•••";more.onclick=e=>{
       e.stopPropagation();
-      const choice=prompt("1 위로 이동\\n2 아래로 이동\\n3 복제\\n4 삭제");
+      const choice=prompt("1 위로 이동\n2 아래로 이동\n3 복제\n4 삭제\n5 다른 시트로 이동");
       if(choice==="1"&&index>0){reorderArray(sheet.items,index,index-1);touchBankSheet(sheet);renderBankEditor()}
       else if(choice==="2"&&index<sheet.items.length-1){reorderArray(sheet.items,index,index+1);touchBankSheet(sheet);renderBankEditor()}
-      else if(choice==="3"){const cp={...item,id:sheet.id+"_"+uid(),row:(sheet.items.at(-1)?.row||1)+1};sheet.items.splice(index+1,0,cp);touchBankSheet(sheet);renderBankEditor()}
-      else if(choice==="4"&&confirm("이 문제를 삭제할까요?")){sheet.items.splice(index,1);touchBankSheet(sheet);renderBankEditor();offerBankUndo(sheet,item,index)}
+      else if(choice==="3"){
+        const cp={...item,id:uid(),row:index+2,canonicalId:canonicalProblemId({...item,canonicalId:null})};
+        sheet.items.splice(index+1,0,cp);touchBankSheet(sheet);renderBankEditor()
+      }else if(choice==="4"&&confirm("이 문제를 삭제할까요?")){
+        sheet.items.splice(index,1);touchBankSheet(sheet);renderBankEditor();offerBankUndo(sheet,item,index)
+      }else if(choice==="5"){
+        const others=app.bank.sheets.filter(x=>!x.legacyWrong&&x.id!==sheet.id);
+        const raw=prompt("어느 시트로 옮길까요?\n"+others.map((x,i)=>`${i+1} ${x.name}`).join("\n"));
+        const n=Number(raw);if(n>=1&&n<=others.length){moveBankItems(sheet,others[n-1],[item.id]);renderQuiz();renderBankEditor()}
+      }
     };act.append(more);
-    tr.append(makeCell("category","bank-category"),makeCell("question","bank-question",true),makeCell("answer","bank-answer",true),makeCell("memo","bank-memo",true),act);body.append(tr);
+    tr.append(pickTd,makeCell("category","bank-category"),makeCell("question","bank-question",true),makeCell("answer","bank-answer",true),makeCell("memo","bank-memo",true),act);
+    body.append(tr);
   });
   table.append(body);wrap.append(table);area.append(wrap);
 }
@@ -5048,7 +5218,8 @@ async function deleteBankSheetsCloud(ids){if(!cloudUser)return;try{await Promise
 async function loadBankFromCloud(u,index){
   if(!index?.sheets)return;
   const docs=await Promise.all(index.sheets.map(async x=>{const snap=await getDoc(bankSheetDoc(u,x.id));return snap.exists()?snap.data():null}));
-  app.bank.sheets=docs.filter(Boolean);app.bank.contentUpdatedAt=index.updatedAt||app.bank.contentUpdatedAt;saveLocal();renderQuiz();renderBankEditor();
+  app.bank.sheets=docs.filter(Boolean);app.bank.contentUpdatedAt=index.updatedAt||app.bank.contentUpdatedAt;
+  saveLocal();await writeBankCacheNow();renderQuiz();renderBankEditor();
 }
 onAuthStateChanged(auth,async user=>{
   cloudUser=user;if(studyUnsub){studyUnsub();studyUnsub=null}if(bankIndexUnsub){bankIndexUnsub();bankIndexUnsub=null}
@@ -5061,6 +5232,7 @@ onAuthStateChanged(auth,async user=>{
       else scheduleStudyCloud();
     }else scheduleStudyCloud();
     studyUnsub=onSnapshot(sref,snap=>{if(!snap.exists())return;const d=snap.data();if(d.study&&(d.updatedAt||0)>(app.study.updatedAt||0)){applyingRemote=true;mergeCloudStudy(d.study);applyingRemote=false;render()}});
+    await bankCacheReadyPromise;
     const bref=bankIndexDoc(user.uid),bi=await getDoc(bref);
     if(bi.exists()){const d=bi.data();if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d)}
     else if(app.bank.sheets.length)await syncImportedBankSheets(app.bank.sheets);
