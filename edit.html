@@ -40,6 +40,10 @@ header{position:sticky;top:0;z-index:30;background:rgba(245,245,247,.95);backdro
 .sync-btn.signed{color:var(--ok)}
 .reorder-dragging{opacity:.4;transform:scale(.97)}
 .reorder-target{outline:2px solid #aaa;outline-offset:2px}
+.sheet-tab-tools{display:inline-flex;align-items:center;gap:1px;position:relative;flex:0 0 auto}
+.sheet-tab-tool{border:0!important;background:transparent!important;color:#777!important;padding:5px 6px!important;min-width:27px}
+.sheet-tab-tools .menu{top:31px;right:0;min-width:190px}
+
 main{max-width:1050px;margin:0 auto;padding:10px 10px 44px}
 .modebar{display:flex;gap:6px;margin-bottom:9px;overflow-x:auto;scrollbar-width:none}
 .modebar::-webkit-scrollbar{display:none}
@@ -2213,6 +2217,16 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
     <input class="hidden" id="studyExcelFiles" type="file" multiple accept=".xlsx,.xlsm,.xls,.xlsb">
   </div>
 </div>
+
+<div class="modal-backdrop hidden" id="sheetAddModal">
+  <div class="modal">
+    <div class="modal-title">현재 과목에 시트 추가</div>
+    <button class="modal-choice" id="newBlankSheetChoice">빈 시트 만들기</button>
+    <button class="modal-choice" id="excelSheetChoice">엑셀에서 가져오기</button>
+    <button class="modal-cancel" id="sheetAddModalCancel">취소</button>
+    <input class="hidden" id="studySheetExcelFiles" type="file" multiple accept=".xlsx,.xlsm,.xls,.xlsb">
+  </div>
+</div>
 <input class="hidden" id="bankExcelFiles" type="file" multiple accept=".xlsx,.xlsm,.xls,.xlsb">
 
 <div class="modal-backdrop hidden" id="settingsModal">
@@ -2398,16 +2412,16 @@ let quizSession=null;
 function quizSessionSnapshot(){
   if(!quizSession)return null;
   return {
-    itemIds:quizSession.items.map(x=>canonicalProblemId(x)),
-    remainingIds:(quizSession.remaining||[]).map(x=>canonicalProblemId(x)),
+    itemIds:quizSession.items.map(x=>quizItemId(x)),
+    remainingIds:(quizSession.remaining||[]).map(x=>quizItemId(x)),
     index:quizSession.index||0,
     answered:!!quizSession.answered,
     selected:quizSession.selected,
     showAnswer:!!quizSession.showAnswer,
     draft:quizSession.draft||"",
     round:quizSession.round||1,
-    nextRoundIds:(quizSession.nextRound||[]).map(x=>canonicalProblemId(x)),
-    deferredIds:(quizSession.deferred||[]).map(x=>canonicalProblemId(x)),
+    nextRoundIds:(quizSession.nextRound||[]).map(x=>quizItemId(x)),
+    deferredIds:(quizSession.deferred||[]).map(x=>quizItemId(x)),
     rangeLabel:quizSession.rangeLabel||quizRangeLabel(),
     mastery:!!quizSession.mastery,
     choices:[...(quizSession.choices||[])],
@@ -2477,7 +2491,8 @@ function removeResumeSlot(slotId,doSave=true){
 }
 function validResumeSlot(slot){
   if(!slot||!Array.isArray(slot.itemIds)||!slot.itemIds.length)return false;
-  const ids=new Set(mergeDuplicateQuizItems(bankQuestions(true)).map(x=>canonicalProblemId(x)));
+  const ids=new Set();
+  bankQuestions(true).forEach(x=>{ids.add(quizItemId(x));ids.add(canonicalProblemId(x))});
   return slot.itemIds.some(id=>ids.has(id));
 }
 function saveSnapshotToSlot(snapshot,overwriteId=""){
@@ -2552,8 +2567,13 @@ function resumeQuiz(slotId){
   const found=findResumeSlot(slotId);if(!found)return toast("이어하기 기록을 찾을 수 없습니다");
   const saved=found.slot;
   if(!validResumeSlot(saved)){removeResumeSlot(slotId);renderQuiz();return toast("이어갈 문제를 찾을 수 없습니다")}
-  const unified=mergeDuplicateQuizItems(bankQuestions(true));
-  const byId=new Map(unified.map(x=>[canonicalProblemId(x),x]));
+  const unified=bankQuestions(true);
+  const byId=new Map();
+  unified.forEach(x=>{
+    byId.set(quizItemId(x),x);
+    // 구버전 이어하기는 canonical id였으므로 첫 항목을 fallback으로 유지.
+    const cid=canonicalProblemId(x);if(!byId.has(cid))byId.set(cid,x);
+  });
   const items=saved.itemIds.map(id=>byId.get(id)).filter(Boolean);
   if(!items.length){removeResumeSlot(slotId);return toast("이어갈 문제를 찾을 수 없습니다")}
   app.ui.quiz.mode=saved.mode||app.ui.quiz.mode;
@@ -2829,6 +2849,9 @@ function canonicalProblemKey(item){
 function canonicalProblemId(item){
   return item?.canonicalId||("q_"+hashString(canonicalProblemKey(item)));
 }
+function quizItemId(item){
+  return item?.id?("i_"+item.id):canonicalProblemId(item);
+}
 function mergeDuplicateQuizItems(items){
   const map=new Map(),out=[];
   for(const item of items){
@@ -3037,6 +3060,61 @@ function renderSubjects(){
   }
   global.append(syncWrap);
 }
+function openSheetAddModal(){
+  document.getElementById("sheetAddModal")?.classList.remove("hidden");
+}
+function uniqueStudySheetName(subject,name,except=null){
+  const base=(name||"새 시트").trim()||"새 시트";
+  let out=base,n=2;
+  while(subject.sheets.some(x=>x!==except&&x.name===out))out=`${base} (${n++})`;
+  return out;
+}
+function renameCurrentStudySheet(){
+  const cur=sh(),v=prompt("시트 이름",cur.name);if(v==null)return;
+  const name=v.trim();if(!name)return;
+  cur.name=uniqueStudySheetName(sub(),name,cur);
+  markStudyCloud();render();
+}
+function moveCurrentStudySheet(delta){
+  const arr=sub().sheets,i=arr.indexOf(sh()),to=i+delta;
+  if(i<0||to<0||to>=arr.length)return;
+  reorderArray(arr,i,to);markStudyCloud();render();
+}
+function rehomeSongLinks(subjectId,fromSheetId,toSheetId,rowIds=null){
+  const ids=rowIds?new Set(rowIds):null;
+  songStore().forEach(song=>{
+    (song.links||[]).forEach(link=>{
+      if(link.subjectId!==subjectId||link.sheetId!==fromSheetId)return;
+      if(ids&&link.rowId&&!ids.has(link.rowId))return;
+      link.sheetId=toSheetId;
+    });
+  });
+}
+function mergeStudySheetIntoCurrent(){
+  const subject=sub(),target=sh(),others=subject.sheets.filter(x=>x!==target);
+  if(!others.length)return toast("합칠 다른 시트가 없습니다");
+  const lines=others.map((x,i)=>`${i+1}. ${x.name}`).join("\n");
+  const picked=prompt(`'${target.name}' 맨 아래에 붙일 시트 번호\n\n${lines}`);
+  if(picked==null)return;
+  const n=Number(picked),source=others[n-1];
+  if(!source)return alert("번호를 다시 확인해 주세요.");
+  if(!confirm(`'${source.name}' 내용을 '${target.name}' 맨 아래에 붙이고 원본 시트를 없앨까요?`))return;
+  const movedIds=(source.rows||[]).map(r=>r.id);
+  target.rows.push(...(source.rows||[]));
+  target.sectionMemorize=!!(target.sectionMemorize||source.sectionMemorize);
+  rehomeSongLinks(subject.id,source.id,target.id,movedIds);
+  subject.sheets=subject.sheets.filter(x=>x!==source);
+  subject.currentId=target.id;
+  markStudyCloud();render();toast(`'${source.name}' 시트를 아래에 합침`);
+}
+function deleteCurrentStudySheet(){
+  if(sub().sheets.length<=1)return alert("시트는 하나 이상 있어야 합니다.");
+  const cur=sh();if(!confirm(`'${cur.name}' 시트를 삭제할까요?`))return;
+  const i=sub().sheets.indexOf(cur);
+  sub().sheets.splice(i,1);
+  sub().currentId=sub().sheets[Math.min(i,sub().sheets.length-1)].id;
+  markStudyCloud();render();
+}
 function renderSheets(){
   const el=document.getElementById("sheets");el.innerHTML="";
   sub().sheets.forEach(sheet=>{
@@ -3045,6 +3123,21 @@ function renderSheets(){
     el.append(b);
     bindLongPressReorder(b,()=>[...el.querySelectorAll(".chip")],()=>sub().sheets.indexOf(sheet),(from,to)=>{reorderArray(sub().sheets,from,to);markStudyCloud();render()});
   });
+  const tools=document.createElement("div");tools.className="sheet-tab-tools";
+  const add=document.createElement("button");add.type="button";add.className="sheet-tab-tool";add.textContent="＋";add.title="현재 과목에 시트 추가";
+  add.onclick=e=>{e.stopPropagation();openSheetAddModal()};
+  const more=document.createElement("button");more.type="button";more.className="sheet-tab-tool";more.textContent="•••";more.title="현재 시트 관리";
+  const menu=document.createElement("div");menu.className="menu hidden";
+  const addMenu=(text,fn,cls="")=>{const b=document.createElement("button");b.type="button";b.textContent=text;b.className=cls;b.onclick=e=>{e.stopPropagation();menu.classList.add("hidden");fn()};menu.append(b)};
+  addMenu("이름 변경",renameCurrentStudySheet);
+  addMenu("← 왼쪽으로 이동",()=>moveCurrentStudySheet(-1));
+  addMenu("오른쪽으로 이동 →",()=>moveCurrentStudySheet(1));
+  const sep=document.createElement("div");sep.className="menu-sep";menu.append(sep);
+  addMenu("다른 시트를 아래에 합치기",mergeStudySheetIntoCurrent);
+  addMenu("삭제",deleteCurrentStudySheet,"danger");
+  more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};
+  menu.onclick=e=>e.stopPropagation();
+  tools.append(add,more,menu);el.append(tools);
 }
 function clearReviewRow(r){
   if(r.type==="section"){r.user="";r.last="";r.revealed=false;return}
@@ -3967,6 +4060,46 @@ function makeRowKindButton(index,row){
   b.onclick=e=>{e.preventDefault();e.stopPropagation();cycleRowKind(index)};
   return b;
 }
+function majorSectionBounds(rows,index){
+  if(rows[index]?.type!=="section"||rows[index]?.level!=="major")return null;
+  let end=rows.length;
+  for(let i=index+1;i<rows.length;i++){
+    if(rows[i]?.type==="section"&&rows[i]?.level==="major"){end=i;break}
+  }
+  return [index,end];
+}
+function splitMajorSectionToNewSheet(index){
+  const subject=sub(),source=sh(),bounds=majorSectionBounds(source.rows,index);if(!bounds)return;
+  const [a,z]=bounds,block=source.rows.slice(a,z),title=(block[0]?.title||"새 시트").trim()||"새 시트";
+  const name=uniqueStudySheetName(subject,title);
+  source.rows.splice(a,z-a);
+  const made=studySheet(name);made.sectionMemorize=!!source.sectionMemorize;made.rows=block;
+  const pos=subject.sheets.indexOf(source);
+  subject.sheets.splice(pos+1,0,made);
+  rehomeSongLinks(subject.id,source.id,made.id,block.map(r=>r.id));
+  subject.currentId=made.id;
+  markStudyCloud();render();toast(`'${title}' 대주제를 새 시트로 분리함`);
+}
+function moveMajorSectionBlock(index,delta){
+  const rows=sh().rows,bounds=majorSectionBounds(rows,index);if(!bounds)return;
+  const [a,z]=bounds,block=rows.slice(a,z);
+  if(delta<0){
+    let prev=-1;
+    for(let i=a-1;i>=0;i--){if(rows[i]?.type==="section"&&rows[i]?.level==="major"){prev=i;break}}
+    if(prev<0)return;
+    rows.splice(a,z-a);
+    rows.splice(prev,0,...block);
+  }else{
+    let next=-1,nextEnd=rows.length;
+    for(let i=z;i<rows.length;i++){if(rows[i]?.type==="section"&&rows[i]?.level==="major"){next=i;break}}
+    if(next<0)return;
+    for(let i=next+1;i<rows.length;i++){if(rows[i]?.type==="section"&&rows[i]?.level==="major"){nextEnd=i;break}}
+    rows.splice(a,z-a);
+    const shiftedNextEnd=nextEnd-(z-a);
+    rows.splice(shiftedNextEnd,0,...block);
+  }
+  markStudyCloud();renderEdit();renderStudy();
+}
 function makeActionMenu(index){
   const td=document.createElement("td");td.className="action-cell";
   const more=document.createElement("button");more.className="more edit-more";more.textContent="•••";more.setAttribute("aria-label","행 메뉴");
@@ -3982,7 +4115,13 @@ function makeActionMenu(index){
   add("위에 항목 추가",()=>insertAt(index,"item"));add("아래에 항목 추가",()=>insertAt(index+1,"item"));
   add("위에 소제목",()=>insertAt(index,"section"));add("아래에 소제목",()=>insertAt(index+1,"section"));
   const sep=document.createElement("div");sep.className="menu-sep";menu.append(sep);
-  add("위로 이동",()=>moveRow(index,-1));add("아래로 이동",()=>moveRow(index,1));
+  if(row?.type==="section"&&row.level==="major"){
+    add("대주제 통째로 위로",()=>moveMajorSectionBlock(index,-1));
+    add("대주제 통째로 아래로",()=>moveMajorSectionBlock(index,1));
+    add("이 대주제를 새 시트로 분리",()=>splitMajorSectionToNewSheet(index));
+  }else{
+    add("위로 이동",()=>moveRow(index,-1));add("아래로 이동",()=>moveRow(index,1));
+  }
   add("삭제",()=>{sh().rows.splice(index,1);markStudyCloud();renderEdit();renderStudy()},"danger");
   more.onclick=e=>{
     e.preventDefault();e.stopPropagation();
@@ -4087,10 +4226,36 @@ function convertStudyWorksheet(ws,name){
     const d=det.get(r);rows.push({...studyRow(),correct:d.answer,memo:d.memo||""});prev=r});
   return {id:uid(),name,rows};
 }
-async function workbookToStudySubject(file){
+async function workbookToStudySheets(file){
   const wb=XLSX.read(await file.arrayBuffer(),{cellFormula:true,cellStyles:true}),sheets=[];
-  wb.SheetNames.forEach(name=>{const x=convertStudyWorksheet(wb.Sheets[name],name);if(x&&x.rows.some(r=>r.type==="item"))sheets.push(x)});
+  wb.SheetNames.forEach(name=>{
+    const x=convertStudyWorksheet(wb.Sheets[name],name);
+    if(x&&x.rows.some(r=>r.type==="item"))sheets.push(x);
+  });
   if(!sheets.length)throw new Error("정답 위치를 찾지 못함");
+  return sheets;
+}
+async function importStudySheetsToCurrentSubject(files){
+  if(typeof XLSX==="undefined")return alert("엑셀 읽기 기능을 불러오지 못했습니다.");
+  const subject=sub(),failed=[],made=[];
+  for(const f of files){
+    try{
+      const sheets=await workbookToStudySheets(f);
+      sheets.forEach(sheet=>{
+        sheet.name=uniqueStudySheetName(subject,sheet.name);
+        subject.sheets.push(sheet);made.push(sheet);
+      });
+    }catch(e){console.error("study sheet import failed",f.name,e);failed.push(f.name)}
+  }
+  if(made.length){
+    subject.currentId=made[made.length-1].id;
+    app.study.mode="edit";markStudyCloud();render();
+    toast(`${made.length}개 시트를 '${subject.name}'에 추가함`);
+  }
+  if(failed.length)alert(`가져오지 못한 파일:\n${failed.join("\n")}`);
+}
+async function workbookToStudySubject(file){
+  const sheets=await workbookToStudySheets(file);
   let name=file.name.replace(/\.(xlsx|xlsm|xlsb|xls)$/i,"");const base=name;let n=2;while(app.study.subjects.some(s=>s.name===name))name=`${base} ${n++}`;
   return {id:uid(),name,currentId:sheets[0].id,sheets};
 }
@@ -4262,7 +4427,7 @@ function cleanExistingBankData(){
   if(!app.bank?.sheets)return;
   let changed=false;
   app.bank.sheets.forEach(sheet=>{
-    const cleaned=[],seen=new Set();
+    const cleaned=[];
     let section="";
     (sheet.items||[]).forEach(item=>{
       item.question=cleanText(item.question);
@@ -4296,10 +4461,8 @@ function cleanExistingBankData(){
 
       if(!item.section&&section){item.section=section;changed=true}
 
-      // 완전히 동일한 행만 하나로 합친다. 문제/정답만 같고 맥락이 다르면 유지.
-      const key=[norm(item.category),qn,an,norm(item.memo),norm(item.section)].join("\\u0001");
-      if(seen.has(key)){changed=true;return}
-      seen.add(key);cleaned.push(item);
+      // 같은 문제/정답/메모가 반복되어도 사용자가 의도한 복습 행으로 보고 그대로 유지.
+      cleaned.push(item);
     });
     if(cleaned.length!==sheet.items.length){sheet.items=cleaned;sheet.updatedAt=Date.now()}
   });
@@ -4370,7 +4533,8 @@ function quizItemsFromSheets(sheets,{filter=app.ui.quiz.filter,mode=app.ui.quiz.
   if(filter==="wrong")items=items.filter(i=>getStat(i).needsReview);
   if(filter==="starred")items=items.filter(i=>getStat(i).flagged);
   if(mode!=="write")items=items.filter(i=>i.answer);
-  return mergeDuplicateQuizItems(items);
+  // 엑셀의 각 행은 독립된 문제다. 같은 문제/정답을 일부러 여러 번 넣어도 그대로 출제한다.
+  return items;
 }
 function effectiveQuickOrder(){return app.ui.quiz.order==="random"||app.ui.quiz.groupOrder==="mixed"?"random":"sequence"}
 function quizPool(){
@@ -4407,7 +4571,7 @@ function adventureBaseItems(sheet,mode="choice"){
   return quizItemsFromSheets([sheet],{filter:"all",mode});
 }
 function adventureItemId(item){
-  return item?.id?("i_"+item.id):canonicalProblemId(item);
+  return quizItemId(item);
 }
 function adventureSignature(sheet,mode,items,order="sequence"){
   // 진도 경로는 문제 문구/정답이 아니라 물리 문제 id를 기준으로 함.
@@ -4562,7 +4726,11 @@ function adventureSessionFromSnapshot(saved){
   if(!saved?.adventure)return false;
   const adv=saved.adventure,sheet=adventureSheet(adv.sheetId),cfg=adventureConfig(adv.sheetId,{quiet:true,order:adv.order||saved.order});
   if(!sheet||!cfg)return false;
-  const unified=adventureBaseItems(sheet,saved.mode||cfg.mode),byId=new Map(unified.map(x=>[canonicalProblemId(x),x]));
+  const unified=adventureBaseItems(sheet,saved.mode||cfg.mode),byId=new Map();
+  unified.forEach(x=>{
+    byId.set(quizItemId(x),x);
+    const cid=canonicalProblemId(x);if(!byId.has(cid))byId.set(cid,x);
+  });
   const items=(saved.itemIds||[]).map(id=>byId.get(id)).filter(Boolean);
   if(!items.length)return false;
   quizSession={
@@ -4649,7 +4817,7 @@ function buildChoices(){
     const metaSheet=app.bank.sheets.find(s=>s.id===x.sheetId);
     const meta=bankSheetMeta(metaSheet||{name:x.sheetName});
     return meta.subject===(item.subject||bankSheetMeta({name:item.sheetName}).subject) &&
-      x.answer&&canonicalProblemId(x)!==canonicalProblemId(item)&&norm(x.answer)!==norm(item.answer);
+      x.answer&&quizItemId(x)!==quizItemId(item)&&norm(x.answer)!==norm(item.answer);
   });
   const exactArea=same.filter(x=>bankSheetMeta({name:x.sheetName}).area===(item.area||bankSheetMeta({name:item.sheetName}).area));
   const sameCat=exactArea.filter(x=>x.category&&x.category===item.category);
@@ -5121,7 +5289,7 @@ window.addEventListener("keydown",e=>{
   if(e.key==="Enter"&&(quizSession.answered||quizSession.showAnswer)){e.preventDefault();nextQuiz(true)}
 },true);
 function wrongItems(){
-  const all=mergeDuplicateQuizItems(bankQuestions(true));
+  const all=bankQuestions(true);
   return all.filter(i=>getStat(i).needsReview)
     .map(i=>({...i,stat:getStat(i)}))
     .sort((a,b)=>(b.stat.lastWrongAt||0)-(a.stat.lastWrongAt||0));
@@ -5690,14 +5858,27 @@ document.getElementById("songDestModal").onclick=e=>{if(e.target.id==="songDestM
 document.getElementById("clearSheetReview").onclick=e=>{e.stopPropagation();if(!confirm(`'${sh().name}'의 현재 입력내용을 전부 지울까요?`))return;sh().rows.forEach(clearReviewRow);saveStudyDraftsNow();renderStudyKeepPosition()};
 document.getElementById("clearSheetStars").onclick=e=>{e.stopPropagation();sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});markStudyCloud();renderStudyKeepPosition()};
 document.getElementById("clearSheetStarCounts").onclick=e=>{e.stopPropagation();if(!confirm("이 시트의 ★ 누적 횟수를 0으로 초기화할까요?"))return;sh().rows.forEach(r=>{if(r.type!=="section"){r.flagCount=0;r.flagged=false}});markStudyCloud();renderStudyKeepPosition()};
-document.getElementById("addSheet").onclick=()=>{const n=prompt("시트 이름");if(!n)return;const name=n.trim();if(!name||sub().sheets.some(s=>s.name===name))return;const x=studySheet(name);sub().sheets.push(x);sub().currentId=x.id;markStudyCloud();render()};
-document.getElementById("deleteSheet").onclick=()=>{if(sub().sheets.length<=1)return alert("시트는 하나 이상 있어야 합니다.");const cur=sh();if(!confirm(`'${cur.name}' 시트를 삭제할까요?`))return;const i=sub().sheets.indexOf(cur);sub().sheets.splice(i,1);sub().currentId=sub().sheets[Math.min(i,sub().sheets.length-1)].id;markStudyCloud();render()};
+document.getElementById("addSheet").onclick=openSheetAddModal;
+document.getElementById("deleteSheet").onclick=deleteCurrentStudySheet;
 document.getElementById("sheetName").onchange=e=>{const name=e.target.value.trim();if(!name)return;const cur=sh();if(sub().sheets.some(s=>s!==cur&&s.name===name))return alert("같은 이름의 시트가 있습니다.");cur.name=name;markStudyCloud();render()};
 document.getElementById("addSection").onclick=()=>{const r=sectionRow();r.memorize=!!sh().sectionMemorize;sh().rows.push(r);markStudyCloud();renderEdit()};
 document.getElementById("sectionMemorizeToggle").onclick=()=>{
   sh().sectionMemorize=!sh().sectionMemorize;
   sh().rows.forEach(r=>{if(r.type==="section"){r.memorize=!!sh().sectionMemorize;if(!r.memorize){r.user="";r.last="";r.revealed=false}}});
   markStudyCloud();renderEdit();renderStudy();
+};
+document.getElementById("sheetAddModalCancel").onclick=()=>document.getElementById("sheetAddModal").classList.add("hidden");
+document.getElementById("sheetAddModal").onclick=e=>{if(e.target.id==="sheetAddModal")e.currentTarget.classList.add("hidden")};
+document.getElementById("newBlankSheetChoice").onclick=()=>{
+  document.getElementById("sheetAddModal").classList.add("hidden");
+  const v=prompt("시트 이름","새 시트");if(v==null)return;
+  const x=studySheet(uniqueStudySheetName(sub(),v));sub().sheets.push(x);sub().currentId=x.id;markStudyCloud();render();
+};
+document.getElementById("excelSheetChoice").onclick=()=>document.getElementById("studySheetExcelFiles").click();
+document.getElementById("studySheetExcelFiles").onchange=async e=>{
+  const files=[...e.target.files];e.target.value="";
+  document.getElementById("sheetAddModal").classList.add("hidden");
+  if(files.length)await importStudySheetsToCurrentSubject(files);
 };
 document.getElementById("subjectModalCancel").onclick=()=>document.getElementById("subjectModal").classList.add("hidden");
 document.getElementById("subjectModal").onclick=e=>{if(e.target.id==="subjectModal")e.currentTarget.classList.add("hidden")};
