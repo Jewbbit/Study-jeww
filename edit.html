@@ -4217,7 +4217,32 @@ function detectFormulaRow(ws,r,range){
   }return best;
 }
 function headingAt(ws,r,range){const vals=[];for(const c of [0,1,11,13]){if(c<range.s.c||c>range.e.c)continue;const a=XLSX.utils.encode_cell({r,c}),x=ws[a];if(x&&!x.f){const v=cellValue(ws,a);if(v)vals.push(v)}}return vals.find(v=>!/^hint$/i.test(v)&&v!=="정답"&&v!=="오답")||""}
-function convertStudyWorksheet(ws,name){
+function convertSimpleStudyWorksheet(ws,name){
+  if(!ws["!ref"])return null;
+  const range=XLSX.utils.decode_range(ws["!ref"]),rows=[];
+  const a1=cellValue(ws,"A1"),b1=cellValue(ws,"B1"),c1=cellValue(ws,"C1");
+  const hasHeader=/대주제|카테고리|분류|주제/.test(a1)&&/정답|내용|암기/.test(b1);
+  const start=Math.max(range.s.r,hasHeader?1:0);
+
+  for(let r=start;r<=range.e.r;r++){
+    const a=cellValue(ws,XLSX.utils.encode_cell({r,c:0}));
+    const b=cellValue(ws,XLSX.utils.encode_cell({r,c:1}));
+    const c=cellValue(ws,XLSX.utils.encode_cell({r,c:2}));
+    if(!a&&!b&&!c)continue;
+
+    // 새 간단 형식:
+    // A만 있음 = 대주제 / B가 있음 = 암기 항목(A는 카테고리, B는 정답, C는 메모)
+    if(a&&!b&&!c){
+      rows.push({...sectionRow(),title:a,level:"major"});
+      continue;
+    }
+    if(b){
+      rows.push({...studyRow(),category:a||"",correct:b,memo:c||""});
+    }
+  }
+  return rows.some(r=>r.type==="item")?{id:uid(),name,rows}:null;
+}
+function convertLegacyStudyWorksheet(ws,name){
   if(!ws["!ref"])return null;const range=XLSX.utils.decode_range(ws["!ref"]),det=new Map();
   for(let r=range.s.r;r<=range.e.r;r++){const d=detectFormulaRow(ws,r,range);if(d)det.set(r,d)}
   const rr=[...det.keys()].sort((a,b)=>a-b);if(!rr.length)return null;
@@ -4225,6 +4250,10 @@ function convertStudyWorksheet(ws,name){
   rr.forEach(r=>{if(prev==null||r>prev+1){const start=prev==null?Math.max(range.s.r,r-2):prev+1;let h="";for(let x=r-1;x>=start;x--){if(det.has(x))continue;const z=headingAt(ws,x,range);if(z){h=z;break}}if(h&&h!==lastSec){rows.push({...sectionRow(),title:h});lastSec=h}}
     const d=det.get(r);rows.push({...studyRow(),correct:d.answer,memo:d.memo||""});prev=r});
   return {id:uid(),name,rows};
+}
+function convertStudyWorksheet(ws,name){
+  // 예전 수식형 자료가 감지되면 기존 방식 우선. 아니면 앞으로 쓸 간단 3열 형식을 읽는다.
+  return convertLegacyStudyWorksheet(ws,name)||convertSimpleStudyWorksheet(ws,name);
 }
 async function workbookToStudySheets(file){
   const wb=XLSX.read(await file.arrayBuffer(),{cellFormula:true,cellStyles:true}),sheets=[];
