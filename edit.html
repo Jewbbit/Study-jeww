@@ -2123,6 +2123,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .planner-group{border-top:1px solid #ececee}
 .planner-group:first-of-type{border-top:0}
 .planner-group-head{display:flex!important;align-items:center!important;width:100%!important;border:0!important;background:transparent!important;padding:7px 0 6px!important;text-align:left!important}
+.planner-group-head:disabled{opacity:1!important;color:inherit!important}
 .planner-group-title{flex:1;min-width:0;font-size:11px;font-weight:700;color:#4a4b50;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .planner-group-count{font-size:9.5px;color:#818288;white-space:nowrap}
 .planner-group-body{padding-left:5px;border-left:1px solid #eeeeef}
@@ -5853,6 +5854,29 @@ function plannerToggleMemory(round,unit){
   markStudyCloud();renderPlanner();
 }
 
+/* 현재 로드된 암기/진도 길을 회독 범위에 동기화 */
+function plannerSyncRoundScope(round){
+  if(!round||!Array.isArray(round.unitIds))return false;
+  const base=plannerBaseUnits().units;
+  const currentIds=new Set(base.map(u=>u.id));
+  const currentBankSheets=new Set(base.filter(u=>u.kind==="bankPath").map(u=>u.sheetId));
+  const before=round.unitIds.join("|");
+
+  // 현재 선택된 길과 다른 예전 bp 단위는 같은 시트에서 제거.
+  let kept=round.unitIds.filter(id=>{
+    const m=String(id).match(/^bp:([^:]+):(sequence|random):(\d+)$/);
+    if(!m)return true;
+    if(!currentBankSheets.has(m[1]))return true;
+    return currentIds.has(id);
+  });
+  const seen=new Set(kept);
+  for(const u of base){
+    if(!seen.has(u.id)){kept.push(u.id);seen.add(u.id)}
+  }
+  round.unitIds=kept;
+  return before!==round.unitIds.join("|");
+}
+
 /* 회독 생성 시 기간 전체를 한 번에 배정, 다음 날 미완료만 오늘 이후로 재분배 */
 function plannerDistribute(round,fromDate){
   const p=plannerStore(),begin=fromDate<round.start?round.start:fromDate;
@@ -5874,12 +5898,26 @@ function plannerDistribute(round,fromDate){
   });
 }
 function plannerEnsureTodayRebalance(){
-  const p=plannerStore(),today=plannerToday(),round=plannerRoundForDate(today);
-  if(!round)return;
-  if(round.lastRebalance===today)return;
-  plannerDistribute(round,today);
-  round.lastRebalance=today;
-  app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleStudyCloud();
+  const p=plannerStore(),today=plannerToday();
+  let changed=false;
+  for(const round of p.rounds){
+    const scopeChanged=plannerSyncRoundScope(round);
+    if(scopeChanged){
+      const from=round.start<=today&&today<=round.end?today:round.start;
+      plannerDistribute(round,from);
+      if(round.start<=today&&today<=round.end)round.lastRebalance=today;
+      changed=true;
+    }
+  }
+  const round=plannerRoundForDate(today);
+  if(round&&round.lastRebalance!==today){
+    plannerDistribute(round,today);
+    round.lastRebalance=today;
+    changed=true;
+  }
+  if(changed){
+    app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleStudyCloud();
+  }
 }
 function plannerRoundProgress(round){
   let done=0,total=0;
@@ -5999,11 +6037,7 @@ function plannerGroups(units){
   });
   return [...map.values()];
 }
-function plannerGroupExpanded(date,key){return !!plannerStore().expanded[`${date}::${key}`]}
-function plannerToggleGroup(date,key){
-  const p=plannerStore(),id=`${date}::${key}`;
-  p.expanded[id]=!p.expanded[id];saveLocal();renderPlanner();
-}
+function plannerGroupExpanded(date,key){return true}
 function plannerTaskRow(unit,round,date,{compact=false}={}){
   const done=plannerUnitDone(round,unit);
   const row=document.createElement("div");row.className="planner-task"+(done?" done":"")+(compact?" planner-task-compact":"");
@@ -6022,16 +6056,13 @@ function plannerGroupBlock(units,round,date,{compact=false}={}){
   plannerGroups(units).forEach(group=>{
     const wrap=document.createElement("div");wrap.className="planner-group";
     const head=document.createElement("button");head.type="button";head.className="planner-group-head";
-    const expanded=plannerGroupExpanded(date,group.key);
     const done=group.units.filter(u=>plannerUnitDone(round,u)).length;
     const left=document.createElement("span");left.className="planner-group-title";left.textContent=`${group.label} · ${group.type}`;
-    const right=document.createElement("span");right.className="planner-group-count";right.textContent=`${done}/${group.units.length} ${expanded?"▾":"▸"}`;
-    head.append(left,right);head.onclick=()=>plannerToggleGroup(date,group.key);wrap.append(head);
-    if(expanded){
-      const body=document.createElement("div");body.className="planner-group-body";
-      group.units.forEach(u=>body.append(plannerTaskRow(u,round,date,{compact})));
-      wrap.append(body);
-    }
+    const right=document.createElement("span");right.className="planner-group-count";right.textContent=`${done}/${group.units.length}`;
+    head.append(left,right);head.disabled=true;wrap.append(head);
+    const body=document.createElement("div");body.className="planner-group-body";
+    group.units.forEach(u=>body.append(plannerTaskRow(u,round,date,{compact})));
+    wrap.append(body);
     frag.append(wrap);
   });
   return frag;
