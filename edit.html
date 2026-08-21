@@ -5777,21 +5777,35 @@ function plannerLegacyBankUnitById(id){
   const meta=bankSheetMeta(sheet),index=Math.floor(start/20);
   return {id,kind:"bankLegacy",subject:meta.subject||"문제은행",sheetId:sheet.id,start,count:items.length,title:`${meta.subject||"문제은행"} › ${meta.area||sheet.name} › ${index+1}세트`,detail:`이전 뽀개기 계획 · ${items.length}문제`};
 }
-function plannerUnits(){
+let plannerUnitsCache={key:"",units:[],map:null};
+function plannerUnitsCacheKey(){
+  const adv=app.ui.quizAdventure||{};
+  return [
+    app.study.updatedAt||0,
+    app.bank.contentUpdatedAt||0,
+    app.bank.statsUpdatedAt||0,
+    Object.keys(adv.configs||{}).length
+  ].join("|");
+}
+function plannerBaseSnapshot(){
+  const key=plannerUnitsCacheKey();
+  if(plannerUnitsCache.key===key&&plannerUnitsCache.map)return plannerUnitsCache;
   const raw=[...plannerMemoryUnits(),...plannerBankUnits()];
   const buckets=new Map();
-  raw.forEach(u=>{const key=`${u.kind}:${u.subject}`;if(!buckets.has(key))buckets.set(key,[]);buckets.get(key).push(u)});
-  const groups=[...buckets.values()],out=[];
+  raw.forEach(u=>{const groupKey=`${u.kind}:${u.subject}`;if(!buckets.has(groupKey))buckets.set(groupKey,[]);buckets.get(groupKey).push(u)});
+  const groups=[...buckets.values()],units=[];
   let left=true;
   while(left){
     left=false;
-    groups.forEach(g=>{if(g.length){out.push(g.shift());left=true}});
+    groups.forEach(g=>{if(g.length){units.push(g.shift());left=true}});
   }
-  return out;
+  const map=new Map(units.map(u=>[u.id,u]));
+  plannerUnitsCache={key,units,map};
+  return plannerUnitsCache;
 }
+function plannerUnits(){return plannerBaseSnapshot().units}
 function plannerUnitMap(){
-  const map=new Map(plannerMemoryUnits().map(u=>[u.id,u]));
-  plannerBankUnits().forEach(u=>map.set(u.id,u));
+  const map=new Map(plannerBaseSnapshot().map);
   const p=plannerStore(),refs=new Set();
   p.rounds.forEach(r=>(r.unitIds||[]).forEach(id=>refs.add(id)));
   Object.values(p.dailyPlans).forEach(plan=>(plan?.unitIds||[]).forEach(id=>refs.add(id)));
@@ -5935,7 +5949,7 @@ function plannerAddRound(){
   const end=form?.querySelector(".round-end")?.value||plannerAddDays(start,13);
   if(end<start)return alert("종료일은 시작일보다 뒤여야 합니다.");
   if(p.rounds.some(r=>r.start<=end&&start<=r.end))return alert("다른 회독 기간과 겹칩니다.");
-  const today=plannerToday(),round={id:uid(),name,start,end,completed:{},unitIds:plannerUnits().map(u=>u.id),scopeVersion:2,lastRebalancedDate:(start<=today&&today<=end)?today:"",createdAt:Date.now()};
+  const today=plannerToday(),unitIds=plannerUnits().map(u=>u.id),round={id:uid(),name,start,end,completed:{},unitIds,scopeVersion:2,lastRebalancedDate:(start<=today&&today<=end)?today:"",createdAt:Date.now()};
   p.rounds.push(round);p.rounds.sort((a,b)=>a.start.localeCompare(b.start));
   plannerBuildRoundSchedule(round,start);
   markStudyCloud();renderPlanner();
@@ -6067,6 +6081,7 @@ function plannerTaskRow(unit,round,dateKey,{compact=false}={}){
 }
 function renderPlanner(){
   const area=document.getElementById("plannerArea");if(!area)return;
+  try{
   plannerEnsureAllSchedules();
   const p=plannerStore(),today=plannerToday(),map=plannerUnitMap();
   if(!p.selectedDate)p.selectedDate=today;
@@ -6164,7 +6179,7 @@ function renderPlanner(){
 
   const rounds=document.createElement("div");rounds.className="planner-rounds";
   const rh=document.createElement("div");rh.className="planner-rounds-title";const rs=document.createElement("strong");rs.textContent="회독 관리";
-  const rn=document.createElement("span");rn.className="planner-note";rn.textContent=`현재 범위 ${plannerUnits().length}단위`;
+  const rn=document.createElement("span");rn.className="planner-note";rn.textContent=`현재 범위 ${map.size}단위`;
   rh.append(rs,rn);rounds.append(rh);
   p.rounds.forEach(r=>{
     const prog=plannerRoundProgress(r);
@@ -6189,6 +6204,13 @@ function renderPlanner(){
   const note=document.createElement("div");note.className="planner-note";
   note.textContent="암기판은 대주제 단위로 수동 완료합니다. 문제은행은 현재 선택된 진도 길의 세트 단위로 배분되고, 실제 진도 길에서 세트를 끝내면 자동 체크됩니다. 회독을 만들면 종료일까지 매일 분량이 캘린더에 미리 생기며, 지난날 미완료분은 다음 날 남은 기간에 다시 나뉩니다.";
   rounds.append(note);area.append(rounds);
+  }catch(err){
+    console.error("planner render failed",err);
+    area.innerHTML="";
+    const fail=document.createElement("div");fail.className="planner-empty";
+    fail.innerHTML="<strong style='display:block;margin-bottom:5px;color:#444'>뽀개기 화면을 불러오지 못했습니다.</strong><span>기존 공부 데이터는 건드리지 않았습니다. 다시 열어 보거나 새로고침해 주세요.</span>";
+    area.append(fail);
+  }
 }
 
 /* mode */
