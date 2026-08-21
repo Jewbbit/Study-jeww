@@ -6053,18 +6053,7 @@ function plannerTaskRow(unit,round,date,{compact=false}={}){
 }
 function plannerGroupBlock(units,round,date,{compact=false}={}){
   const frag=document.createDocumentFragment();
-  plannerGroups(units).forEach(group=>{
-    const wrap=document.createElement("div");wrap.className="planner-group";
-    const head=document.createElement("button");head.type="button";head.className="planner-group-head";
-    const done=group.units.filter(u=>plannerUnitDone(round,u)).length;
-    const left=document.createElement("span");left.className="planner-group-title";left.textContent=`${group.label} · ${group.type}`;
-    const right=document.createElement("span");right.className="planner-group-count";right.textContent=`${done}/${group.units.length}`;
-    head.append(left,right);head.disabled=true;wrap.append(head);
-    const body=document.createElement("div");body.className="planner-group-body";
-    group.units.forEach(u=>body.append(plannerTaskRow(u,round,date,{compact})));
-    wrap.append(body);
-    frag.append(wrap);
-  });
+  units.forEach(u=>frag.append(plannerTaskRow(u,round,date,{compact})));
   return frag;
 }
 
@@ -6609,3 +6598,11 @@ render();
 </script>
 </body>
 </html>
+<style>
+#plannerView .planner-group,
+#plannerView .planner-group-body{border:0!important;padding-left:0!important}
+#plannerView .planner-group-head{display:none!important}
+#plannerView .planner-task{padding:6px 0!important;border-top:1px solid #efeff1!important}
+#plannerView .planner-task:first-child{border-top:0!important}
+#plannerView .planner-task-text small{white-space:normal!important;overflow:visible!important;text-overflow:clip!important}
+</style>
