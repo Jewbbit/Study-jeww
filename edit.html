@@ -2105,7 +2105,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .planner-head strong{font-size:17px}
 .planner-head span{font-size:10px;color:#777980}
 .planner-head button{margin-left:auto;border:0;background:transparent;padding:5px 6px;color:#66676d}
-.planner-today{padding:10px 0 8px;border-bottom:1px solid #e8e8eb}
+.planner-today{margin-top:10px;padding:9px 0 8px;border-top:1px solid #e8e8eb;border-bottom:1px solid #e8e8eb}
 .planner-today-top{display:flex;align-items:flex-start;gap:8px;margin-bottom:7px}
 .planner-today-title{flex:1;min-width:0}
 .planner-today-title strong{display:block;font-size:15px}
@@ -2120,10 +2120,18 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .planner-task-text small{display:block;margin-top:1px;color:#8a8b90;font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .planner-task-open{border:0!important;background:#f5f5f6!important;border-radius:5px!important;padding:5px 7px!important;font-size:10px!important;color:#55565b!important}
 .planner-task-compact{padding:4px 0}.planner-task-compact .planner-task-text{font-size:11px}.planner-task-compact .planner-task-open{padding:4px 6px!important}
+.planner-group{border-top:1px solid #ececee}
+.planner-group:first-of-type{border-top:0}
+.planner-group-head{display:flex!important;align-items:center!important;width:100%!important;border:0!important;background:transparent!important;padding:7px 0 6px!important;text-align:left!important}
+.planner-group-title{flex:1;min-width:0;font-size:11px;font-weight:700;color:#4a4b50;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.planner-group-count{font-size:9.5px;color:#818288;white-space:nowrap}
+.planner-group-body{padding-left:5px;border-left:1px solid #eeeeef}
+.planner-detail .planner-group-head{padding-top:6px!important;padding-bottom:5px!important}
+
 .planner-empty{padding:12px 0;color:#88898e;font-size:12px}
 .planner-actual{display:flex;gap:9px;flex-wrap:wrap;margin-top:7px;padding-top:6px;border-top:1px dashed #ececef;font-size:10px;color:#727379}
 .planner-actual strong{color:#45464a;font-weight:650}
-.planner-calendar-wrap{padding-top:12px}
+.planner-calendar-wrap{padding-top:9px}
 .planner-calendar-head{display:flex;align-items:center;margin-bottom:6px}
 .planner-calendar-head strong{flex:1;font-size:14px;text-align:center}
 .planner-calendar-head button{width:30px;height:27px;border:0;background:transparent;color:#666}
@@ -2159,6 +2167,9 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .planner-round-form button{grid-column:1/-1;border:0;background:#2f3034;color:#fff;border-radius:5px;padding:7px;font-size:11px}
 .planner-note{margin-top:5px;font-size:9px;color:#929398;line-height:1.35}
 .planner-btn.active{font-weight:750;color:#222!important}
+.planner-btn{font-size:11px!important;line-height:1!important;padding:5px 6px!important;min-width:auto!important}
+.planner-today-title strong{font-size:13px!important;line-height:1.2}
+
 @media(max-width:640px){
   #plannerView{padding-left:3px;padding-right:3px}
   .planner-day{min-height:48px;padding:3px}
@@ -5680,6 +5691,7 @@ function plannerStore(){
   if(!p.dailyPlans||typeof p.dailyPlans!=="object")p.dailyPlans={};
   if(!p.manual||typeof p.manual!=="object")p.manual={};
   if(!p.logs||typeof p.logs!=="object")p.logs={};
+  if(!p.collapsedGroups||typeof p.collapsedGroups!=="object")p.collapsedGroups={};
   return p;
 }
 function plannerDateKey(d=new Date()){
@@ -5994,6 +6006,52 @@ function plannerCalendarCells(monthKey){
   start.setDate(1-first.getDay());
   return Array.from({length:42},(_,i)=>{const d=new Date(start);d.setDate(start.getDate()+i);return plannerDateKey(d)});
 }
+function plannerGroupKey(unit){
+  return `${unit.kind==="bankPath"?"bank":"memory"}:${unit.subject||"기타"}`;
+}
+function plannerGroupLabel(unit){
+  return unit.subject||"기타";
+}
+function plannerGroupTypeLabel(unit){
+  return unit.kind==="bankPath"?"진도 길":"암기";
+}
+function plannerGroupedUnits(units){
+  const groups=new Map();
+  units.forEach(unit=>{
+    const key=plannerGroupKey(unit);
+    if(!groups.has(key))groups.set(key,{key,label:plannerGroupLabel(unit),type:plannerGroupTypeLabel(unit),units:[]});
+    groups.get(key).units.push(unit);
+  });
+  return [...groups.values()];
+}
+function plannerToggleGroup(dateKey,key){
+  const p=plannerStore(),store=p.collapsedGroups;
+  const id=`${dateKey}::${key}`;
+  store[id]=!store[id];
+  saveLocal();renderPlanner();
+}
+function plannerGroupCollapsed(dateKey,key){
+  return !!plannerStore().collapsedGroups[`${dateKey}::${key}`];
+}
+function plannerGroupBlock(units,round,dateKey,{compact=false}={}){
+  const frag=document.createDocumentFragment();
+  plannerGroupedUnits(units).forEach(group=>{
+    const done=group.units.filter(u=>plannerPlanUnitDone(round,u.id,dateKey)).length;
+    const wrap=document.createElement("div");wrap.className="planner-group";
+    const head=document.createElement("button");head.type="button";head.className="planner-group-head";
+    const collapsed=plannerGroupCollapsed(dateKey,group.key);
+    const left=document.createElement("span");left.className="planner-group-title";left.textContent=`${group.label} · ${group.type}`;
+    const right=document.createElement("span");right.className="planner-group-count";right.textContent=`${done}/${group.units.length} ${collapsed?"▸":"▾"}`;
+    head.append(left,right);head.onclick=()=>plannerToggleGroup(dateKey,group.key);wrap.append(head);
+    if(!collapsed){
+      const body=document.createElement("div");body.className="planner-group-body";
+      group.units.forEach(unit=>body.append(plannerTaskRow(unit,round,dateKey,{compact})));
+      wrap.append(body);
+    }
+    frag.append(wrap);
+  });
+  return frag;
+}
 function plannerTaskRow(unit,round,dateKey,{compact=false}={}){
   const done=plannerPlanUnitDone(round,unit.id,dateKey),row=document.createElement("div");
   row.className="planner-task"+(done?" done":"")+(compact?" planner-task-compact":"");
@@ -6037,7 +6095,7 @@ function renderPlanner(){
   const count=document.createElement("div");count.className="planner-today-count";count.textContent=round?`${doneCount}/${todayInfo.units.length} 완료`:"";
   top.append(tt,count);todayBox.append(top);
 
-  if(round&&todayInfo.units.length)todayInfo.units.forEach(unit=>todayBox.append(plannerTaskRow(unit,round,today)));
+  if(round&&todayInfo.units.length)todayBox.append(plannerGroupBlock(todayInfo.units,round,today));
   else if(round){
     const empty=document.createElement("div");empty.className="planner-empty";empty.textContent="오늘 배정된 분량은 없습니다.";todayBox.append(empty);
   }else{
@@ -6045,7 +6103,7 @@ function renderPlanner(){
   }
   const log=p.logs[today]||{},actual=document.createElement("div");actual.className="planner-actual";
   actual.innerHTML=`<span>실제 <strong>암기 ${Number(log.memory)||0}</strong></span><span><strong>문제 ${Number(log.bank)||0}</strong></span><span><strong>타자 ${Number(log.typing)||0}회</strong></span>`;
-  todayBox.append(actual);area.append(todayBox);
+  todayBox.append(actual);
 
   const calWrap=document.createElement("div");calWrap.className="planner-calendar-wrap";
   const calHead=document.createElement("div");calHead.className="planner-calendar-head";
@@ -6075,7 +6133,7 @@ function renderPlanner(){
     meta.textContent=bits.join(" · ");
     b.append(num,meta);b.onclick=()=>plannerSelectDate(dateKey);cal.append(b);
   });
-  calWrap.append(cal);area.append(calWrap);
+  calWrap.append(cal);
 
   const selected=p.selectedDate,detail=document.createElement("div");detail.className="planner-detail";
   const dh=document.createElement("div");dh.className="planner-detail-head";
@@ -6087,7 +6145,8 @@ function renderPlanner(){
     const ids=selectedPlan.unitIds||[],done=ids.filter(id=>plannerPlanUnitDone(selectedRound,id,selected)).length;
     const info=document.createElement("div");info.className="planner-note";info.textContent=`자동 계획 · ${selectedRound.name} · ${done}/${ids.length} 완료`;
     detail.append(info);
-    ids.map(id=>map.get(id)).filter(Boolean).forEach(unit=>detail.append(plannerTaskRow(unit,selectedRound,selected,{compact:true})));
+    const selectedUnits=ids.map(id=>map.get(id)).filter(Boolean);
+    if(selectedUnits.length)detail.append(plannerGroupBlock(selectedUnits,selectedRound,selected,{compact:true}));
   }else if(selectedRound){
     const info=document.createElement("div");info.className="planner-note";info.textContent=`${selectedRound.name} · 자동 계획이 비어 있습니다.`;detail.append(info);
   }
@@ -6100,7 +6159,8 @@ function renderPlanner(){
   });
   const sl=p.logs[selected]||{},sum=document.createElement("div");sum.className="planner-actual";
   sum.innerHTML=`<span>실제 기록</span><span><strong>암기 ${Number(sl.memory)||0}</strong></span><span><strong>문제 ${Number(sl.bank)||0}</strong></span><span><strong>타자 ${Number(sl.typing)||0}회</strong></span>`;
-  detail.append(sum);area.append(detail);
+  detail.append(sum);
+  area.append(calWrap,detail,todayBox);
 
   const rounds=document.createElement("div");rounds.className="planner-rounds";
   const rh=document.createElement("div");rh.className="planner-rounds-title";const rs=document.createElement("strong");rs.textContent="회독 관리";
