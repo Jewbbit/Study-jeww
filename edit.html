@@ -5794,11 +5794,21 @@ function plannerPathUnits(){
 }
 function plannerBaseKey(){
   const adv=app.ui.quizAdventure||{};
+  const sheetSig=(app.bank.sheets||[])
+    .filter(s=>!s.legacyWrong)
+    .map(s=>`${s.id}:${(s.items||[]).length}`)
+    .join(",");
+  const pathSig=Object.entries(adv.configs||{}).map(([id,state])=>{
+    const order=state?.activeOrder||"sequence";
+    const cfg=state?.paths?.[order]||{};
+    return `${id}:${order}:${cfg.size||20}:${(cfg.orderIds||[]).length}:${Object.keys(cfg.completed||{}).length}`;
+  }).join(",");
   return [
     app.study.updatedAt||0,
     app.bank.contentUpdatedAt||0,
     app.bank.statsUpdatedAt||0,
-    Object.keys(adv.configs||{}).length
+    sheetSig,
+    pathSig
   ].join("|");
 }
 function plannerBaseUnits(){
@@ -6111,7 +6121,7 @@ function renderPlanner(){
     /* 선택 날짜 상세 */
     const selected=p.selectedDate,detail=document.createElement("div");detail.className="planner-detail";
     const dh=document.createElement("div");dh.className="planner-detail-head";
-    const dt=document.createElement("strong");dt.textContent=selected;
+    const dt=document.createElement("strong");dt.textContent=selected===today?`오늘 · ${selected}`:selected;
     const add=document.createElement("button");add.type="button";add.textContent="＋ 직접 할 일";add.onclick=()=>plannerAddManual(selected);
     dh.append(dt,add);detail.append(dh);
     const selectedPlan=p.dailyPlans[selected],selectedRound=selectedPlan?p.rounds.find(r=>r.id===selectedPlan.roundId):null;
@@ -6121,6 +6131,13 @@ function renderPlanner(){
       info.textContent=`자동 계획 · ${selectedRound.name} · ${selectedUnits.filter(u=>plannerUnitDone(selectedRound,u)).length}/${selectedUnits.length} 완료`;
       detail.append(info);
       if(selectedUnits.length)detail.append(plannerGroupBlock(selectedUnits,selectedRound,selected,{compact:true}));
+    }else{
+      const selectedRoundOnly=plannerRoundForDate(selected);
+      if(selectedRoundOnly){
+        const info=document.createElement("div");info.className="planner-note";
+        info.textContent=`${selectedRoundOnly.name} · 이 날짜에 배정된 항목이 없습니다.`;
+        detail.append(info);
+      }
     }
     (p.manual[selected]||[]).forEach(item=>{
       const row=document.createElement("div");row.className="planner-manual"+(item.done?" done":"");
@@ -6133,32 +6150,7 @@ function renderPlanner(){
     actual.innerHTML=`<span>실제 기록</span><span><strong>암기 ${Number(selectedLog.memory)||0}</strong></span><span><strong>문제 ${Number(selectedLog.bank)||0}</strong></span><span><strong>타자 ${Number(selectedLog.typing)||0}회</strong></span>`;
     detail.append(actual);area.append(detail);
 
-    /* 오늘 요약 — 과목별로 접힌 상태가 기본 */
-    const todayPlan=p.dailyPlans[today],todayRound=todayPlan?p.rounds.find(r=>r.id===todayPlan.roundId):null;
-    const todayBox=document.createElement("div");todayBox.className="planner-today";
-    const top=document.createElement("div");top.className="planner-today-top";
-    const tt=document.createElement("div");tt.className="planner-today-title";
-    const t1=document.createElement("strong");t1.textContent="오늘";
-    const t2=document.createElement("span");
-    if(todayRound){
-      const prog=plannerRoundProgress(todayRound);
-      t2.textContent=`${todayRound.name} · ${todayRound.end}까지 · ${prog.remaining}단위 남음`;
-    }else t2.textContent="진행 중인 회독이 없습니다";
-    tt.append(t1,t2);
-    const todayUnits=todayPlan?(todayPlan.unitIds||[]).map(plannerUnitById).filter(Boolean):[];
-    const count=document.createElement("div");count.className="planner-today-count";
-    count.textContent=todayRound?`${todayUnits.filter(u=>plannerUnitDone(todayRound,u)).length}/${todayUnits.length} 완료`:"";
-    top.append(tt,count);todayBox.append(top);
-    if(todayRound&&todayUnits.length)todayBox.append(plannerGroupBlock(todayUnits,todayRound,today));
-    else{
-      const empty=document.createElement("div");empty.className="planner-empty";
-      empty.textContent=todayRound?"오늘 배정된 분량이 없습니다.":"아래에서 회독을 추가하면 일정이 자동 생성됩니다.";
-      todayBox.append(empty);
-    }
-    const todayLog=p.logs[today]||{},todayActual=document.createElement("div");todayActual.className="planner-actual";
-    todayActual.innerHTML=`<span>실제 <strong>암기 ${Number(todayLog.memory)||0}</strong></span><span><strong>문제 ${Number(todayLog.bank)||0}</strong></span><span><strong>타자 ${Number(todayLog.typing)||0}회</strong></span>`;
-    todayBox.append(todayActual);area.append(todayBox);
-
+    /* 오늘은 캘린더에서 자동 선택되므로 별도 중복 목록을 만들지 않음 */
     /* 회독 관리 */
     const rounds=document.createElement("div");rounds.className="planner-rounds";
     const rh=document.createElement("div");rh.className="planner-rounds-title";
