@@ -6451,7 +6451,7 @@ function schedulePlannerCloud(){
       await setDoc(plannerDoc(cloudUser.uid),{planner,updatedAt:planner.updatedAt||Date.now()});
       updateSync("✓",true);
     }catch(e){console.error(e);updateSync(e.code==="permission-denied"?"규칙":"!",false)}
-  },450);
+  },120);
 }
 let statsTimer=null;
 function scheduleBankStatsCloud(){
@@ -6505,10 +6505,17 @@ onAuthStateChanged(auth,async user=>{
     const pref=plannerDoc(user.uid),psnap=await getDoc(pref);
     const localPlanner=plannerStore();
     if(psnap.exists()){
-      const pd=psnap.data(),chosen=plannerChooseState(localPlanner,pd.planner,pd.updatedAt||0);
-      const remoteChosen=chosen!==localPlanner;
-      app.study.planner=chosen;saveStudyQuickNow();saveLocal();
-      if(!remoteChosen&&plannerHasUserData(chosen))schedulePlannerCloud();
+      const pd=psnap.data();
+      const remotePlanner=plannerNormalizeState(pd.planner,pd.updatedAt||0);
+      const localHas=plannerHasUserData(localPlanner),remoteHas=plannerHasUserData(remotePlanner);
+
+      if(localHas&&(!remoteHas||(localPlanner.updatedAt||0)>(remotePlanner.updatedAt||0))){
+        // 이 기기의 실제 회독이 더 최신이면 클라우드 원본을 이 값으로 갱신.
+        await setDoc(pref,{planner:localPlanner,updatedAt:localPlanner.updatedAt||Date.now()});
+      }else if(remoteHas){
+        // 새로고침/다른 기기에서는 클라우드 회독을 그대로 받음.
+        applyingRemote=true;app.study.planner=remotePlanner;saveStudyQuickNow();saveLocal();applyingRemote=false;
+      }
       if(app.study.mode==="planner")renderPlanner();
     }else{
       const chosen=plannerChooseState(localPlanner,legacyCloudPlanner,legacyCloudUpdatedAt);
@@ -6520,10 +6527,15 @@ onAuthStateChanged(auth,async user=>{
     plannerUnsub=onSnapshot(pref,snap=>{
       if(!snap.exists())return;
       const d=snap.data(),local=plannerStore(),remote=plannerNormalizeState(d.planner,d.updatedAt||0);
-      const chosen=plannerChooseState(local,remote,d.updatedAt||0);
-      if(chosen===local)return;
-      applyingRemote=true;app.study.planner=chosen;saveStudyQuickNow();saveLocal();applyingRemote=false;
-      if(app.study.mode==="planner")renderPlanner();
+      const localHas=plannerHasUserData(local),remoteHas=plannerHasUserData(remote);
+
+      if(remoteHas&&(!localHas||(remote.updatedAt||0)>(local.updatedAt||0))){
+        applyingRemote=true;app.study.planner=remote;saveStudyQuickNow();saveLocal();applyingRemote=false;
+        if(app.study.mode==="planner")renderPlanner();
+      }else if(localHas&&(!remoteHas||(local.updatedAt||0)>(remote.updatedAt||0))){
+        // 다른 기기의 빈/오래된 값이 현재 기기의 최신 회독을 덮지 않게 함.
+        schedulePlannerCloud();
+      }
     });
 
     studyUnsub=onSnapshot(sref,snap=>{
