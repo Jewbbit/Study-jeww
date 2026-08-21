@@ -2185,6 +2185,26 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   <meta name="apple-mobile-web-app-title" content="Study Jew">
   <link rel="apple-touch-icon" href="./icon-192.png">
 
+<style>
+
+/* 문제풀이 하단 버튼 위치 고정 */
+.quiz-actions{display:flex!important;align-items:center!important;gap:6px!important}
+.quiz-actions .quiz-dont{
+  order:-100!important;
+  flex:0 0 auto!important;
+  min-width:58px!important;
+  margin-left:0!important;
+  margin-right:6px!important;
+}
+.quiz-actions .quiz-more-wrap{margin-left:0!important}
+.quiz-actions .adventure-explanation-next,
+.quiz-actions>button.primary{
+  order:100!important;
+  flex:0 0 auto!important;
+  min-width:58px!important;
+  margin-left:auto!important;
+}
+</style>
 </head>
 <body>
 <header>
@@ -5370,7 +5390,15 @@ function renderQuizQuestion(){
   if(mode==="subjective"){
     const check=document.createElement("button");check.textContent="확인";check.onclick=()=>checkSubjective(card.querySelector(".quiz-answer"));actions.append(check);
   }
-  const dont=document.createElement("button");dont.textContent="모름";dont.onclick=()=>{if(!quizSession.answered){recordQuiz(item,false);quizSession.answered=true}quizSession.showAnswer=true;saveQuizSessionLocal();renderQuizQuestion()};actions.append(dont);
+  const dont=document.createElement("button");dont.className="quiz-dont";dont.textContent="모름";
+  dont.onclick=()=>{
+    if(!quizSession)return;
+    if(!quizSession.answered){recordQuiz(item,false);quizSession.answered=true}
+    quizSession.showAnswer=false;
+    quizSession.awaitingExplanation=false;
+    nextQuiz(true);
+  };
+  actions.append(dont);
   if(mode==="write"){
     const show=document.createElement("button");show.textContent="답 보기";show.onclick=()=>{quizSession.showAnswer=true;saveQuizSessionLocal();renderQuizQuestion()};actions.append(show);
     if(item.answer){
