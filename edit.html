@@ -2499,7 +2499,7 @@ import {
   onAuthStateChanged, setPersistence, browserLocalPersistence, signOut
 } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js';
 import {
-  getFirestore, doc, collection, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, increment
+  getFirestore, doc, collection, getDoc, getDocs, getDocsFromServer, setDoc, deleteDoc, onSnapshot, increment
 } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js';
 
 const firebaseConfig={
@@ -3653,6 +3653,22 @@ function typingNormalize(text){
 function typingCharCount(text){
   return Array.from(String(text||"")).length;
 }
+/* 한컴타자 방식에 맞춰 한글은 음절 수가 아니라 자소(초성·중성·종성) 수로 계산.
+   영문/숫자/공백/기호는 입력 문자 1개를 1타로 계산한다. */
+function typingStrokeCount(text){
+  let total=0;
+  for(const ch of Array.from(String(text||"").normalize("NFC"))){
+    const code=ch.codePointAt(0);
+    if(code>=0xAC00&&code<=0xD7A3){
+      const syllable=code-0xAC00;
+      const jong=syllable%28;
+      total+=jong?3:2;
+    }else{
+      total+=1;
+    }
+  }
+  return total;
+}
 function typingSpeed(chars,elapsedMs){
   if(!elapsedMs||elapsedMs<1)return 0;
   return Math.round(chars/(elapsedMs/60000));
@@ -3696,12 +3712,13 @@ function typingSession(rowId){
 function registerTypingRow(rowId,target,input){
   const c=ensureTypingChallenge();
   if(c.rows.has(rowId))return c.rows.get(rowId);
-  const answer=typingNormalize(target),typed=typingNormalize(input?.value||"");
+  const rawAnswer=String(target||""),rawTyped=String(input?.value||"");
+  const answer=typingNormalize(rawAnswer),typed=typingNormalize(rawTyped);
   const done=!!answer&&typed===answer;
-  const state={answer,typed,done};
+  const state={answer,typed,rawTyped,done};
   c.rows.set(rowId,state);
-  c.targetChars+=typingCharCount(answer);
-  c.typedChars+=typingCharCount(typed);
+  c.targetChars+=typingStrokeCount(rawAnswer);
+  c.typedChars+=typingStrokeCount(rawTyped);
   if(!done)c.remaining++;
   return state;
 }
@@ -3862,14 +3879,15 @@ function makeTypingPracticeField(row,target){
   input.value=session.value||"";
   const state=registerTypingRow(row.id,target,input);
 
-  const applyState=(typed)=>{
+  const applyState=(typed,rawValue=input.value)=>{
     const c=ensureTypingChallenge();
     const wasDone=state.done;
     const done=!!state.answer&&typed===state.answer;
-    if(state.typed!==typed){
-      c.typedChars+=typingCharCount(typed)-typingCharCount(state.typed);
-      state.typed=typed;
+    if(state.rawTyped!==rawValue){
+      c.typedChars+=typingStrokeCount(rawValue)-typingStrokeCount(state.rawTyped);
+      state.rawTyped=rawValue;
     }
+    state.typed=typed;
     if(done!==wasDone){
       state.done=done;
       c.remaining+=done?-1:1;
@@ -3887,7 +3905,7 @@ function makeTypingPracticeField(row,target){
       startTypingPracticeTicker();
     }
     session.value=input.value;
-    const done=applyState(typed);
+    const done=applyState(typed,input.value);
     if(done&&c.remaining===0)finishTypingChallenge();
   };
 
@@ -3897,7 +3915,7 @@ function makeTypingPracticeField(row,target){
   input.addEventListener("compositionend",changed);
   input.addEventListener("blur",changed);
   bindSafeEnter(input,()=>{
-    const done=applyState(typingNormalize(input.value));
+    const done=applyState(typingNormalize(input.value),input.value);
     if(done){
       if(ensureTypingChallenge().remaining===0)finishTypingChallenge();
       focusNextStudyField(input);
@@ -3913,7 +3931,7 @@ function makeTypingPracticeField(row,target){
     hint.onclick=e=>{e.preventDefault();e.stopPropagation();showTypingHint(row.id,guide)};
     line.append(hint);
   }
-  applyState(typingNormalize(input.value));
+  applyState(typingNormalize(input.value),input.value);
   wrap.append(guide,line);
   return {wrap,input};
 }
@@ -5861,34 +5879,19 @@ function plannerMemoryUnits(){
   const out=[];
   for(const subject of app.study.subjects||[]){
     for(const sheet of subject.sheets||[]){
-      const rows=sheet.rows||[],majors=[];
-      rows.forEach((r,i)=>{if(r?.type==="section"&&r.level==="major")majors.push(i)});
-      if(!majors.length){
-        const count=rows.filter(r=>r?.type!=="section"&&(r.correct||r.category||r.memo)).length;
-        if(count)out.push({
-          id:`m:${subject.id}:${sheet.id}:all`,kind:"memory",subject:subject.name||"암기",
-          subjectId:subject.id,sheetId:sheet.id,rowId:"",
-          title:`${subject.name} › ${sheet.name}`,detail:`시트 전체 · ${count}항목`,weight:Math.max(1,Math.sqrt(count))
-        });
-        continue;
-      }
-      if(majors[0]>0){
-        const count=rows.slice(0,majors[0]).filter(r=>r?.type!=="section"&&(r.correct||r.category||r.memo)).length;
-        if(count)out.push({
-          id:`m:${subject.id}:${sheet.id}:head`,kind:"memory",subject:subject.name||"암기",
-          subjectId:subject.id,sheetId:sheet.id,rowId:"",
-          title:`${subject.name} › ${sheet.name} › 앞부분`,detail:`${count}항목`,weight:Math.max(1,Math.sqrt(count))
-        });
-      }
-      majors.forEach((idx,k)=>{
-        const stop=k+1<majors.length?majors[k+1]:rows.length,head=rows[idx];
-        const count=rows.slice(idx+1,stop).filter(r=>r?.type!=="section"&&(r.correct||r.category||r.memo)).length;
-        out.push({
-          id:`m:${subject.id}:${sheet.id}:${head.id}`,kind:"memory",subject:subject.name||"암기",
-          subjectId:subject.id,sheetId:sheet.id,rowId:head.id,
-          title:`${subject.name} › ${sheet.name} › ${head.title||"대주제"}`,detail:`대주제 · ${count}항목`,
-          weight:Math.max(1,Math.sqrt(Math.max(1,count)))
-        });
+      const rows=sheet.rows||[];
+      const count=rows.filter(r=>r?.type!=="section"&&(r.correct||r.category||r.memo)).length;
+      if(!count)continue;
+      out.push({
+        id:`m:${subject.id}:${sheet.id}:all`,
+        kind:"memory",
+        subject:subject.name||"암기",
+        subjectId:subject.id,
+        sheetId:sheet.id,
+        rowId:"",
+        title:`${subject.name} › ${sheet.name}`,
+        detail:`시트 전체 · ${count}항목`,
+        weight:Math.max(1,Math.sqrt(count))
       });
     }
   }
@@ -6033,11 +6036,11 @@ async function plannerSyncNow({quiet=false}={}){
 
     const uid=cloudUser.uid;
     const [roundSnap,stateSnap,manualSnap,logSnap,pathSnap]=await Promise.all([
-      getDocs(collection(db,"users",uid,"planner7Rounds")),
-      getDocs(collection(db,"users",uid,"planner7MissionState")),
-      getDocs(collection(db,"users",uid,"planner7Manual")),
-      getDocs(collection(db,"users",uid,"planner7Logs")),
-      getDocs(collection(db,"users",uid,"planner7Paths"))
+      getDocsFromServer(collection(db,"users",uid,"planner7Rounds")),
+      getDocsFromServer(collection(db,"users",uid,"planner7MissionState")),
+      getDocsFromServer(collection(db,"users",uid,"planner7Manual")),
+      getDocsFromServer(collection(db,"users",uid,"planner7Logs")),
+      getDocsFromServer(collection(db,"users",uid,"planner7Paths"))
     ]);
 
     const p=plannerStore();
@@ -6050,6 +6053,10 @@ async function plannerSyncNow({quiet=false}={}){
     rounds.sort((a,b)=>a.start.localeCompare(b.start));
     p.rounds=rounds;
 
+    const dirtyLocal={};
+    for(const [key,value] of Object.entries(p.missionState||{})){
+      if(value?.dirty)dirtyLocal[key]={...value};
+    }
     const states={};
     stateSnap.forEach(ds=>{
       const d=ds.data();
@@ -6058,6 +6065,10 @@ async function plannerSyncNow({quiet=false}={}){
         done:!!d.done,excluded:!!d.excluded,updatedAt:Number(d.updatedAt)||0
       };
     });
+    for(const [key,value] of Object.entries(dirtyLocal)){
+      const remote=states[key];
+      if(!remote||(Number(value.updatedAt)||0)>(Number(remote.updatedAt)||0))states[key]=value;
+    }
     p.missionState=states;
 
     const manual={};
@@ -6091,7 +6102,7 @@ async function plannerSyncNow({quiet=false}={}){
     return true;
   }catch(e){
     plannerSignalError("sync",e);
-    if(!quiet)toast("동기화 실패");
+    if(!quiet)toast("동기화 실패 · 현재 기기 기록은 유지됨");
     return false;
   }
 }
@@ -6133,23 +6144,30 @@ function plannerSetMissionState(round,mission,patch){
   const next={
     done:patch.done!==undefined?!!patch.done:!!prev.done,
     excluded:patch.excluded!==undefined?!!patch.excluded:!!prev.excluded,
-    updatedAt:Date.now()
+    updatedAt:Date.now(),
+    dirty:true
   };
   p.missionState[key]=next;
   plannerSaveLocal();
   if(app.study.mode==="planner")renderPlanner();
-  plannerQueueWrite(setDoc(plannerStateDoc(cloudUser.uid,round.id,mission.id),{
-    roundId:round.id,missionId:mission.id,...next
-  },{merge:true}));
+  const write=setDoc(plannerStateDoc(cloudUser.uid,round.id,mission.id),{
+    roundId:round.id,missionId:mission.id,
+    done:next.done,excluded:next.excluded,updatedAt:next.updatedAt
+  },{merge:true});
+  plannerQueueWrite(write);
+  write.then(()=>{
+    const cur=plannerStore().missionState[key];
+    if(cur&&cur.updatedAt===next.updatedAt){delete cur.dirty;plannerSaveLocal()}
+  }).catch(()=>{});
 }
 function plannerToggleMission(round,mission){
   if(mission.kind==="bankPath"){
-    return toast("진도 길 세트를 끝내면 자동 완료됩니다");
+    return toast(plannerMissionDone(round,mission)?"진도 길에서 완료된 세트입니다":"진도 길 세트를 끝내면 자동 완료됩니다");
   }
   plannerSetMissionState(round,mission,{done:!plannerMissionDone(round,mission)});
 }
 function plannerExcludeMission(round,mission){
-  if(!confirm(`이번 회독에서 제외할까요?\n${mission.title}`))return;
+  if(!confirm(`이번 회독에서 이 미션을 제외할까요?\n\n${mission.title}\n\n원본 암기판·문제은행은 삭제되지 않고, 이 회독의 계획에서만 빠집니다.`))return;
   plannerSetMissionState(round,mission,{excluded:true});
 }
 function plannerRestoreMission(round,mission){plannerSetMissionState(round,mission,{excluded:false})}
@@ -6234,7 +6252,7 @@ function plannerTaskRow(round,mission,{compact=false}={}){
   row.className="planner-task"+(done?" done":"")+(compact?" planner-task-compact":"");
   const check=document.createElement("button");check.type="button";check.className="planner-task-check";
   check.textContent=done?"✓":"○";check.onclick=()=>plannerToggleMission(round,mission);
-  if(mission.kind==="bankPath")check.title="진도 길 세트를 끝내면 자동 완료";
+  if(mission.kind==="bankPath")check.title=done?"진도 길에서 완료된 세트":"진도 길 세트를 끝내면 자동 완료";
   const text=document.createElement("button");text.type="button";text.className="planner-task-text planner-task-link";
   const title=document.createElement("span");title.textContent=mission.title;
   const sub=document.createElement("small");sub.textContent=mission.detail;
