@@ -2400,6 +2400,55 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   }
 }
 </style>
+<style>
+.planner-scope{
+  grid-column:1/-1;margin-top:4px;border-top:1px solid #ececef;border-bottom:1px solid #ececef;
+  padding:3px 0 5px;
+}
+.planner-scope summary{
+  cursor:pointer;list-style:none;padding:7px 1px;font-size:11px;font-weight:700;color:#55565b;
+}
+.planner-scope summary::-webkit-details-marker{display:none}
+.planner-scope summary::after{content:"＋";float:right;color:#96979c;font-weight:400}
+.planner-scope[open] summary::after{content:"−"}
+.planner-scope-tools{display:flex;gap:5px;padding:2px 0 6px}
+.planner-scope-tools button{
+  border:1px solid #e4e4e7!important;background:#fff!important;border-radius:5px!important;
+  padding:4px 7px!important;font-size:9.5px!important;color:#66676d!important;
+}
+.planner-scope-group{padding:6px 0 5px;border-top:1px solid #f0f0f2}
+.planner-scope-group>strong{display:block;margin-bottom:3px;font-size:10px;color:#777980}
+.planner-scope-item{
+  display:grid;grid-template-columns:20px minmax(0,1fr);align-items:center;gap:5px;
+  padding:4px 1px;font-size:10.5px;color:#3f4044;
+}
+.planner-scope-item input{width:15px;height:15px;margin:0}
+.planner-scope-item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.planner-scope-item small{font-size:8.5px;color:#96979c;margin-left:4px}
+</style>
+<style>
+.wide-planner-date-nav{display:none}
+@media (min-width:1000px) and (orientation:landscape){
+  .wide-planner-date-nav{
+    position:relative;display:grid;grid-template-columns:30px minmax(0,1fr) 30px;
+    align-items:center;gap:3px;padding:5px 0 6px;border-bottom:1px solid #efeff1;
+  }
+  .wide-planner-date-nav.hidden{display:none!important}
+  .wide-planner-date-nav>button{
+    border:0!important;background:transparent!important;
+    min-height:28px!important;padding:3px 5px!important;color:#66676d!important;
+  }
+  #widePlannerDateLabel{
+    font-size:11px!important;font-weight:700!important;color:#3e3f43!important;
+    text-align:center!important;
+  }
+  #widePlannerPrevDate,#widePlannerNextDate{font-size:17px!important;color:#8a8b90!important}
+  #widePlannerDatePicker{
+    position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;
+    pointer-events:none!important;left:50%!important;top:50%!important;
+  }
+}
+</style>
 </head>
 <body>
 <header>
@@ -2510,10 +2559,16 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   <div class="wide-planner-inner">
     <div class="wide-planner-head">
       <div class="wide-planner-tabs" role="tablist" aria-label="보조 패널">
-        <button id="widePlannerTodayTab" type="button" role="tab">오늘</button>
+        <button id="widePlannerTodayTab" type="button" role="tab">일정</button>
         <button id="widePlannerSongTab" type="button" role="tab">노래</button>
       </div>
       <span id="widePlannerCount"></span>
+    </div>
+    <div id="widePlannerDateNav" class="wide-planner-date-nav">
+      <button id="widePlannerPrevDate" type="button" aria-label="이전 날짜">‹</button>
+      <button id="widePlannerDateLabel" type="button" aria-label="날짜 선택"></button>
+      <button id="widePlannerNextDate" type="button" aria-label="다음 날짜">›</button>
+      <input id="widePlannerDatePicker" type="date" aria-label="날짜 선택">
     </div>
     <div id="widePlannerList" class="wide-planner-list"></div>
   </div>
@@ -5881,13 +5936,26 @@ function renderBankEditor(){
   trashCurrent.onclick=()=>{
     const target=currentBankEditSheet();if(!target)return;
     if(!confirm(`'${target.name}' 시트를 휴지통으로 보낼까요?\n나중에 복구할 수 있습니다.`))return;
+
+    const pendingPlanner=plannerPendingMissionsForBankSheet(target.id);
+    let excludePlanner=false;
+    if(pendingPlanner.length){
+      excludePlanner=confirm(
+        `현재 회독 일정에 이 시트의 미완료 미션이 ${pendingPlanner.length}개 있습니다.\n\n`+
+        `시트를 휴지통으로 보내면서 이 미션들도 회독에서 한꺼번에 제외할까요?\n`+
+        `완료 기록과 다른 시트 미션은 그대로 유지됩니다.`
+      );
+    }
+
     app.bank.trashSheets.push({...target,deletedAt:Date.now()});
     app.bank.sheets=app.bank.sheets.filter(x=>x.id!==target.id);
     if(app.ui.bankEditSheetId===target.id)app.ui.bankEditSheetId="";
     if(app.ui.quizAdventure?.activeSheetId===target.id)app.ui.quizAdventure.activeSheetId="";
     app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankCacheSave();
+    if(excludePlanner)plannerExcludePendingBankSheetMissions(target.id);
     if(cloudUser)saveBankIndexCloud(); // 문서 자체는 지우지 않음
-    renderQuiz();renderBankEditor();toast("휴지통으로 이동됨");
+    renderWidePlannerSide();renderQuiz();renderBankEditor();
+    toast(excludePlanner?`휴지통 이동 · 회독 미션 ${pendingPlanner.length}개 제외`:"휴지통으로 이동됨");
   };
 
   const restoreTrash=document.createElement("button");restoreTrash.textContent=`휴지통 복구${app.bank.trashSheets.length?` (${app.bank.trashSheets.length})`:""}`;
@@ -6145,8 +6213,14 @@ function plannerUnitByMission(m){
 }
 
 /* 회차 생성 시 전체 미션을 기간 전체에 한 번만 고정 배정 */
-function plannerSnapshotMissions(start,end){
-  const base=plannerBaseUnits().units,dates=plannerDates(start,end);
+function plannerSnapshotMissions(start,end,scope=null){
+  let base=plannerBaseUnits().units;
+  if(scope){
+    const memorySet=new Set(scope.memorySheetIds||[]);
+    const bankSet=new Set(scope.bankSheetIds||[]);
+    base=base.filter(u=>u.kind==="memory"?memorySet.has(u.sheetId):u.kind==="bankPath"?bankSet.has(u.sheetId):true);
+  }
+  const dates=plannerDates(start,end);
   if(!dates.length)return [];
   const loads=dates.map(()=>0),counts=dates.map(()=>0);
   const p=plannerStore();
@@ -6336,15 +6410,22 @@ function plannerSaveRound(round){
     setDoc(plannerRoundDoc(cloudUser.uid,round.id),round)
   );
 }
+function plannerRoundScopeFromForm(form){
+  return {
+    memorySheetIds:[...form.querySelectorAll('input[data-planner-scope="memory"]:checked')].map(x=>x.value),
+    bankSheetIds:[...form.querySelectorAll('input[data-planner-scope="bank"]:checked')].map(x=>x.value)
+  };
+}
 function plannerAddRound(){
   const form=document.querySelector(".planner-round-form"),p=plannerStore();
   const name=form?.querySelector(".round-name")?.value.trim()||`${plannerNextRoundNumber()}회독`;
   const start=form?.querySelector(".round-start")?.value||plannerToday();
   const end=form?.querySelector(".round-end")?.value||plannerAddDays(start,13);
   if(end<start)return alert("종료일을 확인해 주세요.");
-  const missions=plannerSnapshotMissions(start,end);
-  if(!missions.length)return alert("현재 회독에 넣을 암기/문제 미션이 없습니다.");
-  const round={id:uid(),name,start,end,createdAt:Date.now(),missions};
+  const scope=plannerRoundScopeFromForm(form);
+  const missions=plannerSnapshotMissions(start,end,scope);
+  if(!missions.length)return alert("선택한 범위에 회독 미션이 없습니다.");
+  const round={id:uid(),name,start,end,createdAt:Date.now(),scope,missions};
   p.rounds.push(round);p.rounds.sort((a,b)=>a.start.localeCompare(b.start));plannerSaveLocal();renderPlanner();
   plannerSaveRound(round);
 }
@@ -6400,6 +6481,23 @@ function plannerExcludeMission(round,mission){
   plannerSetMissionState(round,mission,{excluded:true});
 }
 function plannerRestoreMission(round,mission){plannerSetMissionState(round,mission,{excluded:false})}
+function plannerPendingMissionsForBankSheet(sheetId){
+  const out=[];
+  for(const round of plannerStore().rounds){
+    for(const mission of (round.missions||[])){
+      if(mission.kind!=="bankPath"||mission.sheetId!==sheetId)continue;
+      if(plannerMissionExcluded(round,mission)||plannerMissionDone(round,mission))continue;
+      out.push([round,mission]);
+    }
+  }
+  return out;
+}
+function plannerExcludePendingBankSheetMissions(sheetId){
+  const targets=plannerPendingMissionsForBankSheet(sheetId);
+  if(!targets.length)return 0;
+  for(const [round,mission] of targets)plannerSetMissionState(round,mission,{excluded:true});
+  return targets.length;
+}
 
 /* 진도 길 완료 이벤트: 세트별 카운터를 원자적으로 +1, 모든 기기에서 실시간 공유 */
 function plannerRecordPathProgress(adv){
@@ -6654,10 +6752,55 @@ function renderPlanner(){
     const name=document.createElement("input");name.className="round-name";name.value=`${plannerNextRoundNumber()}회독`;
     const startInput=document.createElement("input");startInput.type="date";startInput.className="round-start";startInput.value=today;
     const endInput=document.createElement("input");endInput.type="date";endInput.className="round-end";endInput.value=plannerAddDays(today,13);
+
+    const scopeBox=document.createElement("details");scopeBox.className="planner-scope";
+    const scopeSummary=document.createElement("summary");scopeSummary.textContent="범위 선택 · 기본 전체";
+    const scopeTools=document.createElement("div");scopeTools.className="planner-scope-tools";
+    const allBtn=document.createElement("button");allBtn.type="button";allBtn.textContent="전체 선택";
+    const noneBtn=document.createElement("button");noneBtn.type="button";noneBtn.textContent="전체 해제";
+    const refreshScopeSummary=()=>{
+      const checks=[...scopeBox.querySelectorAll('input[data-planner-scope]')];
+      const checked=checks.filter(x=>x.checked).length;
+      scopeSummary.textContent=`범위 선택 · ${checked}/${checks.length}`;
+    };
+    allBtn.onclick=e=>{e.preventDefault();scopeBox.querySelectorAll('input[data-planner-scope]').forEach(x=>x.checked=true);refreshScopeSummary()};
+    noneBtn.onclick=e=>{e.preventDefault();scopeBox.querySelectorAll('input[data-planner-scope]').forEach(x=>x.checked=false);refreshScopeSummary()};
+    scopeTools.append(allBtn,noneBtn);scopeBox.append(scopeSummary,scopeTools);
+
+    const memoryGroup=document.createElement("div");memoryGroup.className="planner-scope-group";
+    const memoryTitle=document.createElement("strong");memoryTitle.textContent="암기판";
+    memoryGroup.append(memoryTitle);
+    for(const subject of app.study.subjects||[]){
+      for(const sheet of subject.sheets||[]){
+        const count=(sheet.rows||[]).filter(r=>r?.type!=="section"&&(r.correct||r.category||r.memo)).length;
+        if(!count)continue;
+        const label=document.createElement("label");label.className="planner-scope-item";
+        const cb=document.createElement("input");cb.type="checkbox";cb.checked=true;cb.value=sheet.id;cb.dataset.plannerScope="memory";
+        cb.onchange=refreshScopeSummary;
+        const txt=document.createElement("span");txt.innerHTML=`${escapeHtml(subject.name)} › ${escapeHtml(sheet.name)} <small>${count}항목</small>`;
+        label.append(cb,txt);memoryGroup.append(label);
+      }
+    }
+    scopeBox.append(memoryGroup);
+
+    const bankGroup=document.createElement("div");bankGroup.className="planner-scope-group";
+    const bankTitle=document.createElement("strong");bankTitle.textContent="문제은행";
+    bankGroup.append(bankTitle);
+    for(const sheet of (app.bank.sheets||[]).filter(x=>!x.legacyWrong)){
+      const label=document.createElement("label");label.className="planner-scope-item";
+      const cb=document.createElement("input");cb.type="checkbox";cb.checked=true;cb.value=sheet.id;cb.dataset.plannerScope="bank";
+      cb.onchange=refreshScopeSummary;
+      const meta=bankSheetMeta(sheet),txt=document.createElement("span");
+      txt.innerHTML=`${escapeHtml(meta.subject||"문제은행")} › ${escapeHtml(meta.area||sheet.name)} <small>${(sheet.items||[]).length}문제</small>`;
+      label.append(cb,txt);bankGroup.append(label);
+    }
+    scopeBox.append(bankGroup);
+
     const create=document.createElement("button");create.type="button";create.textContent="새 회독 만들기";create.onclick=plannerAddRound;
-    form.append(name,startInput,endInput,create);rounds.append(form);
+    form.append(name,startInput,endInput,scopeBox,create);rounds.append(form);
+    requestAnimationFrame(refreshScopeSummary);
     const note=document.createElement("div");note.className="planner-note";
-    note.textContent="회독을 만드는 순간 현재 전체 범위를 고정합니다. 이후 원본을 추가·수정해도 이 회독 일정은 바뀌지 않습니다. 미래 날짜 미션도 미리 완료할 수 있습니다.";
+    note.textContent="선택한 범위만 새 회독에 고정합니다. 이미 진행 중인 회독은 바뀌지 않습니다. 이후 원본을 추가·수정해도 만들어진 회독 일정은 유지됩니다.";
     rounds.append(note);area.append(rounds);
   }catch(err){
     console.error("planner v7 render failed",err);
@@ -6671,6 +6814,19 @@ async function plannerV7Init(user){
 }
 /* 넓은 가로 화면용 고정 보조영역: 오늘 / 노래 */
 let widePlannerSideTab="today";
+let widePlannerDate="";
+function widePlannerSelectedDate(){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(widePlannerDate))widePlannerDate=plannerToday();
+  return widePlannerDate;
+}
+function widePlannerSetDate(date){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))return;
+  widePlannerDate=String(date);
+  renderWidePlannerSide();
+}
+function widePlannerShiftDate(days){
+  widePlannerSetDate(plannerAddDays(widePlannerSelectedDate(),days));
+}
 function widePlannerSideEligible(){
   const ws=app.ui.workspace||"memory";
   /* 편집 화면만 폭을 온전히 쓰고, 나머지 공부 흐름에서는 오른쪽 영역을 계속 유지 */
@@ -6698,20 +6854,24 @@ function renderWidePlannerSongs(list,count){
     list.append(row);
   });
 }
-function renderWidePlannerToday(list,count){
+function renderWidePlannerSchedule(list,count,date){
   const p=plannerStore(),today=plannerToday(),pending=[],done=[];
   for(const round of p.rounds){
-    for(const mission of plannerMissionsForDate(round,today)){
+    for(const mission of plannerMissionsForDate(round,date)){
       (plannerMissionDone(round,mission)?done:pending).push([round,mission]);
     }
   }
+
   const overdue=[];
-  for(const round of p.rounds){
-    for(const mission of (round.missions||[])){
-      if(mission.date<today&&!plannerMissionExcluded(round,mission)&&!plannerMissionDone(round,mission))overdue.push([round,mission]);
+  /* 밀린 미션은 오늘을 볼 때만 함께 보여준다. 다른 날짜는 그 날짜의 미션만 표시 */
+  if(date===today){
+    for(const round of p.rounds){
+      for(const mission of (round.missions||[])){
+        if(mission.date<today&&!plannerMissionExcluded(round,mission)&&!plannerMissionDone(round,mission))overdue.push([round,mission]);
+      }
     }
+    overdue.sort((a,b)=>a[1].date.localeCompare(b[1].date));
   }
-  overdue.sort((a,b)=>a[1].date.localeCompare(b[1].date));
 
   const unfinished=overdue.length+pending.length;
   count.textContent=`${done.length}/${unfinished+done.length} 완료`;
@@ -6735,7 +6895,7 @@ function renderWidePlannerToday(list,count){
 
   if(!overdue.length&&!pending.length&&!done.length){
     const empty=document.createElement("div");empty.className="wide-planner-empty";
-    empty.textContent="오늘 표시할 미션이 없습니다.";
+    empty.textContent=date===today?"오늘 표시할 미션이 없습니다.":"이 날짜에 표시할 미션이 없습니다.";
     list.append(empty);
   }
 }
@@ -6743,7 +6903,9 @@ function renderWidePlannerSide(){
   const side=document.getElementById("widePlannerSide"),list=document.getElementById("widePlannerList");
   const count=document.getElementById("widePlannerCount"),toggle=document.getElementById("widePlannerToggle");
   const todayTab=document.getElementById("widePlannerTodayTab"),songTab=document.getElementById("widePlannerSongTab");
-  if(!side||!list||!count||!toggle||!todayTab||!songTab)return;
+  const dateNav=document.getElementById("widePlannerDateNav"),dateLabel=document.getElementById("widePlannerDateLabel");
+  const datePicker=document.getElementById("widePlannerDatePicker");
+  if(!side||!list||!count||!toggle||!todayTab||!songTab||!dateNav||!dateLabel||!datePicker)return;
 
   const eligible=widePlannerSideEligible();
   side.classList.toggle("eligible",eligible);
@@ -6760,10 +6922,18 @@ function renderWidePlannerSide(){
   todayTab.setAttribute("aria-selected",widePlannerSideTab==="today"?"true":"false");
   songTab.setAttribute("aria-selected",widePlannerSideTab==="songs"?"true":"false");
 
+  const selectedDate=widePlannerSelectedDate(),today=plannerToday();
+  dateNav.classList.toggle("hidden",widePlannerSideTab!=="today");
+  datePicker.value=selectedDate;
+  const d=plannerDate(selectedDate);
+  const md=`${d.getMonth()+1}/${d.getDate()}`;
+  dateLabel.textContent=selectedDate===today?`${md} 오늘`:md;
+  dateLabel.title=selectedDate;
+
   list.innerHTML="";count.textContent="";
   if(!eligible)return;
   if(widePlannerSideTab==="songs")renderWidePlannerSongs(list,count);
-  else renderWidePlannerToday(list,count);
+  else renderWidePlannerSchedule(list,count,selectedDate);
 }
 function toggleWidePlannerSide(){
   app.ui.widePlannerCollapsed=!app.ui.widePlannerCollapsed;
@@ -7100,6 +7270,13 @@ onAuthStateChanged(auth,async user=>{
 document.getElementById("widePlannerToggle")?.addEventListener("click",toggleWidePlannerSide);
 document.getElementById("widePlannerTodayTab")?.addEventListener("click",()=>setWidePlannerSideTab("today"));
 document.getElementById("widePlannerSongTab")?.addEventListener("click",()=>setWidePlannerSideTab("songs"));
+document.getElementById("widePlannerPrevDate")?.addEventListener("click",()=>widePlannerShiftDate(-1));
+document.getElementById("widePlannerNextDate")?.addEventListener("click",()=>widePlannerShiftDate(1));
+document.getElementById("widePlannerDatePicker")?.addEventListener("change",e=>widePlannerSetDate(e.target.value));
+document.getElementById("widePlannerDateLabel")?.addEventListener("click",()=>{
+  const picker=document.getElementById("widePlannerDatePicker");if(!picker)return;
+  if(typeof picker.showPicker==="function")picker.showPicker();else picker.focus();
+});
 function bindModeSwitchTap(el,handler,{release=true}={}){
   if(!el)return;
   let sx=0,sy=0,lastTouch=0;
