@@ -5474,6 +5474,8 @@ function renderAdventureHome(area){
 
 function renderQuiz(){
   renderBankToolbar();
+  renderWidePlannerSide();
+  updateTypingFloatingBadge();
   const area=document.getElementById("quizArea");area.innerHTML="";
   if(!app.bank.sheets.length){
     area.innerHTML='<div class="bank-empty">문제은행이 비어 있습니다.<br><button id="emptyBankImport">엑셀 가져오기</button></div>';
@@ -5502,6 +5504,8 @@ function renderQuiz(){
   renderQuizQuestion();
 }
 function renderQuizQuestion(){
+  renderWidePlannerSide();
+  updateTypingFloatingBadge();
   const area=document.getElementById("quizArea");area.innerHTML="";
   const item=currentQuizItem();if(!item)return;
   const card=document.createElement("div");card.className="question-card";
@@ -6600,7 +6604,9 @@ async function plannerV7Init(user){
 function widePlannerSideEligible(){
   const ws=app.ui.workspace||"memory";
   if(ws==="memory")return app.study.mode!=="edit"&&app.study.mode!=="songs"&&app.study.mode!=="planner";
-  return (app.ui.bankMode||"quiz")==="quiz"&&app.ui.quizHomeMode!=="path";
+  if((app.ui.bankMode||"quiz")!=="quiz")return false;
+  /* 진도 홈 자체에서는 숨기고, 실제 문제 풀이가 시작되면 표시 */
+  return !!quizSession||app.ui.quizHomeMode!=="path";
 }
 function renderWidePlannerSide(){
   const side=document.getElementById("widePlannerSide"),list=document.getElementById("widePlannerList");
@@ -6667,7 +6673,8 @@ function toggleWidePlannerSide(){
 /* 타자연습 중 화면을 내려도 보이는 실시간 타수 */
 function updateTypingFloatingBadge(){
   const badge=document.getElementById("typingFloatBadge");if(!badge)return;
-  if(!app.ui.typingPractice){
+  const onTypingScreen=(app.ui.workspace||"memory")==="memory"&&app.study.mode==="study"&&!!app.ui.typingPractice;
+  if(!onTypingScreen){
     badge.classList.add("hidden");return;
   }
   const c=ensureTypingChallenge();
@@ -6729,6 +6736,7 @@ function renderMode(){
     }else if(bm==="quiz")renderQuiz();else renderBankEditor();
   }
   renderWidePlannerSide();
+  updateTypingFloatingBadge();
 }
 function render(){renderSubjects();renderSheets();updateMemorySummary();renderStudy();renderEdit();renderMode()}
 
