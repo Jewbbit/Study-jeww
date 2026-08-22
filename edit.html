@@ -2241,6 +2241,33 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .planner-sync-status[data-state="saved"]{color:#4f6d58!important}
 .planner-sync-status[data-state="syncing"]{color:#6d6d73!important}
 </style>
+<style>
+#plannerView .planner-task{grid-template-columns:auto minmax(0,1fr) auto!important;align-items:center!important}
+#plannerView .planner-task-link{
+  appearance:none!important;
+  border:0!important;
+  background:transparent!important;
+  padding:0!important;
+  margin:0!important;
+  min-width:0!important;
+  width:100%!important;
+  text-align:left!important;
+  display:block!important;
+  color:inherit!important;
+  font:inherit!important;
+  cursor:pointer;
+}
+#plannerView .planner-task-link>span{display:block}
+#plannerView .planner-task-link small{display:block}
+#plannerView .planner-task-exclude{
+  white-space:nowrap!important;
+  word-break:keep-all!important;
+  writing-mode:horizontal-tb!important;
+  min-width:max-content!important;
+  width:auto!important;
+  flex:none!important;
+}
+</style>
 </head>
 <body>
 <header>
@@ -6208,11 +6235,12 @@ function plannerTaskRow(round,mission,{compact=false}={}){
   const check=document.createElement("button");check.type="button";check.className="planner-task-check";
   check.textContent=done?"✓":"○";check.onclick=()=>plannerToggleMission(round,mission);
   if(mission.kind==="bankPath")check.title="진도 길 세트를 끝내면 자동 완료";
-  const text=document.createElement("div");text.className="planner-task-text";text.textContent=mission.title;
-  const sub=document.createElement("small");sub.textContent=mission.detail;text.append(sub);
-  const open=document.createElement("button");open.type="button";open.className="planner-task-open";open.textContent="열기";open.onclick=()=>openPlannerUnit(mission);
+  const text=document.createElement("button");text.type="button";text.className="planner-task-text planner-task-link";
+  const title=document.createElement("span");title.textContent=mission.title;
+  const sub=document.createElement("small");sub.textContent=mission.detail;
+  text.append(title,sub);text.onclick=()=>openPlannerUnit(mission);
   const exclude=document.createElement("button");exclude.type="button";exclude.className="planner-task-exclude";exclude.textContent="제외";exclude.onclick=()=>plannerExcludeMission(round,mission);
-  row.append(check,text,open,exclude);return row;
+  row.append(check,text,exclude);return row;
 }
 function plannerExcludedBlock(round){
   const excluded=(round.missions||[]).filter(m=>plannerMissionExcluded(round,m));
