@@ -5826,6 +5826,7 @@ function offerBankUndo(sheet,item,index){
 }
 function renderBankEditor(){
   const tb=document.getElementById("bankEditToolbar"),area=document.getElementById("bankEditArea");if(!tb||!area)return;
+  plannerOfferExistingTrashMissionCleanup();
   tb.innerHTML="";area.innerHTML="";
   const selected=new Set();
   const row=document.createElement("div");row.className="bank-toolbar-row";
@@ -6482,10 +6483,14 @@ function plannerExcludeMission(round,mission){
 }
 function plannerRestoreMission(round,mission){plannerSetMissionState(round,mission,{excluded:false})}
 function plannerPendingMissionsForBankSheet(sheetId){
-  const out=[];
+  const out=[],prefix=`${sheetId}:`,idPrefix=`bp:${sheetId}:`;
   for(const round of plannerStore().rounds){
     for(const mission of (round.missions||[])){
-      if(mission.kind!=="bankPath"||mission.sheetId!==sheetId)continue;
+      if(mission.kind!=="bankPath")continue;
+      const sameSheet=mission.sheetId===sheetId
+        ||String(mission.pathKey||"").startsWith(prefix)
+        ||String(mission.id||"").startsWith(idPrefix);
+      if(!sameSheet)continue;
       if(plannerMissionExcluded(round,mission)||plannerMissionDone(round,mission))continue;
       out.push([round,mission]);
     }
@@ -6497,6 +6502,31 @@ function plannerExcludePendingBankSheetMissions(sheetId){
   if(!targets.length)return 0;
   for(const [round,mission] of targets)plannerSetMissionState(round,mission,{excluded:true});
   return targets.length;
+}
+let plannerTrashCleanupChecked=false;
+function plannerOfferExistingTrashMissionCleanup(){
+  if(plannerTrashCleanupChecked)return;
+  plannerTrashCleanupChecked=true;
+  const groups=[];
+  for(const sheet of app.bank.trashSheets||[]){
+    const pending=plannerPendingMissionsForBankSheet(sheet.id);
+    if(pending.length)groups.push({sheet,pending});
+  }
+  const total=groups.reduce((n,g)=>n+g.pending.length,0);
+  if(!total)return;
+  setTimeout(()=>{
+    const names=groups.slice(0,4).map(g=>`${g.sheet.name} ${g.pending.length}개`).join("\n");
+    const more=groups.length>4?`\n외 ${groups.length-4}개 시트`:"";
+    if(!confirm(
+      `휴지통에 보낸 시트의 미완료 회독 미션이 ${total}개 남아 있습니다.\n\n${names}${more}\n\n`+
+      `한꺼번에 회독에서 제외할까요?\n완료 기록과 다른 시트 미션은 그대로 유지됩니다.`
+    ))return;
+    let excluded=0;
+    for(const g of groups)excluded+=plannerExcludePendingBankSheetMissions(g.sheet.id);
+    renderWidePlannerSide();
+    if(app.study.mode==="planner")renderPlanner();
+    toast(`휴지통 시트 회독 미션 ${excluded}개 제외`);
+  },80);
 }
 
 /* 진도 길 완료 이벤트: 세트별 카운터를 원자적으로 +1, 모든 기기에서 실시간 공유 */
