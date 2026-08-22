@@ -2205,6 +2205,12 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   margin-left:auto!important;
 }
 </style>
+<style>
+.planner-sync-status{font-size:9.5px!important;color:#777980!important;white-space:nowrap}
+.planner-sync-status[data-state="live"]{color:#4d6b58!important}
+.planner-sync-status[data-state="error"]{color:#a65b55!important}
+@media(max-width:640px){.planner-sync-status{font-size:9px!important;max-width:150px;overflow:hidden;text-overflow:ellipsis}}
+</style>
 </head>
 <body>
 <header>
@@ -5712,9 +5718,26 @@ function toggleQuizInlineEdit(card,item){
   save.onclick=()=>{real.category=cat.value;real.question=q.value;real.answer=a.value;real.memo=m.value;real.canonicalId=canonicalProblemId({...real,canonicalId:null});Object.assign(item,real);touchBankSheet(sheet);buildChoices();saveQuizSessionLocal();renderQuizQuestion();toast("수정됨")};
   box.append(cat,q,a,m,save);card.append(box);q.focus();
 }
-/* 뽀개기 planner — rebuilt v5 realtime */
-const PLANNER_VERSION=5.1;
+/* 뽀개기 planner — v6 clean realtime */
+const PLANNER_VERSION=6;
 let plannerBaseCache={key:"",units:[],map:new Map()};
+let plannerRealtime={state:"off",uid:"",lastAt:0,error:""};
+
+function plannerRealtimeText(){
+  if(plannerRealtime.state==="live"){
+    const t=plannerRealtime.lastAt?new Date(plannerRealtime.lastAt).toLocaleTimeString("ko-KR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"";
+    return `실시간 연결됨${plannerRealtime.uid?` · ${plannerRealtime.uid}`:""}${t?` · ${t}`:""}`;
+  }
+  if(plannerRealtime.state==="connecting")return "실시간 연결 중…";
+  if(plannerRealtime.state==="error")return `실시간 오류${plannerRealtime.error?` · ${plannerRealtime.error}`:""}`;
+  return cloudUser?"실시간 대기":"로그인 필요";
+}
+function plannerSetRealtime(state,error=""){
+  plannerRealtime.state=state;plannerRealtime.error=error||"";
+  if(state==="live")plannerRealtime.lastAt=Date.now();
+  const el=document.querySelector(".planner-sync-status");
+  if(el){el.textContent=plannerRealtimeText();el.dataset.state=state}
+}
 
 function plannerFreshState(){
   return {version:PLANNER_VERSION,rounds:[],dailyPlans:{},checks:{},manual:{},logs:{},selectedDate:"",calendarMonth:""};
@@ -5783,11 +5806,10 @@ function plannerSaveLocal(){
   saveStudyQuickNow();saveLocal();
 }
 function plannerCheckKey(roundId,date,unitId){return `${roundId}_${String(date||"").replace(/-/g,"")}_${hashString(unitId)}`}
-function plannerRoundDoc(u,id){return doc(db,"users",u,"plannerRounds",id)}
-function plannerCheckDoc(u,roundId,date,unitId){return doc(db,"users",u,"plannerChecks",plannerCheckKey(roundId,date,unitId))}
-function plannerLegacyCheckDoc(u,roundId,unitId){return doc(db,"users",u,"plannerChecks",`${roundId}_${hashString(unitId)}`)}
-function plannerManualDoc(u,id){return doc(db,"users",u,"plannerManual",id)}
-function plannerLogDoc(u,date){return doc(db,"users",u,"plannerLogs",date)}
+function plannerRoundDoc(u,id){return doc(db,"users",u,"planner6Rounds",id)}
+function plannerCheckDoc(u,roundId,date,unitId){return doc(db,"users",u,"planner6Checks",plannerCheckKey(roundId,date,unitId))}
+function plannerManualDoc(u,id){return doc(db,"users",u,"planner6Manual",id)}
+function plannerLogDoc(u,date){return doc(db,"users",u,"planner6Logs",date)}
 function plannerPlansForRound(roundId){
   const out={};for(const [date,plan] of Object.entries(plannerStore().dailyPlans||{})){if(plan?.roundId===roundId)out[date]=plan}
   return out;
@@ -5800,8 +5822,8 @@ async function plannerSaveRoundCloud(round){
       unitIds:[...(round.unitIds||[])],lastRebalance:round.lastRebalance||"",
       plans:plannerPlansForRound(round.id),updatedAt:Date.now()
     });
-    updateSync("✓",true);
-  }catch(e){console.error(e);updateSync("!",false)}
+    plannerSetRealtime("live");updateSync("✓",true);
+  }catch(e){console.error(e);plannerSetRealtime("error",e.code||"저장 실패");updateSync("!",false)}
 }
 function plannerDateKey(d=new Date()){
   const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");
@@ -5942,11 +5964,15 @@ function plannerUnitById(id){
       detail:`${order==="random"?"랜덤길":"순서길"} · ${n}문제`};
   }catch{return null}
 }
-function plannerPathDone(unit){
+function plannerPathDone(unit,date=""){
   if(!unit||unit.kind!=="bankPath")return false;
   try{
-    const state=adventureSheetState(unit.sheetId),cfg=state.paths?.[unit.order];
-    return !!cfg?.completed?.[String(unit.setIndex)];
+    const state=adventureSheetState(unit.sheetId),cfg=state.paths?.[unit.order],rec=cfg?.completed?.[String(unit.setIndex)];
+    if(!rec)return false;
+    if(!date)return true;
+    const ts=Number(rec.completedAt)||0;
+    if(!ts)return false;
+    return plannerDateKey(new Date(ts))===date;
   }catch{return false}
 }
 function plannerMemoryDone(round,id,date){
@@ -5958,7 +5984,7 @@ function plannerMemoryDoneAnywhere(round,id){
 }
 function plannerUnitDone(round,unit,date){
   if(!unit)return false;
-  return unit.kind==="bankPath"?plannerPathDone(unit):plannerMemoryDone(round,unit.id,date);
+  return unit.kind==="bankPath"?plannerPathDone(unit,date):plannerMemoryDone(round,unit.id,date);
 }
 function plannerUnitDoneAnywhere(round,unit){
   if(!unit)return false;
@@ -5975,8 +6001,8 @@ function plannerToggleMemory(round,unit,date){
   if(cloudUser){
     const payload={roundId:round.id,unitId:unit.id,scheduleDate:date,done,updatedAt:Date.now()};
     setDoc(plannerCheckDoc(cloudUser.uid,round.id,date,unit.id),payload)
-      .then(()=>deleteDoc(plannerLegacyCheckDoc(cloudUser.uid,round.id,unit.id)).catch(()=>{}))
-      .catch(e=>{console.error(e);updateSync("!",false)});
+      .then(()=>plannerSetRealtime("live"))
+      .catch(e=>{console.error(e);plannerSetRealtime("error",e.code||"저장 실패");updateSync("!",false)});
   }
 }
 
@@ -6202,7 +6228,7 @@ function renderPlanner(){
 
     const head=document.createElement("div");head.className="planner-head";
     const title=document.createElement("strong");title.textContent="뽀개기";
-    const hint=document.createElement("span");hint.textContent="매일 할 분량을 캘린더에 자동 배정";
+    const hint=document.createElement("span");hint.className="planner-sync-status";hint.dataset.state=plannerRealtime.state;hint.textContent=plannerRealtimeText();
     const manage=document.createElement("button");manage.type="button";manage.textContent="회독 관리";
     manage.onclick=()=>document.querySelector(".planner-rounds")?.scrollIntoView({block:"start",behavior:"smooth"});
     head.append(title,hint,manage);area.append(head);
@@ -6313,6 +6339,119 @@ function renderPlanner(){
   }
 }
 
+
+async function plannerV6Init(user,legacyPlanner=null){
+  plannerRealtime.uid=user?.uid?user.uid.slice(-6):"";
+  plannerSetRealtime("connecting");
+  const roundsCol=collection(db,"users",user.uid,"planner6Rounds");
+  const checksCol=collection(db,"users",user.uid,"planner6Checks");
+  const manualCol=collection(db,"users",user.uid,"planner6Manual");
+  const logsCol=collection(db,"users",user.uid,"planner6Logs");
+
+  // 새 v6 공간이 비어 있을 때만 현재 기기의 기존 회독을 1회 이관.
+  const existing=await getDocs(roundsCol);
+  if(existing.empty){
+    let source=plannerNormalizeState(app.study.planner);
+    if(!source.rounds.length&&legacyPlanner)source=plannerNormalizeState(legacyPlanner);
+    for(const round of source.rounds){
+      const plans={};
+      for(const [date,plan] of Object.entries(source.dailyPlans||{})){
+        if(plan?.roundId===round.id)plans[date]=plan;
+      }
+      await setDoc(plannerRoundDoc(user.uid,round.id),{
+        id:round.id,name:round.name||"회독",start:round.start,end:round.end,
+        unitIds:[...(round.unitIds||[])],lastRebalance:round.lastRebalance||"",
+        plans,updatedAt:Date.now()
+      });
+      for(const [date,day] of Object.entries(source.checks?.[round.id]||{})){
+        if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
+        for(const [unitId,state] of Object.entries(day||{})){
+          if(!state?.done)continue;
+          await setDoc(plannerCheckDoc(user.uid,round.id,date,unitId),{
+            roundId:round.id,unitId,scheduleDate:date,done:true,updatedAt:Date.now()
+          });
+        }
+      }
+    }
+    for(const [date,items] of Object.entries(source.manual||{})){
+      for(const item of (items||[])){
+        if(!item?.id)continue;
+        await setDoc(plannerManualDoc(user.uid,item.id),{...item,date,updatedAt:item.updatedAt||Date.now()});
+      }
+    }
+    for(const [date,log] of Object.entries(source.logs||{})){
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(date))continue;
+      await setDoc(plannerLogDoc(user.uid,date),{
+        memory:Number(log?.memory)||0,bank:Number(log?.bank)||0,typing:Number(log?.typing)||0,updatedAt:Date.now()
+      });
+    }
+  }
+
+  plannerRoundsUnsub=onSnapshot(roundsCol,snap=>{
+    const p=plannerStore(),rounds=[],plans={};
+    snap.forEach(ds=>{
+      const d=ds.data();if(!d?.id||!d.start||!d.end)return;
+      rounds.push({
+        id:d.id,name:d.name||"회독",start:d.start,end:d.end,
+        unitIds:Array.isArray(d.unitIds)?d.unitIds:[],lastRebalance:d.lastRebalance||""
+      });
+      for(const [date,plan] of Object.entries(d.plans||{}))plans[date]=plan;
+    });
+    rounds.sort((a,b)=>a.start.localeCompare(b.start));
+    p.rounds=rounds;p.dailyPlans=plans;plannerSaveLocal();
+    plannerSetRealtime("live");
+    if(app.study.mode==="planner")renderPlanner();
+  },err=>{
+    console.error("planner6 rounds",err);
+    plannerSetRealtime("error",err.code||"회독 연결 실패");updateSync("!",false);
+  });
+
+  plannerChecksUnsub=onSnapshot(checksCol,snap=>{
+    const p=plannerStore(),checks={};
+    snap.forEach(ds=>{
+      const d=ds.data();
+      if(!d?.roundId||!d?.unitId||!/^\d{4}-\d{2}-\d{2}$/.test(String(d.scheduleDate||"")))return;
+      const date=String(d.scheduleDate);
+      if(!checks[d.roundId])checks[d.roundId]={};
+      if(!checks[d.roundId][date])checks[d.roundId][date]={};
+      checks[d.roundId][date][d.unitId]={done:!!d.done,updatedAt:Number(d.updatedAt)||0};
+    });
+    p.checks=checks;plannerSaveLocal();
+    plannerSetRealtime("live");
+    if(app.study.mode==="planner")renderPlanner();
+  },err=>{
+    console.error("planner6 checks",err);
+    plannerSetRealtime("error",err.code||"체크 연결 실패");updateSync("!",false);
+  });
+
+  plannerManualUnsub=onSnapshot(manualCol,snap=>{
+    const p=plannerStore(),manual={};
+    snap.forEach(ds=>{
+      const d=ds.data();if(!d?.id||!d?.date)return;
+      if(!manual[d.date])manual[d.date]=[];
+      manual[d.date].push(d);
+    });
+    Object.values(manual).forEach(arr=>arr.sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)));
+    p.manual=manual;plannerSaveLocal();plannerSetRealtime("live");
+    if(app.study.mode==="planner")renderPlanner();
+  },err=>{
+    console.error("planner6 manual",err);
+    plannerSetRealtime("error",err.code||"할 일 연결 실패");updateSync("!",false);
+  });
+
+  plannerLogsUnsub=onSnapshot(logsCol,snap=>{
+    const p=plannerStore(),logs={};
+    snap.forEach(ds=>{
+      const d=ds.data();
+      logs[ds.id]={memory:Number(d.memory)||0,bank:Number(d.bank)||0,typing:Number(d.typing)||0};
+    });
+    p.logs=logs;plannerSaveLocal();plannerSetRealtime("live");
+    if(app.study.mode==="planner")renderPlanner();
+  },err=>{
+    console.error("planner6 logs",err);
+    plannerSetRealtime("error",err.code||"기록 연결 실패");updateSync("!",false);
+  });
+}
 /* mode */
 function renderMode(){
   const ws=app.ui.workspace||"memory";
@@ -6541,12 +6680,12 @@ async function loadBankFromCloud(u,index){
 }
 onAuthStateChanged(auth,async user=>{
   cloudUser=user;
-  for(const key of ["studyUnsub","plannerRoundsUnsub","plannerChecksUnsub","plannerManualUnsub","plannerLogsUnsub","bankIndexUnsub","bankStatsUnsub"]){
-    const fn=({studyUnsub,plannerRoundsUnsub,plannerChecksUnsub,plannerManualUnsub,plannerLogsUnsub,bankIndexUnsub,bankStatsUnsub})[key];
+  for(const fn of [studyUnsub,plannerRoundsUnsub,plannerChecksUnsub,plannerManualUnsub,plannerLogsUnsub,bankIndexUnsub,bankStatsUnsub]){
     if(fn)try{fn()}catch{}
   }
   studyUnsub=plannerRoundsUnsub=plannerChecksUnsub=plannerManualUnsub=plannerLogsUnsub=bankIndexUnsub=bankStatsUnsub=null;
-  renderSubjects();if(!user)return;
+  plannerRealtime={state:user?"connecting":"off",uid:user?.uid?user.uid.slice(-6):"",lastAt:0,error:""};
+  renderSubjects();if(!user){if(app.study.mode==="planner")renderPlanner();return}
   updateSync("…",true);
   try{
     const sref=studyDoc(user.uid),ss=await getDoc(sref);
@@ -6558,100 +6697,28 @@ onAuthStateChanged(auth,async user=>{
       }else scheduleStudyCloud();
     }else scheduleStudyCloud();
 
-    // v5 첫 진입: v4 로컬/기존 클라우드 planner를 항목별 실시간 컬렉션으로 1회 이관.
-    const roundsCol=collection(db,"users",user.uid,"plannerRounds");
-    const existingRounds=await getDocs(roundsCol);
-    if(existingRounds.empty){
-      let source=plannerNormalizeState(app.study.planner);
-      if(!source.rounds.length&&legacyPlanner)source=plannerNormalizeState(legacyPlanner);
-      for(const round of source.rounds){
-        const plans={};for(const [date,plan] of Object.entries(source.dailyPlans||{})){if(plan?.roundId===round.id)plans[date]=plan}
-        await setDoc(plannerRoundDoc(user.uid,round.id),{
-          id:round.id,name:round.name,start:round.start,end:round.end,
-          unitIds:[...(round.unitIds||[])],lastRebalance:round.lastRebalance||"",plans,updatedAt:Date.now()
-        });
-        for(const [date,day] of Object.entries(source.checks?.[round.id]||{})){
-          for(const [unitId,state] of Object.entries(day||{})){
-            if(state?.done)await setDoc(plannerCheckDoc(user.uid,round.id,date,unitId),{
-              roundId:round.id,unitId,scheduleDate:date,done:true,updatedAt:Date.now()
-            });
-          }
-        }
-      }
-      for(const [date,items] of Object.entries(source.manual||{})){
-        for(const item of (items||[])){
-          const x={...item,date,updatedAt:item.updatedAt||Date.now()};
-          await setDoc(plannerManualDoc(user.uid,x.id),x);
-        }
-      }
-    }
-
-    plannerRoundsUnsub=onSnapshot(roundsCol,snap=>{
-      const p=plannerStore(),rounds=[],plans={};
-      snap.forEach(ds=>{
-        const d=ds.data();if(!d?.id||!d.start||!d.end)return;
-        rounds.push({id:d.id,name:d.name||"회독",start:d.start,end:d.end,unitIds:Array.isArray(d.unitIds)?d.unitIds:[],lastRebalance:d.lastRebalance||""});
-        for(const [date,plan] of Object.entries(d.plans||{}))plans[date]=plan;
-      });
-      rounds.sort((a,b)=>a.start.localeCompare(b.start));
-      p.rounds=rounds;p.dailyPlans=plans;plannerSaveLocal();
-      if(app.study.mode==="planner")renderPlanner();
-    },err=>{
-      console.error("planner rounds realtime",err);
-      updateSync("!",false);toast("뽀개기 실시간 연결 오류");
-    });
-
-    plannerChecksUnsub=onSnapshot(collection(db,"users",user.uid,"plannerChecks"),snap=>{
-      const p=plannerStore(),checks={},seen={};
-      snap.forEach(ds=>{
-        const d=ds.data();if(!d?.roundId||!d?.unitId)return;
-        const date=String(d.scheduleDate||d.date||"");
-        if(!/^\d{4}-\d{2}-\d{2}$/.test(date))return;
-        const key=`${d.roundId}::${date}::${d.unitId}`,stamp=Number(d.updatedAt)||0;
-        if((seen[key]??-1)>stamp)return;
-        seen[key]=stamp;
-        if(!checks[d.roundId])checks[d.roundId]={};
-        if(!checks[d.roundId][date])checks[d.roundId][date]={};
-        checks[d.roundId][date][d.unitId]={done:!!d.done,updatedAt:stamp};
-      });
-      p.checks=checks;plannerSaveLocal();
-      if(app.study.mode==="planner")renderPlanner();
-    },err=>{
-      console.error("planner checks realtime",err);
-      updateSync("!",false);toast("뽀개기 실시간 연결 오류");
-    });
-
-    plannerManualUnsub=onSnapshot(collection(db,"users",user.uid,"plannerManual"),snap=>{
-      const p=plannerStore(),manual={};
-      snap.forEach(ds=>{
-        const d=ds.data();if(!d?.id||!d?.date)return;
-        if(!manual[d.date])manual[d.date]=[];
-        manual[d.date].push(d);
-      });
-      Object.values(manual).forEach(arr=>arr.sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0)));
-      p.manual=manual;plannerSaveLocal();
-      if(app.study.mode==="planner")renderPlanner();
-    });
-
-    plannerLogsUnsub=onSnapshot(collection(db,"users",user.uid,"plannerLogs"),snap=>{
-      const p=plannerStore(),logs={};
-      snap.forEach(ds=>{const d=ds.data();logs[ds.id]={memory:Number(d.memory)||0,bank:Number(d.bank)||0,typing:Number(d.typing)||0}});
-      p.logs=logs;plannerSaveLocal();
-      if(app.study.mode==="planner")renderPlanner();
-    });
+    await plannerV6Init(user,legacyPlanner);
 
     studyUnsub=onSnapshot(sref,snap=>{
-      if(!snap.exists())return;const d=snap.data();
+      if(!snap.exists())return;
+      const d=snap.data();
       if(d.study&&(d.updatedAt||0)>(app.study.updatedAt||0)){
         applyingRemote=true;mergeCloudStudy(d.study);applyingRemote=false;render();
       }
-    });
+    },err=>console.error("study realtime",err));
 
     await bankCacheReadyPromise;
     const bref=bankIndexDoc(user.uid),bi=await getDoc(bref);
-    if(bi.exists()){const d=bi.data();if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d)}
-    else if(app.bank.sheets.length)await syncImportedBankSheets(app.bank.sheets);
-    bankIndexUnsub=onSnapshot(bref,async snap=>{if(!snap.exists())return;const d=snap.data();if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d)});
+    if(bi.exists()){
+      const d=bi.data();
+      if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d);
+    }else if(app.bank.sheets.length)await syncImportedBankSheets(app.bank.sheets);
+
+    bankIndexUnsub=onSnapshot(bref,async snap=>{
+      if(!snap.exists())return;
+      const d=snap.data();
+      if((d.updatedAt||0)>(app.bank.contentUpdatedAt||0))await loadBankFromCloud(user.uid,d);
+    },err=>console.error("bank index realtime",err));
 
     const statRef=bankStatsDoc(user.uid),stat=await getDoc(statRef);
     if(stat.exists()){
@@ -6659,11 +6726,13 @@ onAuthStateChanged(auth,async user=>{
       if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){
         app.bank.stats=d.stats||{};
         if(d.adventure&&typeof d.adventure==="object")app.ui.quizAdventure=d.adventure;
-        app.bank.statsUpdatedAt=d.updatedAt||0;saveLocal();renderQuiz();if(app.study.mode==="planner")renderPlanner();
+        app.bank.statsUpdatedAt=d.updatedAt||0;saveLocal();renderQuiz();
+        if(app.study.mode==="planner")renderPlanner();
       }
     }
     bankStatsUnsub=onSnapshot(statRef,snap=>{
-      if(!snap.exists())return;const d=snap.data();
+      if(!snap.exists())return;
+      const d=snap.data();
       if((d.updatedAt||0)<(app.bank.statsUpdatedAt||0))return;
       applyingRemote=true;
       app.bank.stats=d.stats||{};
@@ -6671,9 +6740,15 @@ onAuthStateChanged(auth,async user=>{
       app.bank.statsUpdatedAt=d.updatedAt||Date.now();saveLocal();
       applyingRemote=false;
       renderQuiz();if(app.study.mode==="planner")renderPlanner();
-    });
+    },err=>console.error("bank stats realtime",err));
+
     updateSync("✓",true);
-  }catch(e){console.error(e);updateSync(e.code==="permission-denied"?"규칙":"!",false)}
+  }catch(e){
+    console.error(e);
+    plannerSetRealtime("error",e.code||e.message||"연결 실패");
+    updateSync(e.code==="permission-denied"?"규칙":"!",false);
+    if(app.study.mode==="planner")renderPlanner();
+  }
 });
 
 /* controls */
