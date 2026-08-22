@@ -6397,6 +6397,7 @@ async function plannerSyncNow({quiet=false}={}){
     plannerSetRealtime("saved");
     if(app.study.mode==="planner")renderPlanner();
     renderWidePlannerSide();
+    if(!document.getElementById("bankEditView")?.classList.contains("hidden"))plannerOfferExistingTrashMissionCleanup();
     if(!quiet)toast("동기화 완료");
     return true;
   }catch(e){
@@ -6503,10 +6504,8 @@ function plannerExcludePendingBankSheetMissions(sheetId){
   for(const [round,mission] of targets)plannerSetMissionState(round,mission,{excluded:true});
   return targets.length;
 }
-let plannerTrashCleanupChecked=false;
+let plannerTrashCleanupPromptSig="";
 function plannerOfferExistingTrashMissionCleanup(){
-  if(plannerTrashCleanupChecked)return;
-  plannerTrashCleanupChecked=true;
   const groups=[];
   for(const sheet of app.bank.trashSheets||[]){
     const pending=plannerPendingMissionsForBankSheet(sheet.id);
@@ -6514,6 +6513,11 @@ function plannerOfferExistingTrashMissionCleanup(){
   }
   const total=groups.reduce((n,g)=>n+g.pending.length,0);
   if(!total)return;
+
+  const sig=groups.map(g=>`${g.sheet.id}:${g.pending.length}`).sort().join("|");
+  if(plannerTrashCleanupPromptSig===sig)return;
+  plannerTrashCleanupPromptSig=sig;
+
   setTimeout(()=>{
     const names=groups.slice(0,4).map(g=>`${g.sheet.name} ${g.pending.length}개`).join("\n");
     const more=groups.length>4?`\n외 ${groups.length-4}개 시트`:"";
@@ -6523,6 +6527,7 @@ function plannerOfferExistingTrashMissionCleanup(){
     ))return;
     let excluded=0;
     for(const g of groups)excluded+=plannerExcludePendingBankSheetMissions(g.sheet.id);
+    plannerTrashCleanupPromptSig="";
     renderWidePlannerSide();
     if(app.study.mode==="planner")renderPlanner();
     toast(`휴지통 시트 회독 미션 ${excluded}개 제외`);
