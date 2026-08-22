@@ -2334,6 +2334,72 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   body.wide-planner-eligible.wide-planner-collapsed .typing-float-badge{right:52px}
 }
 </style>
+<style>
+/* 고정 보조영역 정리 */
+@media (min-width:1000px) and (orientation:landscape){
+  .wide-planner-side.eligible{
+    top:82px!important;right:10px!important;bottom:10px!important;
+    padding:0 10px 10px 13px!important;
+    border-left:1px solid #e7e7ea!important;
+    background:#fff!important;
+  }
+  .wide-planner-head{
+    position:sticky;top:0;z-index:3;
+    display:flex!important;align-items:center!important;gap:8px!important;
+    min-height:42px;padding:5px 0 6px!important;
+    background:#fff;border-bottom:1px solid #e9e9ec!important;
+  }
+  .wide-planner-tabs{
+    display:flex;align-items:center;gap:2px;flex:1;min-width:0;
+  }
+  .wide-planner-tabs button{
+    border:0!important;background:transparent!important;
+    padding:7px 9px!important;border-radius:5px!important;
+    font-size:11px!important;color:#85868b!important;font-weight:600!important;
+  }
+  .wide-planner-tabs button.active{
+    background:#f1f1f3!important;color:#2f3034!important;font-weight:750!important;
+  }
+  .wide-planner-head>span{
+    font-size:9.5px!important;color:#8c8d92!important;white-space:nowrap;
+  }
+  .wide-planner-list{padding:4px 1px 12px!important}
+  .wide-planner-list .planner-task{
+    grid-template-columns:27px minmax(0,1fr) auto!important;
+    gap:6px!important;padding:7px 1px!important;border-top:1px solid #f0f0f2!important;
+  }
+  .wide-planner-list .planner-task:first-child{border-top:0!important}
+  .wide-planner-list .planner-task-text{font-size:11.5px!important;line-height:1.4!important}
+  .wide-planner-list .planner-task-text small{font-size:9px!important;margin-top:2px!important}
+  .wide-planner-list .planner-task-exclude{
+    opacity:.62;font-size:9px!important;padding:4px 3px!important;
+  }
+  .wide-planner-list .planner-task-check{font-size:16px!important}
+  .wide-planner-label{
+    margin-top:3px;padding:7px 1px 4px!important;
+    font-size:9.5px!important;letter-spacing:.01em;color:#8b8c91!important;
+  }
+  .wide-planner-divider{margin:9px 0 4px!important;background:#dedee2!important}
+  .wide-song-row{
+    display:block;width:100%;border:0!important;border-bottom:1px solid #efeff1!important;
+    background:transparent!important;text-align:left!important;padding:9px 2px!important;
+  }
+  .wide-song-row strong{
+    display:block;font-size:11.5px;font-weight:700;color:#38393d;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .wide-song-row span{
+    display:block;margin-top:3px;font-size:9.5px;color:#909196;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .wide-song-row:active{background:#f6f6f7!important}
+  .wide-planner-toggle{
+    top:7px!important;width:25px!important;height:32px!important;
+    font-size:16px!important;color:#8a8b90!important;
+    border-color:#e2e2e5!important;
+  }
+}
+</style>
 </head>
 <body>
 <header>
@@ -2439,11 +2505,14 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   </section>
 </main>
 
-<aside id="widePlannerSide" class="wide-planner-side" aria-label="오늘의 뽀개기">
-  <button id="widePlannerToggle" class="wide-planner-toggle" type="button" aria-label="뽀개기 패널 접기">‹</button>
+<aside id="widePlannerSide" class="wide-planner-side" aria-label="공부 보조 패널">
+  <button id="widePlannerToggle" class="wide-planner-toggle" type="button" aria-label="보조 패널 접기">‹</button>
   <div class="wide-planner-inner">
     <div class="wide-planner-head">
-      <strong>오늘의 뽀개기</strong>
+      <div class="wide-planner-tabs" role="tablist" aria-label="보조 패널">
+        <button id="widePlannerTodayTab" type="button" role="tab">오늘</button>
+        <button id="widePlannerSongTab" type="button" role="tab">노래</button>
+      </div>
       <span id="widePlannerCount"></span>
     </div>
     <div id="widePlannerList" class="wide-planner-list"></div>
@@ -6600,38 +6669,42 @@ async function plannerV7Init(user){
   plannerRealtime={state:"syncing",uid:user.uid.slice(-6),lastAt:0,error:"",channels:{}};
   await plannerSyncNow({quiet:true});
 }
-/* 넓은 가로 화면용 오늘 뽀개기 사이드패널 */
+/* 넓은 가로 화면용 고정 보조영역: 오늘 / 노래 */
+let widePlannerSideTab="today";
 function widePlannerSideEligible(){
   const ws=app.ui.workspace||"memory";
-  if(ws==="memory")return app.study.mode!=="edit"&&app.study.mode!=="songs"&&app.study.mode!=="planner";
-  if((app.ui.bankMode||"quiz")!=="quiz")return false;
-  /* 진도 홈 자체에서는 숨기고, 실제 문제 풀이가 시작되면 표시 */
-  return !!quizSession||app.ui.quizHomeMode!=="path";
+  /* 편집 화면만 폭을 온전히 쓰고, 나머지 공부 흐름에서는 오른쪽 영역을 계속 유지 */
+  if(ws==="memory")return app.study.mode!=="edit";
+  return (app.ui.bankMode||"quiz")!=="edit";
 }
-function renderWidePlannerSide(){
-  const side=document.getElementById("widePlannerSide"),list=document.getElementById("widePlannerList");
-  const count=document.getElementById("widePlannerCount"),toggle=document.getElementById("widePlannerToggle");
-  if(!side||!list||!count||!toggle)return;
-  const eligible=widePlannerSideEligible();
-  side.classList.toggle("eligible",eligible);
-  document.body.classList.toggle("wide-planner-eligible",eligible);
-
-  const collapsed=!!app.ui.widePlannerCollapsed;
-  side.classList.toggle("collapsed",collapsed);
-  document.body.classList.toggle("wide-planner-collapsed",eligible&&collapsed);
-  toggle.textContent=collapsed?"›":"‹";
-  toggle.setAttribute("aria-label",collapsed?"뽀개기 패널 펼치기":"뽀개기 패널 접기");
-
-  list.innerHTML="";
-  if(!eligible)return;
-
+function renderWidePlannerSongs(list,count){
+  const songs=[...songStore()].sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko"));
+  count.textContent=songs.length?`${songs.length}곡`:"";
+  if(!songs.length){
+    const empty=document.createElement("div");empty.className="wide-planner-empty";
+    empty.textContent="노래지도에 등록된 노래가 없습니다.";
+    list.append(empty);return;
+  }
+  songs.forEach(song=>{
+    const row=document.createElement("button");row.type="button";row.className="wide-song-row";
+    const name=document.createElement("strong");name.textContent=`♪ ${song.name||"이름 없음"}`;
+    const meta=document.createElement("span");
+    const valid=(song.links||[]).filter(link=>!songLocation(link).missing);
+    if(valid.length){
+      meta.textContent=songLocationLabel(valid[0],{short:true})+(valid.length>1?` · +${valid.length-1}`:"");
+    }else meta.textContent="연결 위치 없음";
+    row.append(name,meta);
+    row.onclick=()=>openSongDestination(song);
+    list.append(row);
+  });
+}
+function renderWidePlannerToday(list,count){
   const p=plannerStore(),today=plannerToday(),pending=[],done=[];
   for(const round of p.rounds){
     for(const mission of plannerMissionsForDate(round,today)){
       (plannerMissionDone(round,mission)?done:pending).push([round,mission]);
     }
   }
-  /* 오늘 이전에 남은 건 오늘 할 일 위쪽에 함께 보여준다. */
   const overdue=[];
   for(const round of p.rounds){
     for(const mission of (round.missions||[])){
@@ -6661,13 +6734,44 @@ function renderWidePlannerSide(){
   done.forEach(([r,m])=>list.append(plannerTaskRow(r,m,{compact:true})));
 
   if(!overdue.length&&!pending.length&&!done.length){
-    const empty=document.createElement("div");empty.className="wide-planner-empty";empty.textContent="오늘 표시할 미션이 없습니다.";
+    const empty=document.createElement("div");empty.className="wide-planner-empty";
+    empty.textContent="오늘 표시할 미션이 없습니다.";
     list.append(empty);
   }
+}
+function renderWidePlannerSide(){
+  const side=document.getElementById("widePlannerSide"),list=document.getElementById("widePlannerList");
+  const count=document.getElementById("widePlannerCount"),toggle=document.getElementById("widePlannerToggle");
+  const todayTab=document.getElementById("widePlannerTodayTab"),songTab=document.getElementById("widePlannerSongTab");
+  if(!side||!list||!count||!toggle||!todayTab||!songTab)return;
+
+  const eligible=widePlannerSideEligible();
+  side.classList.toggle("eligible",eligible);
+  document.body.classList.toggle("wide-planner-eligible",eligible);
+
+  const collapsed=!!app.ui.widePlannerCollapsed;
+  side.classList.toggle("collapsed",collapsed);
+  document.body.classList.toggle("wide-planner-collapsed",eligible&&collapsed);
+  toggle.textContent=collapsed?"›":"‹";
+  toggle.setAttribute("aria-label",collapsed?"보조 패널 펼치기":"보조 패널 접기");
+
+  todayTab.classList.toggle("active",widePlannerSideTab==="today");
+  songTab.classList.toggle("active",widePlannerSideTab==="songs");
+  todayTab.setAttribute("aria-selected",widePlannerSideTab==="today"?"true":"false");
+  songTab.setAttribute("aria-selected",widePlannerSideTab==="songs"?"true":"false");
+
+  list.innerHTML="";count.textContent="";
+  if(!eligible)return;
+  if(widePlannerSideTab==="songs")renderWidePlannerSongs(list,count);
+  else renderWidePlannerToday(list,count);
 }
 function toggleWidePlannerSide(){
   app.ui.widePlannerCollapsed=!app.ui.widePlannerCollapsed;
   saveLocal();renderWidePlannerSide();
+}
+function setWidePlannerSideTab(tab){
+  widePlannerSideTab=tab==="songs"?"songs":"today";
+  renderWidePlannerSide();
 }
 
 /* 타자연습 중 화면을 내려도 보이는 실시간 타수 */
@@ -6994,6 +7098,8 @@ onAuthStateChanged(auth,async user=>{
 
 /* controls */
 document.getElementById("widePlannerToggle")?.addEventListener("click",toggleWidePlannerSide);
+document.getElementById("widePlannerTodayTab")?.addEventListener("click",()=>setWidePlannerSideTab("today"));
+document.getElementById("widePlannerSongTab")?.addEventListener("click",()=>setWidePlannerSideTab("songs"));
 function bindModeSwitchTap(el,handler,{release=true}={}){
   if(!el)return;
   let sx=0,sy=0,lastTouch=0;
