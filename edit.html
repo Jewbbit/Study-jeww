@@ -2268,6 +2268,13 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   flex:none!important;
 }
 </style>
+<style>
+#plannerView .planner-completed-divider{
+  height:1px;
+  background:var(--line);
+  margin:8px 0 6px;
+}
+</style>
 </head>
 <body>
 <header>
@@ -5656,6 +5663,32 @@ function renderBankEditor(){
     sh.name=uniqueBankSheetName(name);touchBankSheets([sh]);renderQuiz();renderBankEditor();
   };
 
+  const clearSameMemo=document.createElement("button");clearSameMemo.textContent="정답과 같은 메모 비우기";
+  clearSameMemo.onclick=()=>{
+    const sh=currentBankEditSheet();if(!sh)return;
+    const targets=(sh.items||[]).filter(item=>{
+      const memo=String(item.memo||"").trim(),answer=String(item.answer||"").trim();
+      return memo&&answer&&memo===answer;
+    });
+    if(!targets.length)return toast("정답과 같은 메모가 없습니다");
+    if(!confirm(`'${sh.name}'에서 정답과 똑같은 메모 ${targets.length}개만 비울까요?\n\n문제·정답·진도·풀이 기록은 그대로 유지됩니다.`))return;
+    targets.forEach(item=>{item.memo=""});
+    touchBankSheet(sh);renderQuiz();renderBankEditor();
+    toast(`메모 ${targets.length}개 비움`);
+  };
+
+  const clearAllMemo=document.createElement("button");clearAllMemo.textContent="메모 전체 비우기";
+  clearAllMemo.onclick=()=>{
+    const sh=currentBankEditSheet();if(!sh)return;
+    const targets=(sh.items||[]).filter(item=>String(item.memo||"").trim());
+    if(!targets.length)return toast("이 시트에는 메모가 없습니다");
+    if(!confirm(`'${sh.name}'의 메모 ${targets.length}개를 모두 비울까요?\n\n정상적으로 적어둔 메모도 전부 삭제됩니다. 문제·정답·진도·풀이 기록은 그대로 유지됩니다.`))return;
+    if(!confirm("메모만 전부 비웁니다. 계속할까요?"))return;
+    targets.forEach(item=>{item.memo=""});
+    touchBankSheet(sh);renderQuiz();renderBankEditor();
+    toast(`메모 ${targets.length}개 전체 비움`);
+  };
+
   const moveUp=document.createElement("button");moveUp.textContent="시트 위로";
   moveUp.onclick=()=>{const sh=currentBankEditSheet();if(!sh)return;const i=app.bank.sheets.indexOf(sh);if(i>0){reorderArray(app.bank.sheets,i,i-1);app.bank.contentUpdatedAt=Date.now();saveLocal();scheduleBankCacheSave();if(cloudUser)saveBankIndexCloud();renderBankEditor()}};
   const moveDown=document.createElement("button");moveDown.textContent="시트 아래로";
@@ -5729,7 +5762,7 @@ function renderBankEditor(){
     }
   };
 
-  menu.append(importBtn,newSheet,rename,moveUp,moveDown,merge,trashCurrent,restoreTrash,resetAll);
+  menu.append(importBtn,newSheet,rename,clearSameMemo,clearAllMemo,moveUp,moveDown,merge,trashCurrent,restoreTrash,resetAll);
   manageBtn.onclick=e=>{e.stopPropagation();toggleFloatingMenu(manageBtn,menu)};
   menu.onclick=e=>e.stopPropagation();manageWrap.append(manageBtn,menu);
   row.append(sel,add,bulk,manageWrap);
@@ -5978,8 +6011,15 @@ function plannerNextRoundNumber(){
 }
 function plannerRoundById(id){return plannerStore().rounds.find(r=>r.id===id)||null}
 function plannerRoundsForDate(date){return plannerStore().rounds.filter(r=>r.start<=date&&date<=r.end)}
+function plannerMissionDisplayDate(round,mission){
+  if(plannerMissionDone(round,mission)){
+    const completed=plannerMissionState(round,mission).completedDate;
+    if(/^\d{4}-\d{2}-\d{2}$/.test(String(completed||"")))return completed;
+  }
+  return mission.date;
+}
 function plannerMissionsForDate(round,date,{includeExcluded=false}={}){
-  return (round?.missions||[]).filter(m=>m.date===date&&(includeExcluded||!plannerMissionExcluded(round,m)));
+  return (round?.missions||[]).filter(m=>plannerMissionDisplayDate(round,m)===date&&(includeExcluded||!plannerMissionExcluded(round,m)));
 }
 function plannerMissionStateKey(roundId,missionId){return `${roundId}::${missionId}`}
 function plannerMissionState(round,mission){return plannerStore().missionState[plannerMissionStateKey(round.id,mission.id)]||{}}
@@ -6027,6 +6067,20 @@ function plannerSignalError(channel,err){
   updateSync("!",false);
 }
 
+function plannerBackfillCompletedDates(date=plannerToday()){
+  if(!cloudUser)return 0;
+  const p=plannerStore(),todo=[];
+  for(const round of p.rounds){
+    for(const mission of (round.missions||[])){
+      if(plannerMissionExcluded(round,mission)||!plannerMissionDone(round,mission))continue;
+      if(plannerMissionState(round,mission).completedDate)continue;
+      todo.push([round,mission]);
+    }
+  }
+  todo.forEach(([round,mission])=>plannerSetMissionState(round,mission,{completedDate:date}));
+  return todo.length;
+}
+
 async function plannerSyncNow({quiet=false}={}){
   if(!cloudUser){if(!quiet)toast("로그인이 필요합니다");return false}
   plannerSetRealtime("syncing");
@@ -6062,7 +6116,9 @@ async function plannerSyncNow({quiet=false}={}){
       const d=ds.data();
       if(!d?.roundId||!d?.missionId)return;
       states[plannerMissionStateKey(d.roundId,d.missionId)]={
-        done:!!d.done,excluded:!!d.excluded,updatedAt:Number(d.updatedAt)||0
+        done:!!d.done,excluded:!!d.excluded,
+        completedDate:/^\d{4}-\d{2}-\d{2}$/.test(String(d.completedDate||""))?d.completedDate:"",
+        updatedAt:Number(d.updatedAt)||0
       };
     });
     for(const [key,value] of Object.entries(dirtyLocal)){
@@ -6093,6 +6149,9 @@ async function plannerSyncNow({quiet=false}={}){
       paths[d.pathKey]={count:Number(d.count)||0,lastAt:Number(d.lastAt)||0};
     });
     p.pathProgress=paths;
+
+    /* 기존 완료분은 이번 전환 시점의 실제 완료일(오늘)로 한 번만 보정 */
+    plannerBackfillCompletedDates(plannerToday());
 
     plannerRealtime.lastAt=Date.now();
     plannerSaveLocal();
@@ -6144,6 +6203,7 @@ function plannerSetMissionState(round,mission,patch){
   const next={
     done:patch.done!==undefined?!!patch.done:!!prev.done,
     excluded:patch.excluded!==undefined?!!patch.excluded:!!prev.excluded,
+    completedDate:patch.completedDate!==undefined?String(patch.completedDate||""):String(prev.completedDate||""),
     updatedAt:Date.now(),
     dirty:true
   };
@@ -6152,7 +6212,9 @@ function plannerSetMissionState(round,mission,patch){
   if(app.study.mode==="planner")renderPlanner();
   const write=setDoc(plannerStateDoc(cloudUser.uid,round.id,mission.id),{
     roundId:round.id,missionId:mission.id,
-    done:next.done,excluded:next.excluded,updatedAt:next.updatedAt
+    done:next.done,excluded:next.excluded,
+    completedDate:next.completedDate,
+    updatedAt:next.updatedAt
   },{merge:true});
   plannerQueueWrite(write);
   write.then(()=>{
@@ -6164,7 +6226,8 @@ function plannerToggleMission(round,mission){
   if(mission.kind==="bankPath"){
     return toast(plannerMissionDone(round,mission)?"진도 길에서 완료된 세트입니다":"진도 길 세트를 끝내면 자동 완료됩니다");
   }
-  plannerSetMissionState(round,mission,{done:!plannerMissionDone(round,mission)});
+  const willDone=!plannerMissionDone(round,mission);
+  plannerSetMissionState(round,mission,{done:willDone,completedDate:willDone?plannerToday():""});
 }
 function plannerExcludeMission(round,mission){
   if(!confirm(`이번 회독에서 이 미션을 제외할까요?\n\n${mission.title}\n\n원본 암기판·문제은행은 삭제되지 않고, 이 회독의 계획에서만 빠집니다.`))return;
@@ -6179,6 +6242,15 @@ function plannerRecordPathProgress(adv){
   const p=plannerStore(),prev=Number(p.pathProgress[pathKey]?.count)||0,now=Date.now();
   p.pathProgress[pathKey]={count:prev+1,lastAt:now};
   plannerSaveLocal();
+  const completedDate=plannerToday();
+  for(const round of p.rounds){
+    for(const mission of (round.missions||[])){
+      if(mission.kind!=="bankPath"||mission.pathKey!==pathKey||plannerMissionExcluded(round,mission))continue;
+      if(plannerMissionDone(round,mission)&&!plannerMissionState(round,mission).completedDate){
+        plannerSetMissionState(round,mission,{completedDate});
+      }
+    }
+  }
   if(app.study.mode==="planner")renderPlanner();
   if(!cloudUser)return;
   plannerQueueWrite(setDoc(plannerPathDoc(cloudUser.uid,pathKey),{
@@ -6200,7 +6272,7 @@ function plannerMarkUnitCompleteById(unitId){
   const p=plannerStore();
   for(const r of p.rounds){
     const m=(r.missions||[]).find(x=>x.id===unitId&&!plannerMissionExcluded(r,x));
-    if(m&&m.kind==="memory"){plannerSetMissionState(r,m,{done:true});return}
+    if(m&&m.kind==="memory"){plannerSetMissionState(r,m,{done:true,completedDate:plannerToday()});return}
   }
 }
 
@@ -6341,16 +6413,23 @@ function renderPlanner(){
     quick.append(tomorrow,add);dh.append(dt,quick);detail.append(dh);
 
     let selectedCount=0,selectedDone=0;
+    const pendingRows=[],doneRows=[];
     for(const r of p.rounds){
       const missions=plannerMissionsForDate(r,selected);
       if(!missions.length)continue;
       selectedCount+=missions.length;selectedDone+=missions.filter(m=>plannerMissionDone(r,m)).length;
-      const info=document.createElement("div");info.className="planner-note";info.textContent=`${r.name} · ${missions.filter(m=>plannerMissionDone(r,m)).length}/${missions.length}`;
-      detail.append(info);
-      missions.forEach(m=>detail.append(plannerTaskRow(r,m,{compact:true})));
+      missions.forEach(m=>{
+        const pair=[r,m];
+        if(plannerMissionDone(r,m))doneRows.push(pair);else pendingRows.push(pair);
+      });
     }
+    pendingRows.forEach(([r,m])=>detail.append(plannerTaskRow(r,m,{compact:true})));
+    if(pendingRows.length&&doneRows.length){
+      const line=document.createElement("div");line.className="planner-completed-divider";detail.append(line);
+    }
+    doneRows.forEach(([r,m])=>detail.append(plannerTaskRow(r,m,{compact:true})));
     if(!selectedCount){
-      const empty=document.createElement("div");empty.className="planner-note";empty.textContent="이 날짜에 배정된 미션이 없습니다.";detail.append(empty);
+      const empty=document.createElement("div");empty.className="planner-note";empty.textContent="이 날짜에 표시할 미션이 없습니다.";detail.append(empty);
     }else{
       const info=document.createElement("div");info.className="planner-v7-day-progress";info.textContent=`이날 전체 ${selectedDone}/${selectedCount} 완료`;detail.prepend(info);
     }
@@ -6364,7 +6443,7 @@ function renderPlanner(){
     });
     area.append(detail);
 
-    /* 밀린 미션: 원래 날짜는 절대 바꾸지 않고 표시만 */
+    /* 밀린 미션은 미완료만 원래 예정일 기준으로 표시 */
     const overdue=[];
     for(const r of p.rounds){
       for(const m of (r.missions||[])){
