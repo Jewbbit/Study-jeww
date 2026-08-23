@@ -2449,6 +2449,29 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   }
 }
 </style>
+<style>
+/* iPad 보조패널 미션 탭 오작동 방지 */
+.wide-planner-list .planner-task{
+  position:relative;
+  isolation:isolate;
+}
+.wide-planner-list .planner-task-check,
+.wide-planner-list .planner-task-link,
+.wide-planner-list .planner-task-exclude{
+  position:relative;
+  z-index:2;
+  touch-action:manipulation!important;
+  -webkit-tap-highlight-color:transparent!important;
+}
+.wide-planner-list .planner-task-link>span,
+.wide-planner-list .planner-task-link>small{
+  pointer-events:none!important;
+}
+.wide-planner-list .planner-task-check{
+  min-width:30px!important;
+  min-height:32px!important;
+}
+</style>
 </head>
 <body>
 <header>
@@ -6457,8 +6480,10 @@ function plannerSetMissionState(round,mission,patch){
   };
   p.missionState[key]=next;
   plannerSaveLocal();
-  if(app.study.mode==="planner")renderPlanner();
-  renderWidePlannerSide();
+  requestAnimationFrame(()=>{
+    if(app.study.mode==="planner")renderPlanner();
+    renderWidePlannerSide();
+  });
   const write=setDoc(plannerStateDoc(cloudUser.uid,round.id,mission.id),{
     roundId:round.id,missionId:mission.id,
     done:next.done,excluded:next.excluded,
@@ -6622,14 +6647,23 @@ function openPlannerUnit(unit){
 function plannerTaskRow(round,mission,{compact=false}={}){
   const done=plannerMissionDone(round,mission),row=document.createElement("div");
   row.className="planner-task"+(done?" done":"")+(compact?" planner-task-compact":"");
+  const safeAction=(e,fn)=>{
+    e.preventDefault();e.stopPropagation();
+    if(typeof e.stopImmediatePropagation==="function")e.stopImmediatePropagation();
+    /* iPad에서 체크 후 행이 즉시 재배치되며 아래 항목으로 탭이 새는 현상 방지 */
+    setTimeout(fn,0);
+  };
   const check=document.createElement("button");check.type="button";check.className="planner-task-check";
-  check.textContent=done?"✓":"○";check.onclick=()=>plannerToggleMission(round,mission);
+  check.textContent=done?"✓":"○";
+  check.onclick=e=>safeAction(e,()=>plannerToggleMission(round,mission));
   if(mission.kind==="bankPath")check.title=done?"진도 길에서 완료된 세트":"진도 길 세트를 끝내면 자동 완료";
   const text=document.createElement("button");text.type="button";text.className="planner-task-text planner-task-link";
   const title=document.createElement("span");title.textContent=mission.title;
   const sub=document.createElement("small");sub.textContent=mission.detail;
-  text.append(title,sub);text.onclick=()=>openPlannerUnit(mission);
-  const exclude=document.createElement("button");exclude.type="button";exclude.className="planner-task-exclude";exclude.textContent="제외";exclude.onclick=()=>plannerExcludeMission(round,mission);
+  text.append(title,sub);
+  text.onclick=e=>safeAction(e,()=>openPlannerUnit(mission));
+  const exclude=document.createElement("button");exclude.type="button";exclude.className="planner-task-exclude";exclude.textContent="제외";
+  exclude.onclick=e=>safeAction(e,()=>plannerExcludeMission(round,mission));
   row.append(check,text,exclude);return row;
 }
 function plannerExcludedBlock(round){
