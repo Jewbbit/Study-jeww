@@ -224,7 +224,8 @@ td input:focus,td textarea:focus{background:#f7f7f9}
 .compact-summary{display:flex;align-items:center;gap:6px;min-width:0;flex:1}
 .summary-btn{border:0;background:transparent;padding:5px 4px;font-size:13px;font-weight:650;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text)}
 .summary-sep{color:#aaa;font-size:11px}
-#memoryHeader.collapsed .navline{display:none}
+#memoryHeader.collapsed .subject-navline{display:none}
+#memoryHeader .sheet-navline{display:flex}
 #bankControlsWrap.collapsed{display:none}
 .quiz-running #bankControlsWrap{display:none!important}
 .quiz-running #bankEditBtn{display:none}
@@ -2472,6 +2473,146 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   min-height:32px!important;
 }
 </style>
+<style>
+/* 암기판: 과목을 접어도 현재 과목의 시트 전환은 항상 남긴다 */
+#memoryHeader.collapsed .sheet-navline{
+  display:flex!important;
+}
+#memoryHeader .sheet-navline{
+  min-height:34px;
+  border-top:1px solid #f1f1f3;
+}
+#memoryHeader .sheet-navline #sheets{
+  width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+  scrollbar-width:none;
+}
+#memoryHeader .sheet-navline #sheets::-webkit-scrollbar{display:none}
+
+/* 오른쪽 고정 보조영역: 흰 바탕 + 선택된 기능만 연한 회색 */
+@media (min-width:1000px) and (orientation:landscape){
+  .wide-planner-side.eligible{
+    background:#fff!important;
+  }
+  .wide-planner-head{
+    min-height:34px!important;
+    padding:3px 0 4px!important;
+    background:#fff!important;
+    border-bottom:1px solid #ededf0!important;
+  }
+  .wide-planner-tabs{
+    gap:1px!important;
+  }
+  .wide-planner-tabs button{
+    min-height:27px!important;
+    padding:4px 8px!important;
+    border:0!important;
+    border-radius:4px!important;
+    background:#fff!important;
+    color:#85868b!important;
+    font-size:10.5px!important;
+    font-weight:600!important;
+  }
+  .wide-planner-tabs button.active{
+    background:#f0f0f2!important;
+    color:#303136!important;
+    font-weight:700!important;
+  }
+  .wide-planner-head>span{
+    font-size:9px!important;
+    color:#929399!important;
+  }
+
+  .wide-planner-date-nav{
+    grid-template-columns:28px minmax(64px,1fr) 28px auto!important;
+    gap:2px!important;
+    padding:4px 0 5px!important;
+    background:#fff!important;
+    border-bottom:1px solid #efeff1!important;
+  }
+  .wide-planner-date-nav>button{
+    background:#fff!important;
+    border:0!important;
+    border-radius:4px!important;
+  }
+  #widePlannerDateLabel{
+    font-size:11px!important;
+    font-weight:700!important;
+  }
+  #widePlannerTodayButton{
+    min-height:26px!important;
+    padding:3px 7px!important;
+    border:1px solid #e2e2e5!important;
+    font-size:9.5px!important;
+    font-weight:650!important;
+    color:#55565b!important;
+    white-space:nowrap;
+  }
+  #widePlannerTodayButton:disabled{
+    opacity:.38!important;
+  }
+
+  .wide-planner-list{
+    background:#fff!important;
+    padding:1px 0 12px!important;
+  }
+  .wide-planner-list .planner-task{
+    background:#fff!important;
+    border-radius:0!important;
+    border-top:1px solid #efeff1!important;
+    padding:6px 0!important;
+    grid-template-columns:36px minmax(0,1fr) auto!important;
+  }
+  .wide-planner-list .planner-task:first-of-type{
+    border-top:0!important;
+  }
+  .wide-planner-list .planner-task:active{
+    background:#f7f7f8!important;
+  }
+  .wide-planner-list .planner-task-check,
+  .wide-planner-list .planner-task-link,
+  .wide-planner-list .planner-task-exclude{
+    background:transparent!important;
+    box-shadow:none!important;
+  }
+  .wide-planner-list .planner-task-check{
+    width:36px!important;
+    min-width:36px!important;
+    height:34px!important;
+    min-height:34px!important;
+    margin:0!important;
+  }
+  .wide-planner-list .planner-task-link{
+    padding:1px 0!important;
+  }
+  .wide-planner-list .planner-task.done{
+    background:#fff!important;
+  }
+  .wide-planner-list .planner-task.done .planner-task-text{
+    color:#96979c!important;
+  }
+  .wide-planner-list .planner-task-exclude{
+    color:#9a9ba0!important;
+    opacity:1!important;
+  }
+
+  .wide-song-row{
+    background:#fff!important;
+    border-radius:0!important;
+  }
+  .wide-song-row:active{
+    background:#f4f4f6!important;
+  }
+}
+
+/* 본 화면과 보조패널 모두 미션 버튼 내부 글자가 별도 터치 대상으로 잡히지 않게 */
+.planner-task-link>span,
+.planner-task-link>small{
+  pointer-events:none!important;
+}
+</style>
 </head>
 <body>
 <header>
@@ -2487,11 +2628,11 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
     <div class="right-tools" id="globalTools"></div>
   </div>
   <div id="memoryHeader" class="collapsed">
-    <div class="navline">
+    <div class="navline subject-navline">
       <div class="scrolltabs" id="subjects"></div>
       <div class="right-tools" id="subjectTools"></div>
     </div>
-    <div class="navline">
+    <div class="navline sheet-navline">
       <div class="scrolltabs" id="sheets"></div>
     </div>
   </div>
@@ -2591,6 +2732,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
       <button id="widePlannerPrevDate" type="button" aria-label="이전 날짜">‹</button>
       <button id="widePlannerDateLabel" type="button" aria-label="날짜 선택"></button>
       <button id="widePlannerNextDate" type="button" aria-label="다음 날짜">›</button>
+      <button id="widePlannerTodayButton" type="button">Today</button>
       <input id="widePlannerDatePicker" type="date" aria-label="날짜 선택">
     </div>
     <div id="widePlannerList" class="wide-planner-list"></div>
@@ -6480,10 +6622,7 @@ function plannerSetMissionState(round,mission,patch){
   };
   p.missionState[key]=next;
   plannerSaveLocal();
-  requestAnimationFrame(()=>{
-    if(app.study.mode==="planner")renderPlanner();
-    renderWidePlannerSide();
-  });
+  plannerScheduleUiRender();
   const write=setDoc(plannerStateDoc(cloudUser.uid,round.id,mission.id),{
     roundId:round.id,missionId:mission.id,
     done:next.done,excluded:next.excluded,
@@ -6495,6 +6634,7 @@ function plannerSetMissionState(round,mission,patch){
     const cur=plannerStore().missionState[key];
     if(cur&&cur.updatedAt===next.updatedAt){delete cur.dirty;plannerSaveLocal()}
   }).catch(()=>{});
+  return write;
 }
 function plannerToggleMission(round,mission){
   if(mission.kind==="bankPath"){
@@ -6575,8 +6715,7 @@ function plannerRecordPathProgress(adv){
       }
     }
   }
-  if(app.study.mode==="planner")renderPlanner();
-  renderWidePlannerSide();
+  plannerScheduleUiRender();
   if(!cloudUser)return;
   plannerQueueWrite(setDoc(plannerPathDoc(cloudUser.uid,pathKey),{
     pathKey,count:increment(1),lastAt:now
@@ -6644,26 +6783,43 @@ function openPlannerUnit(unit){
     startAdventureSet(unit.sheetId,unit.setIndex,{replay:!!cfg?.completed?.[String(unit.setIndex)]});
   }
 }
+let plannerUiRenderFrame=0;
+const plannerMissionActionLocks=new Set();
+function plannerScheduleUiRender(){
+  if(plannerUiRenderFrame)cancelAnimationFrame(plannerUiRenderFrame);
+  plannerUiRenderFrame=requestAnimationFrame(()=>{
+    plannerUiRenderFrame=0;
+    if(app.study.mode==="planner")renderPlanner();
+    renderWidePlannerSide();
+  });
+}
 function plannerTaskRow(round,mission,{compact=false}={}){
   const done=plannerMissionDone(round,mission),row=document.createElement("div");
+  const missionKey=plannerMissionStateKey(round.id,mission.id);
   row.className="planner-task"+(done?" done":"")+(compact?" planner-task-compact":"");
-  const safeAction=(e,fn)=>{
+  row.dataset.missionKey=missionKey;
+
+  const run=(e,fn)=>{
     e.preventDefault();e.stopPropagation();
-    if(typeof e.stopImmediatePropagation==="function")e.stopImmediatePropagation();
-    /* iPad에서 체크 후 행이 즉시 재배치되며 아래 항목으로 탭이 새는 현상 방지 */
-    setTimeout(fn,0);
+    if(plannerMissionActionLocks.has(missionKey))return;
+    plannerMissionActionLocks.add(missionKey);
+    try{fn()}finally{setTimeout(()=>plannerMissionActionLocks.delete(missionKey),180)}
   };
+
   const check=document.createElement("button");check.type="button";check.className="planner-task-check";
   check.textContent=done?"✓":"○";
-  check.onclick=e=>safeAction(e,()=>plannerToggleMission(round,mission));
+  check.onclick=e=>run(e,()=>plannerToggleMission(round,mission));
   if(mission.kind==="bankPath")check.title=done?"진도 길에서 완료된 세트":"진도 길 세트를 끝내면 자동 완료";
+
   const text=document.createElement("button");text.type="button";text.className="planner-task-text planner-task-link";
   const title=document.createElement("span");title.textContent=mission.title;
   const sub=document.createElement("small");sub.textContent=mission.detail;
   text.append(title,sub);
-  text.onclick=e=>safeAction(e,()=>openPlannerUnit(mission));
+  text.onclick=e=>run(e,()=>openPlannerUnit(mission));
+
   const exclude=document.createElement("button");exclude.type="button";exclude.className="planner-task-exclude";exclude.textContent="제외";
-  exclude.onclick=e=>safeAction(e,()=>plannerExcludeMission(round,mission));
+  exclude.onclick=e=>run(e,()=>plannerExcludeMission(round,mission));
+
   row.append(check,text,exclude);return row;
 }
 function plannerExcludedBlock(round){
@@ -6973,8 +7129,8 @@ function renderWidePlannerSide(){
   const count=document.getElementById("widePlannerCount"),toggle=document.getElementById("widePlannerToggle");
   const todayTab=document.getElementById("widePlannerTodayTab"),songTab=document.getElementById("widePlannerSongTab");
   const dateNav=document.getElementById("widePlannerDateNav"),dateLabel=document.getElementById("widePlannerDateLabel");
-  const datePicker=document.getElementById("widePlannerDatePicker");
-  if(!side||!list||!count||!toggle||!todayTab||!songTab||!dateNav||!dateLabel||!datePicker)return;
+  const datePicker=document.getElementById("widePlannerDatePicker"),todayButton=document.getElementById("widePlannerTodayButton");
+  if(!side||!list||!count||!toggle||!todayTab||!songTab||!dateNav||!dateLabel||!datePicker||!todayButton)return;
 
   const eligible=widePlannerSideEligible();
   side.classList.toggle("eligible",eligible);
@@ -6996,8 +7152,10 @@ function renderWidePlannerSide(){
   datePicker.value=selectedDate;
   const d=plannerDate(selectedDate);
   const md=`${d.getMonth()+1}/${d.getDate()}`;
-  dateLabel.textContent=selectedDate===today?`${md} 오늘`:md;
+  dateLabel.textContent=md;
   dateLabel.title=selectedDate;
+  todayButton.disabled=selectedDate===today;
+  todayButton.classList.toggle("current",selectedDate===today);
 
   list.innerHTML="";count.textContent="";
   if(!eligible)return;
@@ -7341,6 +7499,7 @@ document.getElementById("widePlannerTodayTab")?.addEventListener("click",()=>set
 document.getElementById("widePlannerSongTab")?.addEventListener("click",()=>setWidePlannerSideTab("songs"));
 document.getElementById("widePlannerPrevDate")?.addEventListener("click",()=>widePlannerShiftDate(-1));
 document.getElementById("widePlannerNextDate")?.addEventListener("click",()=>widePlannerShiftDate(1));
+document.getElementById("widePlannerTodayButton")?.addEventListener("click",()=>widePlannerSetDate(plannerToday()));
 document.getElementById("widePlannerDatePicker")?.addEventListener("change",e=>widePlannerSetDate(e.target.value));
 document.getElementById("widePlannerDateLabel")?.addEventListener("click",()=>{
   const picker=document.getElementById("widePlannerDatePicker");if(!picker)return;
