@@ -2613,6 +2613,59 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   pointer-events:none!important;
 }
 </style>
+<style>
+@media (min-width:1000px) and (orientation:landscape){
+  .wide-planner-list .planner-task.current,
+  .wide-planner-list .planner-task.current.done{
+    background:#eeeeef!important;
+  }
+  .wide-planner-list .planner-task.current .planner-task-text{
+    color:#232428!important;
+  }
+  .wide-planner-list .planner-task.current .planner-task-text>span{
+    font-weight:700!important;
+  }
+}
+</style>
+<style>
+.quiz-inline-memo-settings,
+.quiz-memo-settings{
+  border:0!important;background:transparent!important;color:#7b7c82!important;
+  width:28px!important;height:28px!important;min-height:28px!important;padding:0!important;
+  border-radius:5px!important;font-size:13px!important
+}
+.quiz-inline-memo-settings:active,
+.quiz-memo-settings:active{background:#eeeeef!important}
+.quiz-memo-focus{cursor:pointer;position:relative}
+.quiz-memo-focus-top{border-bottom:1px solid #ededf0;padding-bottom:7px!important}
+.quiz-memo-settings-wrap{position:relative;flex:0 0 auto}
+.quiz-memo-settings-menu{
+  position:absolute;right:0;top:32px;z-index:50;width:126px;padding:4px;
+  border:1px solid #e3e3e6;background:#fff;box-shadow:0 7px 22px rgba(0,0,0,.10)
+}
+.quiz-memo-settings-menu.hidden{display:none!important}
+.quiz-memo-settings-menu button{
+  display:block;width:100%;border:0;background:#fff;text-align:left;
+  padding:7px 8px;font-size:11px;color:#56575c
+}
+.quiz-memo-settings-menu button.active{background:#eeeeef!important;color:#25262a;font-weight:700}
+.quiz-memo-result{
+  margin:12px 0 0;padding:0 1px 10px;border-bottom:1px solid #eeeeef;
+  font-size:calc(var(--quiz-font-size) - 2px);line-height:1.5;color:#2f7d50
+}
+.quiz-memo-focus-text{
+  flex:1;display:flex;align-items:flex-start;
+  padding:22px 2px 28px;white-space:pre-wrap;word-break:keep-all;
+  font-size:var(--quiz-font-size);line-height:1.72;font-weight:560;color:#242529
+}
+.quiz-memo-focus-foot{
+  margin-top:auto;padding:9px 2px 2px;border-top:1px solid #eeeeef;
+  text-align:center;font-size:10px;color:#96979d
+}
+@media(max-width:640px){
+  .quiz-memo-focus-text{padding-top:18px;font-size:var(--quiz-font-size)}
+}
+</style>
 </head>
 <body>
 <header>
@@ -2866,7 +2919,7 @@ import {
   onAuthStateChanged, setPersistence, browserLocalPersistence, signOut
 } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js';
 import {
-  getFirestore, doc, collection, getDoc, getDocs, getDocsFromServer, setDoc, deleteDoc, onSnapshot, increment
+  getFirestore, doc, collection, getDoc, getDocFromServer, getDocs, getDocsFromServer, setDoc, deleteDoc, onSnapshot, increment
 } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js';
 
 const firebaseConfig={
@@ -2950,6 +3003,7 @@ function quizSessionSnapshot(){
     answered:!!quizSession.answered,
     selected:quizSession.selected,
     showAnswer:!!quizSession.showAnswer,
+    awaitingExplanation:!!quizSession.awaitingExplanation,
     draft:quizSession.draft||"",
     round:quizSession.round||1,
     nextRoundIds:(quizSession.nextRound||[]).map(x=>quizItemId(x)),
@@ -3174,6 +3228,7 @@ function cleanup(){
   if(!Array.isArray(app.ui.quiz.areas))app.ui.quiz.areas=[];
   if(![10,20,30,50,"all"].includes(app.ui.quiz.sessionSize))app.ui.quiz.sessionSize=20;
   if(!app.ui.quiz.groupOrder)app.ui.quiz.groupOrder="grouped";
+  if(!["manual","2","3","4"].includes(String(app.ui.quiz.memoAdvance||"")))app.ui.quiz.memoAdvance="manual";
   if(!Array.isArray(app.ui.quiz.recentRanges))app.ui.quiz.recentRanges=[];
   if(!["quick","path"].includes(app.ui.quizHomeMode))app.ui.quizHomeMode="quick";
   if(!app.ui.quizAdventure||typeof app.ui.quizAdventure!=="object"||Array.isArray(app.ui.quizAdventure))app.ui.quizAdventure={activeSheetId:"",configs:{}};
@@ -3297,7 +3352,7 @@ async function restoreBankCache(){
   return false;
 }
 bankCacheReadyPromise=restoreBankCache().then(restored=>{
-  if(restored){renderQuiz();renderBankEditor()}
+  if(restored){renderQuiz();renderBankEditor();renderWidePlannerSide()}
   return restored;
 });
 
@@ -4301,6 +4356,12 @@ function makeTypingPracticeField(row,target){
   // 한글 IME 마지막 조합 보정은 compositionend/blur에서 현재 칸만 한 번 더 검사.
   input.addEventListener("compositionend",changed);
   input.addEventListener("blur",changed);
+  input.addEventListener("keydown",e=>{
+    if(e.key!=="Tab"||typingPracticeMode()!=="recall"||e.isComposing||e.keyCode===229)return;
+    e.preventDefault();e.stopPropagation();
+    if(e.repeat)return;
+    showTypingHint(row.id,guide);
+  });
   bindSafeEnter(input,()=>{
     const done=applyState(typingNormalize(input.value),input.value);
     if(done){
@@ -5352,7 +5413,7 @@ function adventureSessionFromSnapshot(saved){
   quizSession={
     correctCount:saved.correctCount||0,wrongCount:saved.wrongCount||0,initialCount:saved.initialCount||items.length,resumeSlotId:"",
     items,remaining:(saved.remainingIds||[]).map(id=>byId.get(id)).filter(Boolean),
-    index:Math.min(saved.index||0,items.length-1),answered:!!saved.answered,selected:saved.selected??null,showAnswer:!!saved.showAnswer,draft:saved.draft||"",
+    index:Math.min(saved.index||0,items.length-1),answered:!!saved.answered,selected:saved.selected??null,showAnswer:!!saved.showAnswer,awaitingExplanation:!!saved.awaitingExplanation,draft:saved.draft||"",
     round:saved.round||1,nextRound:(saved.nextRoundIds||[]).map(id=>byId.get(id)).filter(Boolean),
     deferred:(saved.deferredIds||[]).map(id=>byId.get(id)).filter(Boolean),rangeLabel:saved.rangeLabel||sheet.name,
     mastery:saved.mastery!==false,choices:Array.isArray(saved.choices)?saved.choices:[],
@@ -5459,6 +5520,7 @@ function finishQuiz(){
   quizSession=null;clearSavedQuiz();document.body.classList.remove("quiz-running");renderQuiz();
 }
 function nextQuiz(force=false){
+  clearQuizMemoAdvanceTimer();
   if(!quizSession)return;
   if(quizSession.awaitingExplanation&&!force)return;
   if(quizSession.index>=quizSession.items.length-1){
@@ -5792,11 +5854,83 @@ function renderQuiz(){
   }
   renderQuizQuestion();
 }
+let quizMemoAdvanceTimer=null;
+function clearQuizMemoAdvanceTimer(){
+  if(quizMemoAdvanceTimer){clearTimeout(quizMemoAdvanceTimer);quizMemoAdvanceTimer=null}
+}
+function quizMemoAdvanceMode(){return String(app.ui.quiz.memoAdvance||"manual")}
+function setQuizMemoAdvanceMode(mode){
+  mode=String(mode);
+  if(!["manual","2","3","4"].includes(mode))mode="manual";
+  app.ui.quiz.memoAdvance=mode;
+  saveLocal();
+  if(quizSession?.awaitingExplanation)renderQuizQuestion();
+}
+function scheduleQuizMemoAdvance(){
+  clearQuizMemoAdvanceTimer();
+  if(!quizSession?.awaitingExplanation)return;
+  const mode=quizMemoAdvanceMode();
+  if(mode==="manual")return;
+  const seconds=Number(mode);
+  if(!Number.isFinite(seconds)||seconds<=0)return;
+  const index=quizSession.index,itemId=quizItemId(currentQuizItem());
+  quizMemoAdvanceTimer=setTimeout(()=>{
+    quizMemoAdvanceTimer=null;
+    if(!quizSession||!quizSession.awaitingExplanation||quizSession.index!==index)return;
+    if(quizItemId(currentQuizItem())!==itemId)return;
+    nextQuiz(true);
+  },seconds*1000);
+}
+function renderQuizMemoScreen(area,item){
+  clearQuizMemoAdvanceTimer();
+  const card=document.createElement("div");card.className="question-card quiz-memo-focus";
+  const top=document.createElement("div");top.className="q-top quiz-memo-focus-top";
+  const tag=document.createElement("div");tag.className="q-tag";
+  const sheetMeta=document.createElement("div");sheetMeta.className="quiz-sheet-name";sheetMeta.textContent=item.sheetName||"";
+  const categoryMeta=document.createElement("div");categoryMeta.className="quiz-category";categoryMeta.textContent=item.category||item.section||"";
+  tag.append(sheetMeta,categoryMeta);
+  const prog=document.createElement("div");prog.className="q-progress";
+  {const sc=currentSessionScore();prog.textContent=`${quizSession.index+1}/${quizSession.items.length}   ✓ ${sc.correct}   × ${sc.wrong}`;}
+  const settingsWrap=document.createElement("div");settingsWrap.className="quiz-memo-settings-wrap";
+  const settings=document.createElement("button");settings.type="button";settings.className="quiz-memo-settings";settings.textContent="⚙";settings.title="메모 진행 설정";
+  const menu=document.createElement("div");menu.className="quiz-memo-settings-menu hidden";
+  [["manual","직접 넘기기"],["2","자동 2초"],["3","자동 3초"],["4","자동 4초"]].forEach(([value,label])=>{
+    const b=document.createElement("button");b.type="button";b.textContent=label;
+    b.classList.toggle("active",quizMemoAdvanceMode()===value);
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();setQuizMemoAdvanceMode(value)};
+    menu.append(b);
+  });
+  settings.onclick=e=>{e.preventDefault();e.stopPropagation();menu.classList.toggle("hidden")};
+  settingsWrap.append(settings,menu);
+  top.append(tag,settingsWrap,prog);
+
+  const result=document.createElement("div");result.className="quiz-memo-result";
+  const answer=document.createElement("strong");answer.textContent=`✓ ${item.answer||""}`;
+  result.append(answer);
+
+  const memo=document.createElement("div");memo.className="quiz-memo-focus-text";memo.textContent=item.memo||"";
+  const foot=document.createElement("div");foot.className="quiz-memo-focus-foot";
+  const mode=quizMemoAdvanceMode();
+  foot.textContent=mode==="manual"?"탭 · Space · Enter":"탭 · Space · Enter  ·  "+mode+"초 후 자동";
+
+  card.append(top,result,memo,foot);
+  card.addEventListener("click",e=>{
+    if(e.target.closest("button")||e.target.closest(".quiz-memo-settings-menu"))return;
+    nextQuiz(true);
+  });
+  area.append(card);
+  scheduleQuizMemoAdvance();
+}
+
 function renderQuizQuestion(){
   renderWidePlannerSide();
   updateTypingFloatingBadge();
   const area=document.getElementById("quizArea");area.innerHTML="";
   const item=currentQuizItem();if(!item)return;
+  if(activeQuizMode()==="choice"&&quizSession.awaitingExplanation&&item.memo){
+    renderQuizMemoScreen(area,item);return;
+  }
+  clearQuizMemoAdvanceTimer();
   const card=document.createElement("div");card.className="question-card";
   const progressTrack=document.createElement("div");progressTrack.className="quiz-progress-track";
   const progressFill=document.createElement("span");progressFill.style.width=`${Math.max(2,Math.min(100,((quizSession.index+1)/Math.max(1,quizSession.items.length))*100))}%`;
@@ -5812,7 +5946,17 @@ function renderQuizQuestion(){
   const qStar=document.createElement("button");qStar.className="quiz-star"+(st.flagged?" on":"");qStar.textContent=st.flagCount?`★${st.flagCount}`:"★";
   qStar.title=st.flagReason?`헷갈림: ${st.flagReason}`:(st.flagCount?`헷갈림 ${st.flagCount}회`:"헷갈리면 표시");
   qStar.onclick=()=>{if(!st.flagged){st.flagged=true;st.flagCount=(st.flagCount||0)+1}else st.flagged=false;markBankStatsCloud();renderQuizQuestion()};
-  top.append(tag,qStar,prog);
+  if(activeQuizMode()==="choice"){
+    const memoSettings=document.createElement("button");memoSettings.type="button";memoSettings.className="quiz-inline-memo-settings";
+    memoSettings.textContent="⚙";memoSettings.title=`메모 진행: ${quizMemoAdvanceMode()==="manual"?"직접":quizMemoAdvanceMode()+"초 자동"}`;
+    memoSettings.onclick=e=>{
+      e.preventDefault();e.stopPropagation();
+      const modes=["manual","2","3","4"],i=modes.indexOf(quizMemoAdvanceMode()),next=modes[(i+1)%modes.length];
+      setQuizMemoAdvanceMode(next);
+      toast(`메모 ${next==="manual"?"직접 넘기기":`자동 ${next}초`}`);
+    };
+    top.append(tag,qStar,memoSettings,prog);
+  }else top.append(tag,qStar,prog);
   const q=document.createElement("div");q.className="question";q.textContent=(item.question||"").replace(/\s*\/\s*/g,"  /  ");
   card.append(top,q);
   const mode=activeQuizMode();
@@ -5848,9 +5992,6 @@ function renderQuizQuestion(){
   }
   if(quizSession.showAnswer&&item.answer){
     const ans=document.createElement("div");ans.className="answer-panel";ans.textContent=item.answer+(item.memo?`\n\n${item.memo}`:"");card.append(ans)
-  }else if(mode==="choice"&&quizSession.adventure&&quizSession.answered&&quizSession.selected!=null&&item.memo){
-    const memo=document.createElement("div");memo.className="answer-panel adventure-explanation";
-    memo.textContent=item.memo;card.append(memo);
   }
   const actions=document.createElement("div");actions.className="quiz-actions";
   const stop=document.createElement("button");stop.textContent=quizSession.adventure?"나가기":"중단";stop.onclick=requestQuizStop;actions.append(stop);
@@ -5887,17 +6028,13 @@ function renderQuizQuestion(){
   if((quizSession.answered||quizSession.showAnswer)&&mode!=="choice"){
     const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=nextQuiz;actions.append(next);
   }
-  if(mode==="choice"&&quizSession.adventure&&quizSession.answered&&quizSession.selected!=null&&item.memo){
-    const next=document.createElement("button");next.className="primary adventure-explanation-next";
-    next.textContent="계속";next.onclick=()=>nextQuiz(true);actions.append(next);
-  }
   card.append(actions);area.append(card);
 }
 function selectChoice(i){
   if(!quizSession||quizSession.answered||i<0||i>=quizSession.choices.length)return;
   const item=currentQuizItem(),text=quizSession.choices[i],ok=norm(text)===norm(item.answer);
   quizSession.selected=i;quizSession.answered=true;quizSession.showAnswer=!ok&&!quizSession.adventure;
-  quizSession.awaitingExplanation=!!(quizSession.adventure&&item.memo);
+  quizSession.awaitingExplanation=!!String(item.memo||"").trim();
   recordQuiz(item,ok);saveQuizSessionLocal();renderQuizQuestion();
   if(!quizSession.awaitingExplanation)setTimeout(()=>{if(quizSession?.answered)nextQuiz()},ok?450:900);
 }
@@ -5910,6 +6047,9 @@ window.addEventListener("keydown",e=>{
   if(app.ui.workspace!=="bank"||app.ui.bankMode!=="quiz"||!quizSession)return;
   const tag=document.activeElement?.tagName;
   if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
+  if(quizSession.awaitingExplanation&&(e.key==="Enter"||e.key===" "||e.code==="Space")){
+    e.preventDefault();e.stopPropagation();nextQuiz(true);return;
+  }
   if(activeQuizMode()==="choice"){
     let n=null;
     if(["1","2","3","4"].includes(e.key))n=Number(e.key);
@@ -6560,8 +6700,7 @@ async function plannerSyncNow({quiet=false}={}){
     plannerRealtime.lastAt=Date.now();
     plannerSaveLocal();
     plannerSetRealtime("saved");
-    if(app.study.mode==="planner")renderPlanner();
-    renderWidePlannerSide();
+    plannerScheduleUiRender();
     if(!document.getElementById("bankEditView")?.classList.contains("hidden"))plannerOfferExistingTrashMissionCleanup();
     if(!quiet)toast("동기화 완료");
     return true;
@@ -6762,25 +6901,73 @@ function plannerDeleteManual(date,id){
 }
 
 /* 원본 열기 */
-function openPlannerUnit(unit){
+function plannerMissionIsCurrent(mission){
+  if(!mission)return false;
+  const ws=app.ui.workspace||"memory";
+  if(mission.kind==="memory"){
+    if(ws!=="memory"||app.study.mode!=="study")return false;
+    const subject=(app.study.subjects||[]).find(x=>x.id===mission.subjectId);
+    return !!subject&&app.study.subjectId===mission.subjectId&&subject.currentId===mission.sheetId;
+  }
+  if(mission.kind==="bankPath"){
+    if(ws!=="bank"||(app.ui.bankMode||"quiz")!=="quiz")return false;
+    const adv=quizSession?.adventure;
+    if(adv){
+      return adv.sheetId===mission.sheetId
+        && String(adv.order||quizSession.quizOrder||"sequence")===String(mission.order||"sequence")
+        && Number(adv.setIndex)===Number(mission.setIndex);
+    }
+    const active=app.ui.activePlannerMissionId||"";
+    return active===mission.id&&app.ui.quizHomeMode==="path";
+  }
+  return false;
+}
+
+async function openPlannerUnit(unit){
   if(!unit)return;
+  app.ui.activePlannerMissionId=unit.id||"";
   if(unit.kind==="memory"){
     const subject=(app.study.subjects||[]).find(x=>x.id===unit.subjectId);
     const sheet=subject?.sheets?.find(x=>x.id===unit.sheetId);
-    if(!subject||!sheet)return toast("현재 암기판에서 이 미션의 원본을 찾지 못했습니다");
+    if(!subject||!sheet){
+      app.ui.activePlannerMissionId="";
+      saveLocal();renderWidePlannerSide();
+      return toast("현재 암기판에서 이 미션의 원본을 찾지 못했습니다");
+    }
     app.study.subjectId=subject.id;subject.currentId=sheet.id;app.study.mode="study";app.ui.workspace="memory";
-    saveLocal();render();
+    saveLocalNow();render();
     if(unit.rowId)setTimeout(()=>document.querySelector(`[data-study-row-id="${CSS.escape(unit.rowId)}"]`)?.scrollIntoView({block:"start",behavior:"auto"}),50);
     return;
   }
   if(unit.kind==="bankPath"){
-    const sheet=adventureSheet(unit.sheetId);if(!sheet)return toast("현재 문제은행에서 이 진도 길을 찾지 못했습니다");
+    /* 새로고침 직후 IndexedDB 복원이 끝나기 전에 눌러도 원본 시트를 기다린다. */
+    if(bankCacheReadyPromise)await bankCacheReadyPromise;
+    let sheet=adventureSheet(unit.sheetId);
+    if(!sheet&&cloudUser){
+      try{
+        const snap=await getDocFromServer(bankSheetDoc(cloudUser.uid,unit.sheetId));
+        if(snap.exists()){
+          const fresh=snap.data();
+          const i=(app.bank.sheets||[]).findIndex(x=>x.id===unit.sheetId);
+          if(i>=0)app.bank.sheets[i]=fresh;else app.bank.sheets.push(fresh);
+          await writeBankCacheNow();
+          saveLocalNow();
+          sheet=adventureSheet(unit.sheetId);
+        }
+      }catch(e){console.warn("planner source fetch failed",e)}
+    }
+    if(!sheet){
+      app.ui.activePlannerMissionId="";
+      saveLocal();renderWidePlannerSide();
+      return toast("현재 문제은행에서 이 진도 길을 찾지 못했습니다");
+    }
     setAdventureOrder(unit.sheetId,unit.order);
     adventureStore().activeSheetId=unit.sheetId;
     app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="path";
-    saveLocal();renderMode();
+    saveLocalNow();renderMode();
     const cfg=adventureConfig(unit.sheetId,{quiet:true,order:unit.order});
     startAdventureSet(unit.sheetId,unit.setIndex,{replay:!!cfg?.completed?.[String(unit.setIndex)]});
+    renderWidePlannerSide();
   }
 }
 let plannerUiRenderFrame=0;
@@ -6796,7 +6983,7 @@ function plannerScheduleUiRender(){
 function plannerTaskRow(round,mission,{compact=false}={}){
   const done=plannerMissionDone(round,mission),row=document.createElement("div");
   const missionKey=plannerMissionStateKey(round.id,mission.id);
-  row.className="planner-task"+(done?" done":"")+(compact?" planner-task-compact":"");
+  row.className="planner-task"+(done?" done":"")+(compact?" planner-task-compact":"")+(plannerMissionIsCurrent(mission)?" current":"");
   row.dataset.missionKey=missionKey;
 
   const run=(e,fn)=>{
@@ -7374,6 +7561,78 @@ function mergeCloudStudy(remote){
   incoming.planner=localPlanner;
   app.study=incoming;cleanup();saveLocal();
 }
+function studyContentCount(study=app.study){
+  let n=0;
+  for(const subject of study?.subjects||[]){
+    for(const sheet of subject?.sheets||[]){
+      for(const row of sheet?.rows||[]){
+        if(!row)continue;
+        if(row.type==="section"){
+          if(String(row.title||"").trim())n++;
+        }else if(String(row.category||row.correct||row.memo||"").trim())n++;
+      }
+    }
+  }
+  return n;
+}
+function currentStudySheetLooksEmpty(){
+  try{
+    const subject=(app.study.subjects||[]).find(x=>x.id===app.study.subjectId)||app.study.subjects?.[0];
+    const sheet=subject?.sheets?.find(x=>x.id===subject.currentId)||subject?.sheets?.[0];
+    return !sheet||!(sheet.rows||[]).some(r=>r&&(r.type==="section"?String(r.title||"").trim():String(r.category||r.correct||r.memo||"").trim()));
+  }catch{return true}
+}
+let studyRecoveryPromise=null;
+async function ensureStudyDataReady({force=false}={}){
+  const localCount=studyContentCount();
+  if(!force&&localCount>0&&!currentStudySheetLooksEmpty())return true;
+  if(studyRecoveryPromise)return studyRecoveryPromise;
+  studyRecoveryPromise=(async()=>{
+    try{
+      if(typeof auth.authStateReady==="function")await auth.authStateReady();
+      const user=cloudUser||auth.currentUser;
+      if(!user)return studyContentCount()>0;
+      const snap=await getDocFromServer(studyDoc(user.uid));
+      if(!snap.exists())return studyContentCount()>0;
+      const d=snap.data(),remote=d.study;
+      if(!remote)return studyContentCount()>0;
+      const remoteCount=studyContentCount(remote);
+      const shouldRestore=force
+        || studyContentCount()===0
+        || (currentStudySheetLooksEmpty()&&remoteCount>studyContentCount());
+      if(shouldRestore){
+        applyingRemote=true;
+        mergeCloudStudy(remote);
+        applyingRemote=false;
+        restoreStudyDrafts();
+        saveStudyQuickNow();
+        saveLocal();
+        render();
+      }
+      return studyContentCount()>0||remoteCount===0;
+    }catch(e){
+      console.warn("study recovery failed",e);
+      return studyContentCount()>0;
+    }finally{
+      studyRecoveryPromise=null;
+    }
+  })();
+  return studyRecoveryPromise;
+}
+async function openMemoryWorkspace(){
+  app.ui.workspace="memory";
+  if(app.study.mode==="songs"||app.study.mode==="planner")app.study.mode="study";
+  saveLocal();
+  renderMode();
+  if(studyContentCount()===0||currentStudySheetLooksEmpty()){
+    updateSync("…",!!(cloudUser||auth.currentUser));
+    await ensureStudyDataReady();
+    updateSync((cloudUser||auth.currentUser)?"✓":"로그인",!!(cloudUser||auth.currentUser));
+    renderMode();
+    renderStudy();
+  }
+}
+
 function studyDoc(u){return doc(db,"users",u,"study","state")}
 function bankIndexDoc(u){return doc(db,"users",u,"bank","index")}
 function bankSheetDoc(u,id){return doc(db,"users",u,"bankSheets",id)}
@@ -7430,12 +7689,17 @@ onAuthStateChanged(auth,async user=>{
   renderSubjects();if(!user){if(app.study.mode==="planner")renderPlanner();return}
   updateSync("…",true);
   try{
-    const sref=studyDoc(user.uid),ss=await getDoc(sref);
+    const sref=studyDoc(user.uid);
+    let ss;
+    try{ss=await getDocFromServer(sref)}catch(e){console.warn("study server read fallback",e);ss=await getDoc(sref)}
     let legacyPlanner=null;
     if(ss.exists()){
       const d=ss.data();legacyPlanner=d.study?.planner||null;
-      if((d.updatedAt||0)>(app.study.updatedAt||0)&&d.study){
-        applyingRemote=true;mergeCloudStudy(d.study);applyingRemote=false;render();
+      const localEmpty=studyContentCount()===0;
+      const remoteHasContent=studyContentCount(d.study)>0;
+      if(d.study&&((d.updatedAt||0)>(app.study.updatedAt||0)||(localEmpty&&remoteHasContent))){
+        applyingRemote=true;mergeCloudStudy(d.study);applyingRemote=false;
+        restoreStudyDrafts();saveStudyQuickNow();render();
       }else scheduleStudyCloud();
     }else scheduleStudyCloud();
 
@@ -7493,6 +7757,40 @@ onAuthStateChanged(auth,async user=>{
   }
 });
 
+/* 새로고침/백그라운드 복귀 때 수동 동기화를 다시 누르지 않아도 최신 상태를 회복 */
+window.addEventListener("online",()=>{
+  if(cloudUser)plannerSyncNow({quiet:true});
+});
+document.addEventListener("visibilitychange",()=>{
+  if(document.visibilityState!=="visible"||!cloudUser)return;
+  const stale=!plannerRealtime.lastAt||Date.now()-plannerRealtime.lastAt>120000;
+  if(stale)plannerSyncNow({quiet:true});
+});
+
+/* 홈 화면(PWA)에서 시스템 뒤로가기가 GitHub Pages의 없는 상위 경로(404)로 빠지지 않게 현재 문서를 지킨다. */
+function installStandaloneBackGuard(){
+  const standalone=window.matchMedia?.("(display-mode: standalone)")?.matches||window.navigator.standalone===true;
+  if(!standalone||!history?.pushState)return;
+  try{
+    history.replaceState({...(history.state||{}),studyJewBase:true},"",location.href);
+    history.pushState({studyJewGuard:true},"",location.href);
+    window.addEventListener("popstate",()=>{
+      history.pushState({studyJewGuard:true},"",location.href);
+      closeAllMenus();
+      const openModal=[...document.querySelectorAll(".modal:not(.hidden)")].find(x=>getComputedStyle(x).display!=="none");
+      if(openModal){openModal.classList.add("hidden");return}
+      if(quizSession){requestQuizStop();return}
+      if((app.ui.workspace||"memory")==="bank"){
+        app.study.mode="study";openMemoryWorkspace();return;
+      }
+      if(app.study.mode==="songs"||app.study.mode==="planner"){
+        app.study.mode="study";saveLocalNow();renderMode();
+      }
+    });
+  }catch(e){console.warn("back guard failed",e)}
+}
+installStandaloneBackGuard();
+
 /* controls */
 document.getElementById("widePlannerToggle")?.addEventListener("click",toggleWidePlannerSide);
 document.getElementById("widePlannerTodayTab")?.addEventListener("click",()=>setWidePlannerSideTab("today"));
@@ -7534,13 +7832,16 @@ function bindModeSwitchTap(el,handler,{release=true}={}){
 }
 document.getElementById("headerToggle").onclick=()=>{const h=document.getElementById("memoryHeader");setHeaderCollapsed(!h.classList.contains("collapsed"))};
 bindModeSwitchTap(document.getElementById("memorySummaryBtn"),()=>{const h=document.getElementById("memoryHeader");setHeaderCollapsed(!h.classList.contains("collapsed"))});
-bindModeSwitchTap(document.getElementById("memorySpace"),()=>{app.ui.workspace="memory";if(app.study.mode==="songs"||app.study.mode==="planner")app.study.mode="study";saveLocal();renderMode()});
+bindModeSwitchTap(document.getElementById("memorySpace"),()=>{openMemoryWorkspace()});
 bindModeSwitchTap(document.getElementById("bankSpace"),()=>{
   app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="quick";
   document.getElementById("studyMenu")?.classList.add("hidden");
   saveLocal();renderMode();
 });
-bindModeSwitchTap(document.getElementById("studyBtn"),()=>{app.study.mode="study";app.ui.workspace="memory";saveLocal();renderMode();renderStudy()});
+bindModeSwitchTap(document.getElementById("studyBtn"),()=>{
+  app.study.mode="study";
+  openMemoryWorkspace();
+});
 bindModeSwitchTap(document.getElementById("typingPracticeBtn"),()=>{setTypingPractice(!app.ui.typingPractice)});
 bindModeSwitchTap(document.getElementById("editBtn"),()=>{app.ui.typingPractice=false;resetTypingPracticeSessions();app.study.mode="edit";app.ui.workspace="memory";saveLocal();renderMode()});
 document.getElementById("quizBtn").onclick=()=>{app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="quick";saveLocal();renderMode()};
