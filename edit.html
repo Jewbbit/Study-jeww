@@ -4,14 +4,16 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Study Jew</title>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js">
-/* PWA: standalone install while keeping the phone's own status/navigation bars */
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script>
+/* PWA */
 if("serviceWorker" in navigator){
   window.addEventListener("load",()=>{
-    navigator.serviceWorker.register("./sw.js").catch(err=>console.warn("service worker registration failed",err));
+    navigator.serviceWorker.register("./sw.js",{scope:"./"})
+      .then(reg=>reg.update().catch(()=>{}))
+      .catch(err=>console.warn("service worker registration failed",err));
   });
 }
-
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
@@ -2177,6 +2179,17 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   .planner-day{min-height:48px;padding:3px}
   .planner-day-meta{font-size:8px}
 }
+
+/* ===== read-only integrity diagnostic ===== */
+.diag-btn{font-size:11px!important;width:auto!important;min-width:42px!important;padding:0 7px!important}
+.diag-modal{width:min(820px,96vw)!important;max-height:88dvh;display:flex;flex-direction:column}
+.diag-actions{display:flex;gap:6px;align-items:center;padding:8px 2px 4px}
+.diag-actions button{border:1px solid var(--line);background:#fff;border-radius:7px;padding:7px 9px;font-size:11px}
+.diag-actions .primary{margin-left:0!important}
+.diag-note{font-size:10px;color:#777;line-height:1.45;padding:4px 2px 8px}
+.diag-report{margin:0;min-height:220px;max-height:62dvh;overflow:auto;white-space:pre-wrap;word-break:break-word;background:#f7f7f8;border:1px solid var(--line);border-radius:8px;padding:10px;font:11px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#252529}
+@media(max-width:640px){.diag-modal{width:100%!important;max-height:90dvh}.diag-report{font-size:10px;max-height:66dvh}}
+
 </style>
   <link rel="manifest" href="./manifest.webmanifest">
   <meta name="theme-color" content="#f7f7f8">
@@ -2666,6 +2679,13 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   .quiz-memo-focus-text{padding-top:18px;font-size:var(--quiz-font-size)}
 }
 </style>
+<style>
+.app-back-btn{
+  font-size:24px!important;line-height:1!important;font-weight:400!important;
+  background:transparent!important;color:#5f6066!important;
+}
+.app-back-btn:active{background:#ededf0!important}
+</style>
 </head>
 <body>
 <header>
@@ -2911,6 +2931,22 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="modal-backdrop hidden" id="diagModal">
+  <div class="modal diag-modal">
+    <div class="settings-head">
+      <div class="modal-title">데이터 연결 진단</div>
+      <button class="modal-cancel settings-close" id="diagClose" type="button" aria-label="닫기">×</button>
+    </div>
+    <div class="diag-note">읽기 전용입니다. Firebase/localStorage/문제/진도/미션을 수정·삭제·초기화하지 않습니다.</div>
+    <div class="diag-actions">
+      <button class="primary" id="diagRun" type="button">진단 실행</button>
+      <button id="diagCopy" type="button">결과 복사</button>
+    </div>
+    <pre class="diag-report" id="diagReport">진단 실행을 누르세요.</pre>
+  </div>
+</div>
+
 
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js';
@@ -3593,6 +3629,175 @@ function toggleFloatingMenu(button,menu){
   menu.style.visibility="visible";
 }
 
+
+/* ===== read-only integrity diagnostic =====
+   IMPORTANT: 이 블록은 setDoc/deleteDoc/saveLocal/mark*를 호출하지 않는다. */
+function diagSafeId(v){return String(v||"")}
+function diagPathConfigs(adventure,sheetId){
+  const state=adventure?.configs?.[sheetId];
+  if(!state||typeof state!=="object")return {};
+  if(state.paths&&typeof state.paths==="object")return state.paths;
+  const order=state.order==="random"?"random":"sequence";
+  return {[order]:state};
+}
+function diagSheetSummary(sheet,adventure){
+  const items=Array.isArray(sheet?.items)?sheet.items:[];
+  const ids=items.map(x=>x?.id?`i_${x.id}`:canonicalProblemId(x));
+  const idSet=new Set(ids),rawIdSet=new Set(items.map(x=>String(x?.id||"")).filter(Boolean));
+  const canonical=items.map(canonicalProblemId),canonicalSet=new Set(canonical);
+  const paths=diagPathConfigs(adventure,sheet.id),pathRows=[];
+  for(const order of ["sequence","random"]){
+    const cfg=paths?.[order];if(!cfg)continue;
+    const orderIds=Array.isArray(cfg.orderIds)?cfg.orderIds:[];
+    const orderSet=new Set(orderIds);
+    const orphan=orderIds.filter(id=>!idSet.has(id));
+    const missing=ids.filter(id=>!orderSet.has(id));
+    const size=Number(cfg.size)||20,totalSets=Math.ceil(orderIds.length/size);
+    const doneKeys=Object.keys(cfg.completed||{}).filter(k=>/^\d+$/.test(k)&&Number(k)<totalSets&&cfg.completed[k]);
+    pathRows.push({order,orderIds:orderIds.length,uniqueOrderIds:orderSet.size,orphan,missing,size,totalSets,doneSets:doneKeys.length});
+  }
+  return {
+    id:sheet.id,name:sheet.name||"",source:sheet.source||"",items:items.length,
+    uniquePhysicalIds:rawIdSet.size,duplicatePhysicalIds:Math.max(0,items.length-rawIdSet.size),
+    uniqueCanonical:canonicalSet.size,duplicateCanonical:Math.max(0,items.length-canonicalSet.size),paths:pathRows
+  };
+}
+function diagMissionSheetInfo(rounds,currentSheets){
+  const currentIds=new Set(currentSheets.map(s=>s.id));
+  const bySheet=new Map();
+  for(const round of rounds||[]){
+    for(const m of (round?.missions||[])){
+      if(m?.kind!=="bankPath")continue;
+      const sid=diagSafeId(m.sheetId);
+      if(!bySheet.has(sid))bySheet.set(sid,{sheetId:sid,count:0,orphan:!currentIds.has(sid),titles:new Set(),pathKeys:new Set()});
+      const x=bySheet.get(sid);x.count++;if(m.title)x.titles.add(m.title);if(m.pathKey)x.pathKeys.add(m.pathKey);
+    }
+  }
+  return [...bySheet.values()].map(x=>({...x,titles:[...x.titles].slice(0,3),pathKeys:[...x.pathKeys].slice(0,3)}));
+}
+function diagFormatReport(data){
+  const L=[],push=(x="")=>L.push(x);
+  push("[읽기 전용 데이터 연결 진단]");
+  push(`실행 시각: ${new Date().toLocaleString("ko-KR")}`);
+  push(`로그인: ${data.loggedIn?"예":"아니오"}${data.uidTail?` · uid 끝 ${data.uidTail}`:""}`);
+  push(`데이터 출처: ${data.source}`);
+  push("");
+  push("1) 전체 요약");
+  push(`- 현재 문제은행 시트: ${data.sheets.length}개`);
+  push(`- 실제 문제 수: ${data.sheets.reduce((a,s)=>a+s.items,0)}개`);
+  push(`- 진도 설정이 있는 시트: ${data.sheets.filter(s=>s.paths.length).length}개`);
+  push(`- 뽀개기 회독: ${data.rounds.length}개`);
+  push(`- 뽀개기 bankPath 미션: ${data.missionSheets.reduce((a,x)=>a+x.count,0)}개`);
+  push(`- 현재 시트에 없는 sheetId를 참조하는 bankPath 미션: ${data.missionSheets.filter(x=>x.orphan).reduce((a,x)=>a+x.count,0)}개`);
+  push("");
+  push("2) 과목별 문제 / 진도길");
+  const subjectMap=new Map();
+  for(const s of data.sheets){
+    const subject=bankSheetMeta({name:s.name}).subject||"기타";
+    if(!subjectMap.has(subject))subjectMap.set(subject,{sheets:0,items:0,orderIds:0,orphan:0,missing:0,sets:0,done:0});
+    const z=subjectMap.get(subject);z.sheets++;z.items+=s.items;
+    for(const p of s.paths){z.orderIds+=p.orderIds;z.orphan+=p.orphan.length;z.missing+=p.missing.length;z.sets+=p.totalSets;z.done+=p.doneSets}
+  }
+  for(const [subject,z] of [...subjectMap.entries()].sort((a,b)=>a[0].localeCompare(b[0],"ko"))){
+    push(`- ${subject}: ${z.sheets}시트 / 문제 ${z.items} / orderIds ${z.orderIds} / 세트 ${z.sets} / 완료 ${z.done} / orphan ${z.orphan} / 길에 빠진 현재 문제 ${z.missing}`);
+  }
+  push("");
+  push("3) 시트별 상세");
+  for(const s of data.sheets){
+    push(`\n[${s.name}]`);
+    push(` sheetId=${s.id}`);
+    push(` 문제=${s.items}, 물리ID중복=${s.duplicatePhysicalIds}, 동일문구+정답중복=${s.duplicateCanonical}`);
+    if(!s.paths.length){push(" 진도길 설정 없음");continue}
+    for(const p of s.paths){
+      push(` ${p.order}: orderIds=${p.orderIds} (고유 ${p.uniqueOrderIds}) / ${p.size}문제씩 / ${p.totalSets}세트 / 완료 ${p.doneSets}`);
+      push(`   현재 시트에 없는 orderId=${p.orphan.length} / 현재 문제 중 길에 없는 ID=${p.missing.length}`);
+      if(p.orphan.length)push(`   orphan 예: ${p.orphan.slice(0,5).join(", ")}${p.orphan.length>5?" …":""}`);
+      if(p.missing.length)push(`   missing 예: ${p.missing.slice(0,5).join(", ")}${p.missing.length>5?" …":""}`);
+    }
+  }
+  push("\n4) 뽀개기 → 현재 문제은행 sheetId 연결");
+  const orphans=data.missionSheets.filter(x=>x.orphan);
+  if(!data.missionSheets.length)push("- bankPath 미션 없음");
+  else if(!orphans.length)push("- 모든 bankPath 미션의 sheetId가 현재 문제은행 시트에 존재함");
+  else{
+    push(`- 끊긴 sheetId ${orphans.length}종류`);
+    for(const x of orphans){
+      push(`  · ${x.sheetId||"(빈 ID)"}: ${x.count}미션`);
+      x.titles.forEach(t=>push(`    제목 예: ${t}`));
+      x.pathKeys.forEach(k=>push(`    pathKey 예: ${k}`));
+    }
+  }
+  push("\n5) Firebase 인덱스 대조");
+  if(!data.cloudIndex){push("- Firebase 인덱스를 읽지 못했거나 로그인하지 않음");}
+  else{
+    const currentIds=new Set(data.sheets.map(s=>s.id)),cloudIds=new Set((data.cloudIndex.sheets||[]).map(x=>x.id));
+    const onlyCurrent=[...currentIds].filter(id=>!cloudIds.has(id)),onlyCloud=[...cloudIds].filter(id=>!currentIds.has(id));
+    push(`- Firebase bank/index 시트=${cloudIds.size}, 현재 메모리 시트=${currentIds.size}`);
+    push(`- 현재에만 있는 sheetId=${onlyCurrent.length}, Firebase index에만 있는 sheetId=${onlyCloud.length}`);
+    if(onlyCurrent.length)push(`  현재만: ${onlyCurrent.slice(0,10).join(", ")}`);
+    if(onlyCloud.length)push(`  Firebase만: ${onlyCloud.slice(0,10).join(", ")}`);
+  }
+  push("\n6) 판정 힌트");
+  const orderOrphans=data.sheets.reduce((a,s)=>a+s.paths.reduce((b,p)=>b+p.orphan.length,0),0);
+  const orderMissing=data.sheets.reduce((a,s)=>a+s.paths.reduce((b,p)=>b+p.missing.length,0),0);
+  if(orphans.length)push("- 뽀개기 미션이 현재 없는 sheetId를 참조함 → 시트 ID 단절 후보. 자동 수정하지 말고 원본/현재 시트를 대조해야 함.");
+  if(orderOrphans)push("- orderIds에 현재 존재하지 않는 문제 ID가 있음 → 문제 ID 단절 또는 삭제 흔적 후보.");
+  if(orderMissing)push("- 현재 문제 중 진도길 orderIds에 없는 ID가 있음 → 새 문제 추가 후 길 미반영/ID 불일치 후보.");
+  if(!orphans.length&&!orderOrphans&&!orderMissing)push("- 큰 ID 단절은 보이지 않음. 이 경우 기록 함수 경로 또는 화면 렌더링 문제를 우선 의심.");
+  push("\n※ 이 진단은 어떤 데이터도 쓰거나 삭제하지 않습니다.");
+  return L.join("\n");
+}
+async function collectIntegrityDiagnostic(){
+  const user=cloudUser||auth.currentUser;
+  let source="현재 앱에 로드된 데이터",cloudIndex=null,cloudAdventure=null,rounds=[];
+  let sheets=(app.bank.sheets||[]).filter(s=>!s.legacyWrong);
+  if(user){
+    try{
+      const [indexSnap,statsSnap,roundSnap]=await Promise.all([
+        getDocFromServer(bankIndexDoc(user.uid)),
+        getDocFromServer(bankStatsDoc(user.uid)),
+        getDocsFromServer(collection(db,"users",user.uid,"planner7Rounds"))
+      ]);
+      if(indexSnap.exists())cloudIndex=indexSnap.data();
+      if(statsSnap.exists())cloudAdventure=statsSnap.data()?.adventure||null;
+      rounds=[];roundSnap.forEach(ds=>rounds.push({...ds.data(),id:ds.id}));
+      // Firebase 인덱스가 있으면 실제 sheet 문서도 읽기만 해서 서버 기준 문제 수를 잡는다.
+      if(cloudIndex?.sheets?.length){
+        const cloudSheets=[];
+        for(const meta of cloudIndex.sheets){
+          try{const snap=await getDocFromServer(bankSheetDoc(user.uid,meta.id));if(snap.exists())cloudSheets.push(snap.data())}catch(e){console.warn("diagnostic bank sheet read failed",meta.id,e)}
+        }
+        if(cloudSheets.length){sheets=cloudSheets.filter(s=>!s.legacyWrong);source="Firebase 서버 원본 + 현재 앱 대조"}
+      }
+    }catch(e){
+      console.warn("read-only diagnostic cloud read failed",e);
+      source="Firebase 읽기 실패 → 현재 앱에 로드된 데이터만 사용";
+      rounds=[...(app.study?.planner?.rounds||[])];
+      cloudAdventure=app.ui.quizAdventure||null;
+    }
+  }else{
+    rounds=[...(app.study?.planner?.rounds||[])];
+    cloudAdventure=app.ui.quizAdventure||null;
+  }
+  const adventure=cloudAdventure||app.ui.quizAdventure||{configs:{}};
+  const summaries=sheets.map(s=>diagSheetSummary(s,adventure));
+  const missionSheets=diagMissionSheetInfo(rounds,sheets);
+  return {loggedIn:!!user,uidTail:user?.uid?user.uid.slice(-6):"",source,sheets:summaries,rounds,missionSheets,cloudIndex};
+}
+async function runIntegrityDiagnostic(){
+  const report=document.getElementById("diagReport"),btn=document.getElementById("diagRun");
+  if(!report||!btn)return;
+  btn.disabled=true;report.textContent="읽기 전용으로 Firebase와 현재 앱 데이터를 대조하는 중…";
+  try{const data=await collectIntegrityDiagnostic();report.textContent=diagFormatReport(data)}
+  catch(e){console.error(e);report.textContent=`진단 실패: ${e?.code||e?.message||e}\n데이터는 변경되지 않았습니다.`}
+  finally{btn.disabled=false}
+}
+function openIntegrityDiagnostic(){
+  const modal=document.getElementById("diagModal");if(!modal)return;
+  modal.classList.remove("hidden");
+  const report=document.getElementById("diagReport");if(report)report.textContent="진단 실행을 누르세요.\n읽기 전용이며 저장 데이터는 변경하지 않습니다.";
+}
+
 function updateMemorySummary(){
   const b=document.getElementById("memorySummaryBtn"); if(!b)return;
   b.textContent=`${sub()?.name||""} › ${sh()?.name||""}`;
@@ -3626,6 +3831,11 @@ function renderSubjects(){
   menu.append(rename,del);more.onclick=e=>{e.preventDefault();e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();wrap.append(more,menu);
   tools.append(plus,wrap);
 
+  const appBackBtn=document.createElement("button");appBackBtn.id="appBackBtn";appBackBtn.className="icon app-back-btn hidden";
+  appBackBtn.type="button";appBackBtn.textContent="‹";appBackBtn.title="앱 안에서 뒤로";appBackBtn.setAttribute("aria-label","앱 안에서 뒤로");
+  bindModeSwitchTap(appBackBtn,appInternalBack);
+  global.append(appBackBtn);
+
   const plannerBtn=document.createElement("button");plannerBtn.className="icon planner-btn";plannerBtn.textContent="오늘";plannerBtn.title="오늘의 뽀개기";plannerBtn.setAttribute("aria-label","오늘의 뽀개기");
   bindModeSwitchTap(plannerBtn,()=>{
     app.study.mode="planner";app.ui.workspace="memory";saveLocal();renderMode();
@@ -3641,9 +3851,11 @@ function renderSubjects(){
   });
   const songBtn=document.createElement("button");songBtn.className="icon melody-index-btn";songBtn.textContent="♪";songBtn.title="멜로디 인덱스";songBtn.setAttribute("aria-label","멜로디 인덱스");
   bindModeSwitchTap(songBtn,()=>{app.study.mode="songs";app.ui.workspace="memory";saveLocal();renderMode()});
+  const diagBtn=document.createElement("button");diagBtn.className="icon diag-btn";diagBtn.textContent="진단";diagBtn.title="읽기 전용 데이터 연결 진단";diagBtn.setAttribute("aria-label","데이터 연결 진단");
+  bindModeSwitchTap(diagBtn,openIntegrityDiagnostic);
   const settingsBtn=document.createElement("button");settingsBtn.className="icon settings-btn";settingsBtn.textContent="⚙";settingsBtn.title="설정";settingsBtn.setAttribute("aria-label","설정");
   bindModeSwitchTap(settingsBtn,openSettings);
-  global.append(plannerBtn,pathBtn,songBtn,settingsBtn);
+  global.append(plannerBtn,pathBtn,songBtn,diagBtn,settingsBtn);
 
   const syncWrap=document.createElement("div");syncWrap.className="sync-wrap";
   const sync=document.createElement("button");sync.id="syncBtn";sync.className="icon sync-btn"+(cloudUser?" signed":"");sync.textContent=cloudUser?"✓":"로그인";sync.title=cloudUser?"자동 동기화 중":"Google 로그인";
@@ -5923,6 +6135,7 @@ function renderQuizMemoScreen(area,item){
 }
 
 function renderQuizQuestion(){
+  updateAppBackButton();
   renderWidePlannerSide();
   updateTypingFloatingBadge();
   const area=document.getElementById("quizArea");area.innerHTML="";
@@ -7380,6 +7593,30 @@ function updateTypingFloatingBadge(){
 }
 
 /* mode */
+function appInternalBack(){
+  closeAllMenus();
+  const openModal=[...document.querySelectorAll(".modal:not(.hidden)")].find(x=>getComputedStyle(x).display!=="none");
+  if(openModal){openModal.classList.add("hidden");return}
+
+  if(quizSession){requestQuizStop();return}
+
+  if((app.ui.workspace||"memory")==="bank"){
+    if((app.ui.bankMode||"quiz")==="edit"){
+      app.ui.bankMode="quiz";saveLocal();renderMode();return;
+    }
+    app.study.mode="study";openMemoryWorkspace();return;
+  }
+
+  if(app.study.mode==="songs"||app.study.mode==="planner"||app.study.mode==="edit"){
+    app.study.mode="study";saveLocalNow();renderMode();return;
+  }
+}
+function updateAppBackButton(){
+  const b=document.getElementById("appBackBtn");if(!b)return;
+  const ws=app.ui.workspace||"memory";
+  const show=!!quizSession || ws==="bank" || ["songs","planner","edit"].includes(app.study.mode);
+  b.classList.toggle("hidden",!show);
+}
 function renderMode(){
   const ws=app.ui.workspace||"memory";
   const memory=ws==="memory";
@@ -7425,6 +7662,7 @@ function renderMode(){
   }
   renderWidePlannerSide();
   updateTypingFloatingBadge();
+  updateAppBackButton();
 }
 function render(){renderSubjects();renderSheets();updateMemorySummary();renderStudy();renderEdit();renderMode()}
 
@@ -7767,29 +8005,16 @@ document.addEventListener("visibilitychange",()=>{
   if(stale)plannerSyncNow({quiet:true});
 });
 
-/* 홈 화면(PWA)에서 시스템 뒤로가기가 GitHub Pages의 없는 상위 경로(404)로 빠지지 않게 현재 문서를 지킨다. */
-function installStandaloneBackGuard(){
-  const standalone=window.matchMedia?.("(display-mode: standalone)")?.matches||window.navigator.standalone===true;
-  if(!standalone||!history?.pushState)return;
-  try{
-    history.replaceState({...(history.state||{}),studyJewBase:true},"",location.href);
-    history.pushState({studyJewGuard:true},"",location.href);
-    window.addEventListener("popstate",()=>{
-      history.pushState({studyJewGuard:true},"",location.href);
-      closeAllMenus();
-      const openModal=[...document.querySelectorAll(".modal:not(.hidden)")].find(x=>getComputedStyle(x).display!=="none");
-      if(openModal){openModal.classList.add("hidden");return}
-      if(quizSession){requestQuizStop();return}
-      if((app.ui.workspace||"memory")==="bank"){
-        app.study.mode="study";openMemoryWorkspace();return;
-      }
-      if(app.study.mode==="songs"||app.study.mode==="planner"){
-        app.study.mode="study";saveLocalNow();renderMode();
-      }
-    });
-  }catch(e){console.warn("back guard failed",e)}
-}
-installStandaloneBackGuard();
+/* 브라우저 history는 강제로 가로채지 않는다.
+   앱 내부 이동은 화면의 뒤로 버튼으로 처리하고, 잘못된 navigation은 service worker/404 fallback이 복구한다. */
+
+document.getElementById("diagClose")?.addEventListener("click",()=>document.getElementById("diagModal")?.classList.add("hidden"));
+document.getElementById("diagRun")?.addEventListener("click",runIntegrityDiagnostic);
+document.getElementById("diagCopy")?.addEventListener("click",async()=>{
+  const text=document.getElementById("diagReport")?.textContent||"";
+  try{await navigator.clipboard.writeText(text);toast("진단 결과 복사됨")}catch{toast("복사 실패")}
+});
+document.getElementById("diagModal")?.addEventListener("click",e=>{if(e.target?.id==="diagModal")e.currentTarget.classList.add("hidden")});
 
 /* controls */
 document.getElementById("widePlannerToggle")?.addEventListener("click",toggleWidePlannerSide);
