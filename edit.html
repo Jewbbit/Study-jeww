@@ -7100,6 +7100,20 @@ async function openPlannerUnit(unit){
 let plannerUiRenderTimer=0;
 let plannerMissionInteractionUntil=0;
 const plannerMissionActionLocks=new Set();
+/* iPad/Safari는 pointerup 뒤 합성 click의 hit-test를 새 DOM에서 다시 하면서
+   방금 눌렀던 행이 사라지거나 이동하면 바로 아래 행이 눌릴 수 있다.
+   보조패널의 터치는 pointerup에서 원래 미션에 고정하고, 이어지는 합성 click 1회는 좌표 기준으로 삼킨다. */
+let plannerSyntheticClickGuard={until:0,x:0,y:0};
+document.addEventListener("click",e=>{
+  const g=plannerSyntheticClickGuard;
+  if(!g.until||Date.now()>g.until)return;
+  const dx=Number(e.clientX||0)-g.x,dy=Number(e.clientY||0)-g.y;
+  if((dx*dx+dy*dy)<=1600){
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    plannerSyntheticClickGuard={until:0,x:0,y:0};
+  }
+},true);
 function plannerScheduleUiRender(){
   if(plannerUiRenderTimer)clearTimeout(plannerUiRenderTimer);
   const wait=Math.max(0,plannerMissionInteractionUntil-Date.now());
@@ -7118,26 +7132,53 @@ function plannerTaskRow(round,mission,{compact=false}={}){
   const run=(e,fn)=>{
     e.preventDefault();e.stopPropagation();
     const now=Date.now();
-    // iPad/Safari에서 재렌더 직후 합성 click이 인접 행으로 넘어가는 것을 막는다.
     if(now<plannerMissionInteractionUntil||plannerMissionActionLocks.has(missionKey))return;
-    plannerMissionInteractionUntil=now+360;
+    plannerMissionInteractionUntil=now+460;
     plannerMissionActionLocks.add(missionKey);
-    try{fn()}finally{setTimeout(()=>plannerMissionActionLocks.delete(missionKey),380)}
+    try{fn()}finally{setTimeout(()=>plannerMissionActionLocks.delete(missionKey),500)}
+  };
+  const bindAction=(button,fn)=>{
+    let pointerId=null,startX=0,startY=0,armed=false;
+    button.addEventListener("pointerdown",e=>{
+      if(e.pointerType==="mouse"||e.isPrimary===false)return;
+      pointerId=e.pointerId;startX=e.clientX;startY=e.clientY;armed=true;
+    });
+    button.addEventListener("pointermove",e=>{
+      if(!armed||e.pointerId!==pointerId)return;
+      const dx=e.clientX-startX,dy=e.clientY-startY;
+      if(dx*dx+dy*dy>144)armed=false; // 12px 이상 움직였으면 스크롤로 취급
+    });
+    button.addEventListener("pointercancel",e=>{
+      if(e.pointerId===pointerId){pointerId=null;armed=false}
+    });
+    button.addEventListener("pointerup",e=>{
+      if(e.pointerType==="mouse"||e.pointerId!==pointerId)return;
+      const dx=e.clientX-startX,dy=e.clientY-startY;
+      const fire=armed&&(dx*dx+dy*dy<=144);
+      pointerId=null;armed=false;
+      if(!fire)return;
+      plannerSyntheticClickGuard={until:Date.now()+650,x:e.clientX,y:e.clientY};
+      run(e,fn);
+    });
+    button.addEventListener("click",e=>{
+      // 마우스/키보드는 일반 click 경로를 사용한다. 터치 뒤 합성 click은 위 capture guard가 먼저 차단한다.
+      run(e,fn);
+    });
   };
 
   const check=document.createElement("button");check.type="button";check.className="planner-task-check";
   check.textContent=done?"✓":"○";
-  check.onclick=e=>run(e,()=>plannerToggleMission(round,mission));
+  bindAction(check,()=>plannerToggleMission(round,mission));
   if(mission.kind==="bankPath")check.title=done?"진도 길에서 완료된 세트":"진도 길 세트를 끝내면 자동 완료";
 
   const text=document.createElement("button");text.type="button";text.className="planner-task-text planner-task-link";
   const title=document.createElement("span");title.textContent=mission.title;
   const sub=document.createElement("small");sub.textContent=mission.detail;
   text.append(title,sub);
-  text.onclick=e=>run(e,()=>openPlannerUnit(mission));
+  bindAction(text,()=>openPlannerUnit(mission));
 
   const exclude=document.createElement("button");exclude.type="button";exclude.className="planner-task-exclude";exclude.textContent="제외";
-  exclude.onclick=e=>run(e,()=>plannerExcludeMission(round,mission));
+  bindAction(exclude,()=>plannerExcludeMission(round,mission));
 
   row.append(check,text,exclude);return row;
 }
