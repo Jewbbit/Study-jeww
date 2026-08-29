@@ -102,8 +102,9 @@ td input:focus,td textarea:focus{background:#f7f7f9}
 .section-edit input{font-weight:750}
 .draft-row td{background:#fbfbfc}
 .draft-row input,.draft-row textarea{color:#555}
-.adds{display:grid;grid-template-columns:1fr;border-top:1px solid var(--line)}
+.adds{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line)}
 .adds button{border:0;background:#fff;padding:10px;color:#777}
+.adds button+button{border-left:1px solid var(--line)}
 .modal-backdrop{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.28);display:flex;align-items:center;justify-content:center;padding:18px}
 .modal{width:min(360px,100%);background:#fff;border-radius:17px;padding:13px;box-shadow:0 15px 45px rgba(0,0,0,.2)}
 .modal-title{font-weight:750;padding:5px 4px 10px}
@@ -2718,7 +2719,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
           <button id="linkSheetSong">♪ 현재 시트 노래 연결</button>
           <div class="menu-sep"></div>
           <button id="clearSheetStars">★ 표시 전체 해제</button>
-          <button id="clearSheetStarCounts">★ 횟수 초기화</button>
+          <button id="clearSheetStarCounts">★ 모두 해제</button>
         </div>
       </div>
     </div>
@@ -2749,7 +2750,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
           <tbody id="editRows"></tbody>
         </table>
       </div>
-      <div class="adds"><button id="addSection">＋ 소제목</button></div>
+      <div class="adds"><button id="addItem">＋ 일반 항목</button><button id="addSection">＋ 소제목</button></div>
     </div>
   </section>
 
@@ -4406,6 +4407,27 @@ function makeTypingPracticeField(row,target){
   return {wrap,input};
 }
 
+function makeStudyStarButton(r,rowEl=null){
+  const star=document.createElement("button");star.type="button";star.className="star"+(r.flagged?" on":"");keepStudyInputFocusOnTap(star);
+  const starGlyph=document.createElement("span");starGlyph.className="star-glyph";starGlyph.textContent=r.flagged?"★":"☆";
+  star.append(starGlyph);
+  const sync=()=>{
+    star.classList.toggle("on",!!r.flagged);
+    starGlyph.textContent=r.flagged?"★":"☆";
+    star.title=r.flagged?"별표 해제":"별표 표시";
+    star.setAttribute("aria-label",star.title);
+    if(rowEl)rowEl.classList.toggle("flagged",!!r.flagged);
+  };
+  sync();
+  star.onclick=e=>{
+    e.preventDefault();e.stopPropagation();
+    r.flagged=!r.flagged;
+    sync();
+    markStudyCloud();
+  };
+  return star;
+}
+
 function renderStudy(){
   const studyTitle=document.getElementById("studyTitle");studyTitle.innerHTML="";
   const titleText=document.createElement("span");titleText.textContent=sh().name;studyTitle.append(titleText);
@@ -4550,6 +4572,8 @@ function renderStudy(){
     if(app.ui.typingPractice){
       row.classList.add("typing-practice-row");
       const typing=makeTypingPracticeField(r,r.correct||"");
+      const typingLine=typing.wrap.querySelector(".typing-input-line");
+      if(typingLine)typingLine.append(makeStudyStarButton(r,row));
       line.append(typing.wrap);
       row.append(line);
       if(r.memo){
@@ -4559,22 +4583,7 @@ function renderStudy(){
       list.append(row);return;
     }
 
-    const star=document.createElement("button");star.type="button";star.className="star"+(r.flagged?" on":"");keepStudyInputFocusOnTap(star);
-    const starGlyph=document.createElement("span");starGlyph.className="star-glyph";starGlyph.textContent=r.flagged?"★":"☆";
-    const starCount=document.createElement("span");starCount.className="star-count";starCount.textContent=r.flagCount?String(r.flagCount):"";
-    star.append(starGlyph,starCount);
-    star.title=r.flagCount?`헷갈림 ${r.flagCount}회`:"헷갈리면 표시";
-    star.onclick=e=>{
-      e.preventDefault();e.stopPropagation();
-      if(!r.flagged){r.flagged=true;r.flagCount=(r.flagCount||0)+1}
-      else r.flagged=false;
-      row.classList.toggle("flagged",!!r.flagged);
-      star.classList.toggle("on",!!r.flagged);
-      starGlyph.textContent=r.flagged?"★":"☆";
-      starCount.textContent=r.flagCount?String(r.flagCount):"";
-      star.title=r.flagCount?`헷갈림 ${r.flagCount}회`:"헷갈리면 표시";
-      markStudyCloud();
-    };
+    const star=makeStudyStarButton(r,row);
 
     const field=document.createElement("div");field.className="study-field";
     const isAnswerShowing=()=>!!(r.revealed||app.ui.showAllStudyAnswers);
@@ -6040,9 +6049,9 @@ function renderQuizQuestion(){
   const prog=document.createElement("div");prog.className="q-progress";
   {const sc=currentSessionScore();prog.textContent=`${quizSession.index+1}/${quizSession.items.length}   ✓ ${sc.correct}   × ${sc.wrong}`;}
   const st=getStat(item);
-  const qStar=document.createElement("button");qStar.className="quiz-star"+(st.flagged?" on":"");qStar.textContent=st.flagCount?`★${st.flagCount}`:"★";
-  qStar.title=st.flagReason?`헷갈림: ${st.flagReason}`:(st.flagCount?`헷갈림 ${st.flagCount}회`:"헷갈리면 표시");
-  qStar.onclick=()=>{if(!st.flagged){st.flagged=true;st.flagCount=(st.flagCount||0)+1}else st.flagged=false;markBankStatsCloud();renderQuizQuestion()};
+  const qStar=document.createElement("button");qStar.className="quiz-star"+(st.flagged?" on":"");qStar.textContent="★";
+  qStar.title=st.flagReason?`헷갈림: ${st.flagReason}`:(st.flagged?"별표 해제":"별표 표시");
+  qStar.onclick=()=>{st.flagged=!st.flagged;markBankStatsCloud();renderQuizQuestion()};
   if(activeQuizMode()==="choice"){
     const memoSettings=document.createElement("button");memoSettings.type="button";memoSettings.className="quiz-inline-memo-settings";
     memoSettings.textContent="⚙";memoSettings.title=`메모 진행: ${quizMemoAdvanceMode()==="manual"?"직접":quizMemoAdvanceMode()+"초 자동"}`;
@@ -8064,10 +8073,22 @@ document.getElementById("songDestCancel").onclick=()=>document.getElementById("s
 document.getElementById("songDestModal").onclick=e=>{if(e.target.id==="songDestModal")e.currentTarget.classList.add("hidden")};
 document.getElementById("clearSheetReview").onclick=e=>{e.stopPropagation();if(!confirm(`'${sh().name}'의 현재 입력내용을 전부 지울까요?`))return;sh().rows.forEach(clearReviewRow);saveStudyDraftsNow();renderStudyKeepPosition()};
 document.getElementById("clearSheetStars").onclick=e=>{e.stopPropagation();sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});markStudyCloud();renderStudyKeepPosition()};
-document.getElementById("clearSheetStarCounts").onclick=e=>{e.stopPropagation();if(!confirm("이 시트의 ★ 누적 횟수를 0으로 초기화할까요?"))return;sh().rows.forEach(r=>{if(r.type!=="section"){r.flagCount=0;r.flagged=false}});markStudyCloud();renderStudyKeepPosition()};
+document.getElementById("clearSheetStarCounts").onclick=e=>{e.stopPropagation();if(!confirm("이 시트의 ★ 표시를 모두 해제할까요?"))return;sh().rows.forEach(r=>{if(r.type!=="section")r.flagged=false});markStudyCloud();renderStudyKeepPosition()};
 document.getElementById("addSheet").onclick=openSheetAddModal;
 document.getElementById("deleteSheet").onclick=deleteCurrentStudySheet;
 document.getElementById("sheetName").onchange=e=>{const name=e.target.value.trim();if(!name)return;const cur=sh();if(sub().sheets.some(s=>s!==cur&&s.name===name))return alert("같은 이름의 시트가 있습니다.");cur.name=name;markStudyCloud();render()};
+document.getElementById("addItem").onclick=()=>{
+  const index=sh().rows.length;
+  sh().rows.push(studyRow());
+  markStudyCloud();
+  renderEdit();
+  requestAnimationFrame(()=>{
+    const correct=document.querySelector(`#editRows .edit-correct[data-row-index="${index}"]`);
+    const row=correct?.closest("tr");
+    const first=row?.querySelector(".edit-input")||correct;
+    if(first){first.focus();first.select?.();first.scrollIntoView({block:"center",behavior:"smooth"})}
+  });
+};
 document.getElementById("addSection").onclick=()=>{const r=sectionRow();r.memorize=!!sh().sectionMemorize;sh().rows.push(r);markStudyCloud();renderEdit()};
 document.getElementById("sectionMemorizeToggle").onclick=()=>{
   sh().sectionMemorize=!sh().sectionMemorize;
