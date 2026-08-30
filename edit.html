@@ -4331,6 +4331,74 @@ function showTypingHint(rowId,guide){
   },1800);
   updateTypingChallengeSummary();
 }
+function bindTypingPracticeEnter(el,handler){
+  let composing=false;
+  let pendingEnter=false;
+  let moving=false;
+  let fastScheduled=false;
+
+  const run=()=>{
+    fastScheduled=false;
+    if(moving)return;
+    moving=true;
+    try{handler()}finally{
+      // 다음 입력칸으로 옮긴 뒤 같은 Enter의 keyup이 중복 처리되지 않게 한 프레임만 잠근다.
+      requestAnimationFrame(()=>{moving=false});
+    }
+  };
+  const runFast=()=>{
+    if(fastScheduled||moving)return;
+    fastScheduled=true;
+    // keydown 핸들러 안에서 바로 focus를 바꾸지는 않되, 고정 지연 없이 같은 틱 직후 이동한다.
+    if(typeof queueMicrotask==="function")queueMicrotask(run);
+    else Promise.resolve().then(run);
+  };
+  const runAfterComposition=()=>{
+    if(fastScheduled||moving)return;
+    fastScheduled=true;
+    // compositionend 뒤에 오는 최종 input 반영까지 끝난 다음 프레임에 이동한다.
+    requestAnimationFrame(run);
+  };
+
+  el.addEventListener("compositionstart",()=>{
+    composing=true;
+    pendingEnter=false;
+  });
+  el.addEventListener("compositionend",()=>{
+    composing=false;
+    if(pendingEnter){
+      pendingEnter=false;
+      runAfterComposition();
+    }
+  });
+  el.addEventListener("keydown",e=>{
+    if(e.key!=="Enter"||e.shiftKey)return;
+    if(e.repeat)return;
+
+    if(composing||e.isComposing||e.keyCode===229){
+      // iPad/Safari에서는 Enter가 현재 한글 조합을 확정시키는 키가 될 수 있다.
+      // 이때 preventDefault하면 조합 확정 자체가 깨질 수 있으므로 기본 동작을 허용한다.
+      pendingEnter=true;
+      return;
+    }
+
+    e.preventDefault();
+    pendingEnter=false;
+    // 조합 중이 아니면 사실상 즉시 이동하되 keydown 이벤트 처리만 끝낸 뒤 포커스를 넘긴다.
+    runFast();
+  });
+  el.addEventListener("keyup",e=>{
+    if(e.key!=="Enter"||e.shiftKey)return;
+    // 일부 Safari에서 compositionend를 놓쳐도 keyup 시점에 조합이 끝났다면 안전하게 마무리한다.
+    if(pendingEnter&&!composing&&!e.isComposing&&e.keyCode!==229){
+      e.preventDefault();
+      pendingEnter=false;
+      runAfterComposition();
+    }
+  });
+  el.addEventListener("blur",()=>{if(!composing)pendingEnter=false});
+}
+
 function makeTypingPracticeField(row,target){
   const wrap=document.createElement("div");wrap.className="typing-practice-field";wrap.dataset.typingRowId=row.id;
   const guide=document.createElement("div");guide.className="typing-practice-guide";guide.textContent=target;
@@ -4388,7 +4456,7 @@ function makeTypingPracticeField(row,target){
     if(e.repeat)return;
     showTypingHint(row.id,guide);
   });
-  bindSafeEnter(input,()=>{
+  bindTypingPracticeEnter(input,()=>{
     const done=applyState(typingNormalize(input.value),input.value);
     if(done){
       if(ensureTypingChallenge().remaining===0)finishTypingChallenge();
