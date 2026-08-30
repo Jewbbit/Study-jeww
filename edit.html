@@ -4331,112 +4331,6 @@ function showTypingHint(rowId,guide){
   },1800);
   updateTypingChallengeSummary();
 }
-function bindTypingPracticeEnter(el,handler){
-  let composing=false;
-  let pendingEnter=false;
-  let compositionEnded=false;
-  let inputSerial=0;
-  let enterInputSerial=0;
-  let moving=false;
-  let scheduled=false;
-  let fallbackTimer=null;
-
-  const clearFallback=()=>{
-    if(fallbackTimer){clearTimeout(fallbackTimer);fallbackTimer=null}
-  };
-  const run=()=>{
-    scheduled=false;
-    clearFallback();
-    if(moving)return;
-    moving=true;
-    try{handler()}finally{
-      // keyup/composition 꼬리 이벤트가 다음 입력칸으로 넘어간 직후 중복 실행하지 않게 잠깐만 잠근다.
-      requestAnimationFrame(()=>{moving=false});
-    }
-  };
-  const runFast=()=>{
-    if(scheduled||moving)return;
-    scheduled=true;
-    // 일반 Enter는 기존 속도를 유지한다.
-    if(typeof queueMicrotask==="function")queueMicrotask(run);
-    else Promise.resolve().then(run);
-  };
-  const runCommitted=()=>{
-    if(scheduled||moving)return;
-    scheduled=true;
-    // 중요: 조합 종료 자체가 아니라, 원래 입력칸의 최종 input까지 확인한 뒤 포커스를 넘긴다.
-    // 이러면 이전 칸의 한글 조합 꼬리가 다음 칸에 붙는 현상을 막을 수 있다.
-    setTimeout(run,0);
-  };
-  const maybeFinishCompositionEnter=()=>{
-    if(!pendingEnter||composing||!compositionEnded)return;
-    if(inputSerial<=enterInputSerial)return;
-    pendingEnter=false;
-    runCommitted();
-  };
-  const armFallback=()=>{
-    clearFallback();
-    // 일부 Safari는 compositionend 뒤 별도 input을 보내지 않을 수 있다.
-    // 이 경우에도 기존 칸의 포커스를 유지한 채 아주 짧게 기다린 후 이동한다.
-    fallbackTimer=setTimeout(()=>{
-      if(!pendingEnter||composing)return;
-      pendingEnter=false;
-      runCommitted();
-    },24);
-  };
-
-  el.addEventListener("compositionstart",()=>{
-    composing=true;
-    compositionEnded=false;
-    pendingEnter=false;
-    clearFallback();
-  });
-  el.addEventListener("input",()=>{
-    inputSerial+=1;
-    maybeFinishCompositionEnter();
-  });
-  el.addEventListener("compositionend",()=>{
-    composing=false;
-    compositionEnded=true;
-    if(!pendingEnter)return;
-    // 브라우저에 따라 최종 input이 compositionend 전/후 어느 쪽에 올 수도 있다.
-    if(inputSerial>enterInputSerial)maybeFinishCompositionEnter();
-    else armFallback();
-  });
-  el.addEventListener("keydown",e=>{
-    if(e.key!=="Enter"||e.shiftKey)return;
-    if(e.repeat)return;
-
-    if(composing||e.isComposing||e.keyCode===229){
-      // Enter는 현재 한글 조합을 확정시키게 두고, 최종 input이 원래 칸에 들어온 것을 확인한 뒤 이동한다.
-      pendingEnter=true;
-      compositionEnded=false;
-      enterInputSerial=inputSerial;
-      clearFallback();
-      return;
-    }
-
-    e.preventDefault();
-    pendingEnter=false;
-    compositionEnded=false;
-    clearFallback();
-    runFast();
-  });
-  el.addEventListener("keyup",e=>{
-    if(e.key!=="Enter"||e.shiftKey)return;
-    // compositionend를 놓친 Safari 보정. 포커스를 먼저 옮기지 않고 원래 칸에서 짧은 확정 대기만 한다.
-    if(pendingEnter&&!composing&&!e.isComposing&&e.keyCode!==229){
-      e.preventDefault();
-      compositionEnded=true;
-      if(inputSerial>enterInputSerial)maybeFinishCompositionEnter();
-      else armFallback();
-    }
-  });
-  el.addEventListener("blur",()=>{
-    if(!moving){pendingEnter=false;compositionEnded=false;clearFallback()}
-  });
-}
-
 function makeTypingPracticeField(row,target){
   const wrap=document.createElement("div");wrap.className="typing-practice-field";wrap.dataset.typingRowId=row.id;
   const guide=document.createElement("div");guide.className="typing-practice-guide";guide.textContent=target;
@@ -4494,7 +4388,7 @@ function makeTypingPracticeField(row,target){
     if(e.repeat)return;
     showTypingHint(row.id,guide);
   });
-  bindTypingPracticeEnter(input,()=>{
+  bindSafeEnter(input,()=>{
     const done=applyState(typingNormalize(input.value),input.value);
     if(done){
       if(ensureTypingChallenge().remaining===0)finishTypingChallenge();
