@@ -2713,6 +2713,80 @@ body.mobile-mission-open{overflow:hidden}
   .mobile-mission-list .planner-task-text{font-size:12px}.mobile-mission-list .planner-task-text small{font-size:9px}
 }
 </style>
+
+<style>
+/* ===== 2026-09 태블릿 보조패널: 항상 고정 + 핸들 제거 ===== */
+#widePlannerToggle{display:none!important}
+.wide-planner-full{
+  flex:0 0 auto;border:1px solid #e2e2e5!important;background:#fff!important;
+  min-height:26px!important;padding:3px 7px!important;border-radius:5px!important;
+  color:#66676d!important;font-size:9.5px!important;font-weight:650!important;white-space:nowrap
+}
+.wide-planner-full:active{background:#f1f1f3!important}
+@media (min-width:700px) and (min-height:600px){
+  body.wide-planner-eligible main{
+    padding-right:calc(clamp(230px,30vw,340px) + 26px)!important;
+  }
+  body.wide-planner-eligible.wide-planner-collapsed main{
+    padding-right:calc(clamp(230px,30vw,340px) + 26px)!important;
+  }
+  .wide-planner-side.eligible,
+  .wide-planner-side.eligible.collapsed{
+    display:block!important;position:fixed!important;
+    right:8px!important;top:82px!important;bottom:10px!important;
+    width:clamp(230px,30vw,340px)!important;
+    padding:0 9px 9px 12px!important;
+    border-left:1px solid #e7e7ea!important;background:#fff!important;
+    overflow:hidden!important;z-index:42!important;
+  }
+  .wide-planner-side .wide-planner-inner,
+  .wide-planner-side.collapsed .wide-planner-inner{
+    display:block!important;height:100%!important;overflow:auto!important;overscroll-behavior:contain!important;
+  }
+  .wide-planner-head{
+    position:sticky!important;top:0!important;z-index:3!important;
+    display:flex!important;align-items:center!important;gap:5px!important;
+    min-height:36px!important;padding:4px 0 5px!important;
+    background:#fff!important;border-bottom:1px solid #ededf0!important;
+  }
+  .wide-planner-tabs{display:flex!important;align-items:center!important;gap:1px!important;flex:1!important;min-width:0!important}
+  .wide-planner-tabs button{
+    min-height:27px!important;border:0!important;background:#fff!important;border-radius:4px!important;
+    padding:4px 7px!important;font-size:10.5px!important;color:#85868b!important;font-weight:600!important
+  }
+  .wide-planner-tabs button.active{background:#f0f0f2!important;color:#303136!important;font-weight:700!important}
+  .wide-planner-head>span{font-size:9px!important;color:#929399!important;white-space:nowrap!important}
+  .wide-planner-date-nav{
+    position:relative!important;display:grid!important;
+    grid-template-columns:28px minmax(58px,1fr) 28px auto!important;
+    align-items:center!important;gap:2px!important;padding:4px 0 5px!important;
+    background:#fff!important;border-bottom:1px solid #efeff1!important;
+  }
+  .wide-planner-date-nav.hidden{display:none!important}
+  .wide-planner-date-nav>button{
+    border:0!important;background:#fff!important;min-height:28px!important;padding:3px 5px!important;color:#66676d!important
+  }
+  #widePlannerDateLabel{font-size:11px!important;font-weight:700!important;text-align:center!important;color:#3e3f43!important}
+  #widePlannerPrevDate,#widePlannerNextDate{font-size:17px!important;color:#8a8b90!important}
+  #widePlannerTodayButton{
+    min-height:26px!important;padding:3px 7px!important;border:1px solid #e2e2e5!important;
+    border-radius:4px!important;font-size:9.5px!important;font-weight:650!important;white-space:nowrap!important
+  }
+  #widePlannerDatePicker{
+    position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;
+    pointer-events:none!important;left:50%!important;top:50%!important
+  }
+  .wide-planner-list{padding:1px 0 12px!important;background:#fff!important}
+  .wide-planner-list .planner-task{
+    grid-template-columns:36px minmax(0,1fr) auto!important;gap:6px!important;
+    padding:6px 0!important;border-top:1px solid #efeff1!important;background:#fff!important
+  }
+  .wide-planner-list .planner-task:first-of-type{border-top:0!important}
+  .wide-planner-list .planner-task-check{width:36px!important;min-width:36px!important;height:34px!important;min-height:34px!important}
+  .wide-planner-list .planner-task-text{font-size:11px!important;line-height:1.4!important}
+  .wide-planner-list .planner-task-text small{font-size:9px!important}
+}
+</style>
 </head>
 <body>
 <header>
@@ -2827,6 +2901,7 @@ body.mobile-mission-open{overflow:hidden}
         <button id="widePlannerSongTab" type="button" role="tab">노래</button>
       </div>
       <span id="widePlannerCount"></span>
+      <button id="widePlannerFull" class="wide-planner-full" type="button" title="뽀개기 전체 화면">전체</button>
     </div>
     <div id="widePlannerDateNav" class="wide-planner-date-nav">
       <button id="widePlannerPrevDate" type="button" aria-label="이전 날짜">‹</button>
@@ -3733,7 +3808,8 @@ function renderSubjects(){
   updatePlannerQuickButton(plannerBtn);
   bindModeSwitchTap(plannerBtn,()=>{
     if(useCompactMissionPanel()){openMobileMissionSheet();return}
-    app.study.mode="planner";app.ui.workspace="memory";saveLocal();renderMode();
+    /* 태블릿/PC에서는 전체 화면으로 전환하지 않고 고정 보조패널의 오늘 일정만 보여준다. */
+    widePlannerSideTab="today";widePlannerDate=plannerToday();renderWidePlannerSide();
     if(cloudUser)plannerSyncNow({quiet:true});
   });
   const pathBtn=document.createElement("button");pathBtn.className="global-path-btn";pathBtn.textContent="진도";pathBtn.title="진도 학습";pathBtn.setAttribute("aria-label","진도 학습");
@@ -7585,7 +7661,8 @@ let widePlannerSideTab="today";
 let widePlannerDate="";
 let widePlannerLastRenderKey="";
 let mobileMissionDate="";
-function useCompactMissionPanel(){return !window.matchMedia("(min-width:1000px) and (orientation:landscape)").matches}
+function hasPermanentSidePanel(){return window.matchMedia("(min-width:700px) and (min-height:600px)").matches}
+function useCompactMissionPanel(){return !hasPermanentSidePanel()}
 function plannerDaySummary(date=plannerToday()){
   let done=0,total=0;
   for(const round of plannerStore().rounds){
@@ -7634,11 +7711,9 @@ function widePlannerShiftDate(days){
   widePlannerSetDate(plannerAddDays(widePlannerSelectedDate(),days));
 }
 function widePlannerSideEligible(){
-  if(!window.matchMedia("(min-width:1000px) and (orientation:landscape)").matches)return false;
-  const ws=app.ui.workspace||"memory";
-  /* 편집 화면만 폭을 온전히 쓰고, 나머지 공부 흐름에서는 오른쪽 영역을 계속 유지 */
-  if(ws==="memory")return app.study.mode!=="edit";
-  return (app.ui.bankMode||"quiz")!=="edit";
+  /* 태블릿 이상에서는 작업공간/편집 모드와 무관하게 보조패널을 항상 고정한다.
+     메인 영역에 패널 폭만큼 여백을 예약하므로 콘텐츠를 덮지 않는다. */
+  return hasPermanentSidePanel();
 }
 function renderWidePlannerSongs(list,count){
   const songs=[...songStore()].sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""),"ko"));
@@ -7718,11 +7793,11 @@ function renderWidePlannerSide(){
   side.classList.toggle("eligible",eligible);
   document.body.classList.toggle("wide-planner-eligible",eligible);
 
-  const collapsed=!!app.ui.widePlannerCollapsed;
-  side.classList.toggle("collapsed",collapsed);
-  document.body.classList.toggle("wide-planner-collapsed",eligible&&collapsed);
-  toggle.textContent=collapsed?"›":"‹";
-  toggle.setAttribute("aria-label",collapsed?"보조 패널 펼치기":"보조 패널 접기");
+  /* 보조패널은 태블릿 이상에서 항상 펼친 상태로 고정한다.
+     기존 collapsed 값은 데이터 호환을 위해 남겨두되 UI에서는 사용하지 않는다. */
+  side.classList.remove("collapsed");
+  document.body.classList.remove("wide-planner-collapsed");
+  toggle.hidden=true;
 
   todayTab.classList.toggle("active",widePlannerSideTab==="today");
   songTab.classList.toggle("active",widePlannerSideTab==="songs");
@@ -7753,8 +7828,9 @@ function renderWidePlannerSide(){
   });
 }
 function toggleWidePlannerSide(){
-  app.ui.widePlannerCollapsed=!app.ui.widePlannerCollapsed;
-  saveLocal();renderWidePlannerSide();
+  /* 2026-09: 태블릿 보조패널은 고정. 과거 접기 핸들 호환용 no-op. */
+  app.ui.widePlannerCollapsed=false;
+  renderWidePlannerSide();
 }
 function setWidePlannerSideTab(tab){
   widePlannerSideTab=tab==="songs"?"songs":"today";
@@ -8229,6 +8305,10 @@ document.getElementById("widePlannerSongTab")?.addEventListener("click",()=>setW
 document.getElementById("widePlannerPrevDate")?.addEventListener("click",()=>widePlannerShiftDate(-1));
 document.getElementById("widePlannerNextDate")?.addEventListener("click",()=>widePlannerShiftDate(1));
 document.getElementById("widePlannerTodayButton")?.addEventListener("click",()=>widePlannerSetDate(plannerToday()));
+document.getElementById("widePlannerFull")?.addEventListener("click",()=>{
+  app.study.mode="planner";app.ui.workspace="memory";saveLocal();renderMode();
+  if(cloudUser)plannerSyncNow({quiet:true});
+});
 document.getElementById("widePlannerDatePicker")?.addEventListener("change",e=>widePlannerSetDate(e.target.value));
 document.getElementById("widePlannerDateLabel")?.addEventListener("click",()=>{
   const picker=document.getElementById("widePlannerDatePicker");if(!picker)return;
