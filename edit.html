@@ -2438,12 +2438,29 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .round-preset-section-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .round-preset-section-head strong{font-size:10.5px}
 .round-preset-section-head span{margin-left:auto;font-size:9.5px;color:#898a90}
-.round-preset-subjects{display:flex;gap:5px;flex-wrap:wrap}
-.round-preset-subjects button{
-  border:1px solid #dedee3;background:#fff;border-radius:999px;padding:5px 8px;font-size:10px;color:#55565b
+.round-preset-subjects{
+  display:flex;gap:5px;overflow-x:auto;flex-wrap:nowrap;padding-bottom:3px;
+  scrollbar-width:none;-webkit-overflow-scrolling:touch
 }
-.round-preset-subjects button.on{background:#efeff2;border-color:#cfd0d5;color:#242529;font-weight:700}
-.round-preset-subjects button.partial{border-style:dashed;background:#fafafa}
+.round-preset-subjects::-webkit-scrollbar{display:none}
+.round-preset-subjects button{
+  flex:0 0 auto;border:1px solid #dedee3;background:#fff;border-radius:999px;
+  padding:6px 9px;font-size:10px;color:#66676d;white-space:nowrap
+}
+.round-preset-subjects button.active{
+  background:#242529;border-color:#242529;color:#fff;font-weight:700
+}
+.round-preset-subjects button.done:not(.active){
+  background:#f1f1f3;border-color:#d7d7dc;color:#34353a;font-weight:700
+}
+.round-preset-subjects button.partial:not(.active){
+  border-style:dashed;background:#fafafa;color:#66676d
+}
+.round-preset-current-subject{
+  display:flex;align-items:center;gap:8px;padding:1px 0 7px
+}
+.round-preset-current-subject strong{font-size:12px;color:#2f3034}
+.round-preset-current-subject span{margin-left:auto;font-size:9.5px;color:#8b8c92}
 .round-preset-mini-actions{display:flex;gap:5px;margin-top:7px}
 .round-preset-mini-actions button{
   border:1px solid #e2e2e6;background:#fff;border-radius:7px;padding:5px 8px;font-size:9.5px;color:#6d6e73
@@ -3060,7 +3077,7 @@ body.mobile-mission-open{overflow:hidden}
     <div class="round-preset-head">
       <div>
         <div class="modal-title" id="roundPresetTitle">회독 프리셋</div>
-        <div class="round-preset-subtitle">회독에 넣을 시트를 미리 묶어둡니다.</div>
+        <div class="round-preset-subtitle">프리셋을 고른 뒤 과목별로 필요한 시트만 수정합니다.</div>
       </div>
       <button class="icon round-preset-close" id="roundPresetClose" type="button" aria-label="닫기">×</button>
     </div>
@@ -3074,13 +3091,13 @@ body.mobile-mission-open{overflow:hidden}
 
     <div class="round-preset-section">
       <div class="round-preset-section-head">
-        <strong>과목 빠른 선택</strong>
+        <strong>과목별 수정</strong>
         <span id="roundPresetCount"></span>
       </div>
       <div id="roundPresetSubjectChips" class="round-preset-subjects"></div>
       <div class="round-preset-mini-actions">
-        <button id="roundPresetAll" type="button">전체 선택</button>
-        <button id="roundPresetNone" type="button">전체 해제</button>
+        <button id="roundPresetAll" type="button">이 과목 전체 선택</button>
+        <button id="roundPresetNone" type="button">이 과목 전체 해제</button>
       </div>
     </div>
 
@@ -7223,42 +7240,69 @@ function plannerDeleteScopePreset(id){
   if(store.items.length!==before)markStudyCloud();
   return store.items.length!==before;
 }
-let roundPresetEditorState={id:"",memorySheetIds:new Set(),bankSheetIds:new Set()};
+let roundPresetEditorState={id:"",activeSubjectKey:"",memorySheetIds:new Set(),bankSheetIds:new Set()};
 
 function roundPresetEditorCatalog(){return plannerScopeCatalog()}
+function roundPresetDefaultSubjectKey(catalog=roundPresetEditorCatalog()){
+  const subjects=plannerScopeSubjects(catalog);
+  const current=app.ui.quiz.subject&&app.ui.quiz.subject!=="all"?plannerSubjectKey(app.ui.quiz.subject):"";
+  if(current&&subjects.some(s=>plannerSubjectKey(s.name)===current))return current;
+  return subjects[0]?plannerSubjectKey(subjects[0].name):"";
+}
+function roundPresetEnsureActiveSubject(catalog=roundPresetEditorCatalog()){
+  const subjects=plannerScopeSubjects(catalog);
+  if(!subjects.length){roundPresetEditorState.activeSubjectKey="";return null}
+  let subject=subjects.find(s=>plannerSubjectKey(s.name)===roundPresetEditorState.activeSubjectKey);
+  if(!subject){
+    const key=roundPresetDefaultSubjectKey(catalog);
+    subject=subjects.find(s=>plannerSubjectKey(s.name)===key)||subjects[0];
+    roundPresetEditorState.activeSubjectKey=plannerSubjectKey(subject.name);
+  }
+  return subject;
+}
 function roundPresetEditorResetFromCurrentBank(){
   const catalog=roundPresetEditorCatalog();
   const selectedIds=new Set(selectedBankSheets().map(s=>s.id));
   roundPresetEditorState={
     id:"",
+    activeSubjectKey:roundPresetDefaultSubjectKey(catalog),
     memorySheetIds:new Set(),
     bankSheetIds:new Set(catalog.bank.filter(x=>selectedIds.has(x.id)).map(x=>x.id))
   };
 }
 function roundPresetEditorLoad(preset){
   const catalog=roundPresetEditorCatalog();
+  const keepSubject=roundPresetEditorState.activeSubjectKey||roundPresetDefaultSubjectKey(catalog);
   const validMemory=new Set(catalog.memory.map(x=>x.id)),validBank=new Set(catalog.bank.map(x=>x.id));
   roundPresetEditorState={
     id:preset?.id||"",
+    activeSubjectKey:keepSubject,
     memorySheetIds:new Set((preset?.memorySheetIds||[]).filter(id=>validMemory.has(id))),
     bankSheetIds:new Set((preset?.bankSheetIds||[]).filter(id=>validBank.has(id)))
   };
+  roundPresetEnsureActiveSubject(catalog);
 }
 function roundPresetEditorSelected(id){
   return roundPresetEditorState.memorySheetIds.has(id)||roundPresetEditorState.bankSheetIds.has(id);
 }
-function roundPresetEditorToggleSubject(subject){
-  const ids=[...subject.memory,...subject.bank];
-  const all=ids.length&&ids.every(roundPresetEditorSelected);
-  for(const id of subject.memory){if(all)roundPresetEditorState.memorySheetIds.delete(id);else roundPresetEditorState.memorySheetIds.add(id)}
-  for(const id of subject.bank){if(all)roundPresetEditorState.bankSheetIds.delete(id);else roundPresetEditorState.bankSheetIds.add(id)}
+function roundPresetEditorSetSubjectAll(subject,selected){
+  for(const id of subject.memory){
+    if(selected)roundPresetEditorState.memorySheetIds.add(id);
+    else roundPresetEditorState.memorySheetIds.delete(id);
+  }
+  for(const id of subject.bank){
+    if(selected)roundPresetEditorState.bankSheetIds.add(id);
+    else roundPresetEditorState.bankSheetIds.delete(id);
+  }
 }
 function roundPresetEditorRefresh(){
   const modal=document.getElementById("roundPresetModal");if(!modal||modal.classList.contains("hidden"))return;
   const catalog=roundPresetEditorCatalog(),subjects=plannerScopeSubjects(catalog),store=plannerScopePresetStore();
+  const activeSubject=roundPresetEnsureActiveSubject(catalog);
   const select=document.getElementById("roundPresetSelect"),name=document.getElementById("roundPresetName");
   const chips=document.getElementById("roundPresetSubjectChips"),lists=document.getElementById("roundPresetLists");
   const count=document.getElementById("roundPresetCount"),del=document.getElementById("roundPresetDelete");
+  const allBtn=document.getElementById("roundPresetAll"),noneBtn=document.getElementById("roundPresetNone");
 
   const previous=roundPresetEditorState.id||"";
   select.innerHTML="";
@@ -7271,54 +7315,73 @@ function roundPresetEditorRefresh(){
   if(document.activeElement!==name)name.value=active?.name||name.value||"";
   del.disabled=!active;
 
+  // 과목 버튼은 '선택 토글'이 아니라 '편집할 과목 이동'만 담당.
   chips.innerHTML="";
   for(const subject of subjects){
     const ids=[...subject.memory,...subject.bank];
     const n=ids.filter(roundPresetEditorSelected).length;
+    const key=plannerSubjectKey(subject.name);
     const b=document.createElement("button");b.type="button";
-    b.classList.toggle("on",ids.length>0&&n===ids.length);
+    b.classList.toggle("active",key===roundPresetEditorState.activeSubjectKey);
+    b.classList.toggle("done",ids.length>0&&n===ids.length);
     b.classList.toggle("partial",n>0&&n<ids.length);
     b.textContent=n===ids.length&&ids.length?`${subject.name} ✓`:n?`${subject.name} ${n}/${ids.length}`:subject.name;
-    b.onclick=()=>{roundPresetEditorToggleSubject(subject);roundPresetEditorRefresh()};
+    b.onclick=()=>{
+      roundPresetEditorState.activeSubjectKey=key;
+      roundPresetEditorRefresh();
+      requestAnimationFrame(()=>b.scrollIntoView({block:"nearest",inline:"center",behavior:"smooth"}));
+    };
     chips.append(b);
   }
 
   const selectedTotal=roundPresetEditorState.memorySheetIds.size+roundPresetEditorState.bankSheetIds.size;
-  count.textContent=`${selectedTotal}/${catalog.memory.length+catalog.bank.length} 시트`;
+  count.textContent=`전체 ${selectedTotal}/${catalog.memory.length+catalog.bank.length} 시트`;
 
   lists.innerHTML="";
-  for(const subject of subjects){
-    const memoryItems=catalog.memory.filter(x=>subject.memory.includes(x.id));
-    const bankItems=catalog.bank.filter(x=>subject.bank.includes(x.id));
-    const group=document.createElement("div");group.className="round-preset-group";
-    const head=document.createElement("div");head.className="round-preset-group-title";
-    const title=document.createElement("strong");title.textContent=subject.name;
-    const sub=document.createElement("small");sub.textContent=`문제은행 ${bankItems.length} · 암기판 ${memoryItems.length}`;
-    head.append(title,sub);group.append(head);
-
-    const addKind=(kindLabel,items,type)=>{
-      if(!items.length)return;
-      const kind=document.createElement("div");kind.className="round-preset-kind";kind.textContent=kindLabel;group.append(kind);
-      const set=type==="memory"?roundPresetEditorState.memorySheetIds:roundPresetEditorState.bankSheetIds;
-      for(const item of items){
-        const label=document.createElement("label");label.className="round-preset-item";
-        const cb=document.createElement("input");cb.type="checkbox";cb.checked=set.has(item.id);
-        cb.onchange=()=>{if(cb.checked)set.add(item.id);else set.delete(item.id);roundPresetEditorRefresh()};
-        const txt=document.createElement("span");
-        const shortLabel=String(item.label||"").split("›").slice(1).join("›").trim()||item.label;
-        txt.textContent=shortLabel;
-        const meta=document.createElement("small");meta.textContent=`${item.count}${type==="memory"?"항목":"문제"}`;
-        label.append(cb,txt,meta);group.append(label);
-      }
-    };
-    addKind("문제은행",bankItems,"bank");
-    addKind("암기판",memoryItems,"memory");
-    lists.append(group);
+  if(!activeSubject){
+    lists.innerHTML='<div class="bank-empty">편집할 과목이 없습니다.</div>';
+    allBtn.disabled=true;noneBtn.disabled=true;
+    return;
   }
+  allBtn.disabled=false;noneBtn.disabled=false;
+
+  const memoryItems=catalog.memory.filter(x=>activeSubject.memory.includes(x.id));
+  const bankItems=catalog.bank.filter(x=>activeSubject.bank.includes(x.id));
+  const subjectIds=[...activeSubject.memory,...activeSubject.bank];
+  const subjectSelected=subjectIds.filter(roundPresetEditorSelected).length;
+
+  const current=document.createElement("div");current.className="round-preset-current-subject";
+  const currentName=document.createElement("strong");currentName.textContent=activeSubject.name;
+  const currentCount=document.createElement("span");currentCount.textContent=`${subjectSelected}/${subjectIds.length} 시트 선택`;
+  current.append(currentName,currentCount);lists.append(current);
+
+  const group=document.createElement("div");group.className="round-preset-group";
+  const addKind=(kindLabel,items,type)=>{
+    if(!items.length)return;
+    const kind=document.createElement("div");kind.className="round-preset-kind";kind.textContent=kindLabel;group.append(kind);
+    const set=type==="memory"?roundPresetEditorState.memorySheetIds:roundPresetEditorState.bankSheetIds;
+    for(const item of items){
+      const label=document.createElement("label");label.className="round-preset-item";
+      const cb=document.createElement("input");cb.type="checkbox";cb.checked=set.has(item.id);
+      cb.onchange=()=>{
+        if(cb.checked)set.add(item.id);else set.delete(item.id);
+        roundPresetEditorRefresh();
+      };
+      const txt=document.createElement("span");
+      const shortLabel=String(item.label||"").split("›").slice(1).join("›").trim()||item.label;
+      txt.textContent=shortLabel;
+      const meta=document.createElement("small");meta.textContent=`${item.count}${type==="memory"?"항목":"문제"}`;
+      label.append(cb,txt,meta);group.append(label);
+    }
+  };
+  addKind("문제은행",bankItems,"bank");
+  addKind("암기판",memoryItems,"memory");
+  lists.append(group);
 }
 function openRoundPresetManager(){
   const modal=document.getElementById("roundPresetModal");if(!modal)return;
   roundPresetEditorResetFromCurrentBank();
+  roundPresetEditorState.activeSubjectKey=roundPresetDefaultSubjectKey();
   const name=document.getElementById("roundPresetName");
   name.value=app.ui.quiz.subject&&app.ui.quiz.subject!=="all"?`${plannerSubjectDisplayName(app.ui.quiz.subject)} 기본`:"";
   modal.classList.remove("hidden");
@@ -9289,20 +9352,21 @@ document.getElementById("roundPresetSelect").onchange=e=>{
   roundPresetEditorRefresh();
 };
 document.getElementById("roundPresetNew").onclick=()=>{
+  const keepSubject=roundPresetEditorState.activeSubjectKey||roundPresetDefaultSubjectKey();
   roundPresetEditorResetFromCurrentBank();
+  roundPresetEditorState.activeSubjectKey=keepSubject;
   document.getElementById("roundPresetName").value=app.ui.quiz.subject&&app.ui.quiz.subject!=="all"?`${plannerSubjectDisplayName(app.ui.quiz.subject)} 기본`:"";
   roundPresetEditorRefresh();
   document.getElementById("roundPresetName").focus();
 };
 document.getElementById("roundPresetAll").onclick=()=>{
-  const c=roundPresetEditorCatalog();
-  roundPresetEditorState.memorySheetIds=new Set(c.memory.map(x=>x.id));
-  roundPresetEditorState.bankSheetIds=new Set(c.bank.map(x=>x.id));
+  const subject=roundPresetEnsureActiveSubject();
+  if(subject)roundPresetEditorSetSubjectAll(subject,true);
   roundPresetEditorRefresh();
 };
 document.getElementById("roundPresetNone").onclick=()=>{
-  roundPresetEditorState.memorySheetIds.clear();
-  roundPresetEditorState.bankSheetIds.clear();
+  const subject=roundPresetEnsureActiveSubject();
+  if(subject)roundPresetEditorSetSubjectAll(subject,false);
   roundPresetEditorRefresh();
 };
 document.getElementById("roundPresetSave").onclick=saveRoundPresetFromEditor;
