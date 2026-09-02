@@ -2420,6 +2420,65 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   border:1px solid #e4e4e7!important;background:#fff!important;border-radius:5px!important;
   padding:4px 7px!important;font-size:9.5px!important;color:#66676d!important;
 }
+.round-preset-modal{
+  width:min(680px,calc(100vw - 24px));max-height:min(86vh,760px);padding:0;overflow:hidden;
+  display:flex;flex-direction:column
+}
+.round-preset-head{display:flex;align-items:flex-start;gap:10px;padding:13px 14px 8px;border-bottom:1px solid #ececf0}
+.round-preset-head>div{min-width:0;flex:1}
+.round-preset-head .modal-title{padding:0}
+.round-preset-subtitle{font-size:10px;color:#8a8b91;margin-top:2px}
+.round-preset-close{flex:0 0 auto}
+.round-preset-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;padding:10px 14px 6px}
+.round-preset-top select,.round-preset-top button,.round-preset-name{
+  height:34px;border:1px solid #dedee3;background:#fff;border-radius:8px;padding:0 9px;font-size:11px;color:#44454a
+}
+.round-preset-name{margin:0 14px 8px;width:calc(100% - 28px);box-sizing:border-box}
+.round-preset-section{padding:8px 14px;border-top:1px solid #f0f0f2}
+.round-preset-section-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.round-preset-section-head strong{font-size:10.5px}
+.round-preset-section-head span{margin-left:auto;font-size:9.5px;color:#898a90}
+.round-preset-subjects{display:flex;gap:5px;flex-wrap:wrap}
+.round-preset-subjects button{
+  border:1px solid #dedee3;background:#fff;border-radius:999px;padding:5px 8px;font-size:10px;color:#55565b
+}
+.round-preset-subjects button.on{background:#efeff2;border-color:#cfd0d5;color:#242529;font-weight:700}
+.round-preset-subjects button.partial{border-style:dashed;background:#fafafa}
+.round-preset-mini-actions{display:flex;gap:5px;margin-top:7px}
+.round-preset-mini-actions button{
+  border:1px solid #e2e2e6;background:#fff;border-radius:7px;padding:5px 8px;font-size:9.5px;color:#6d6e73
+}
+.round-preset-lists{overflow:auto;padding:0 14px 10px;overscroll-behavior:contain}
+.round-preset-group{border-top:1px solid #efeff2;padding:8px 0 5px}
+.round-preset-group:first-child{border-top:0}
+.round-preset-group-title{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.round-preset-group-title strong{font-size:10.5px}
+.round-preset-group-title small{font-size:9px;color:#999aa0}
+.round-preset-kind{font-size:9px;color:#8d8e94;margin:6px 0 3px;font-weight:700}
+.round-preset-item{
+  display:grid;grid-template-columns:20px minmax(0,1fr) auto;gap:6px;align-items:center;
+  padding:5px 2px;font-size:10.5px;color:#404146
+}
+.round-preset-item input{width:15px;height:15px;margin:0}
+.round-preset-item span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.round-preset-item small{font-size:8.5px;color:#999aa0}
+.round-preset-footer{display:flex;gap:7px;padding:9px 14px 13px;border-top:1px solid #ececf0;background:#fff}
+.round-preset-footer button{height:34px;border:1px solid #dedee3;background:#fff;border-radius:8px;padding:0 12px;font-size:10.5px}
+.round-preset-footer .danger-lite{color:#a64b4b}
+.round-preset-footer .primary{margin-left:auto;min-width:92px}
+.quiz-preset-btn{
+  margin-right:auto!important;border:1px solid #dedee3!important;background:#fff!important;border-radius:8px!important;
+  padding:6px 9px!important;font-size:10px!important;color:#55565b!important
+}
+.planner-preset-manage-hint{font-size:8.8px;color:#929399;margin-top:4px}
+@media(max-width:640px){
+  .round-preset-modal{width:calc(100vw - 12px);max-height:91vh;border-radius:14px}
+  .round-preset-head{padding:11px 11px 7px}
+  .round-preset-top{padding:8px 11px 5px}
+  .round-preset-name{margin:0 11px 7px;width:calc(100% - 22px)}
+  .round-preset-section,.round-preset-lists{padding-left:11px;padding-right:11px}
+  .round-preset-footer{padding:8px 11px 11px}
+}
 .planner-preset-panel{padding:6px 0 7px;border-top:1px solid #f0f0f2}
 .planner-preset-label{font-size:9px;font-weight:700;color:#777980;margin:0 0 4px}
 .planner-subject-presets{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px}
@@ -2995,6 +3054,44 @@ body.mobile-mission-open{overflow:hidden}
   </div>
 </div>
 <input class="hidden" id="bankExcelFiles" type="file" multiple accept=".xlsx,.xlsm,.xls,.xlsb">
+
+<div class="modal-backdrop hidden" id="roundPresetModal">
+  <div class="modal round-preset-modal" role="dialog" aria-modal="true" aria-labelledby="roundPresetTitle">
+    <div class="round-preset-head">
+      <div>
+        <div class="modal-title" id="roundPresetTitle">회독 프리셋</div>
+        <div class="round-preset-subtitle">회독에 넣을 시트를 미리 묶어둡니다.</div>
+      </div>
+      <button class="icon round-preset-close" id="roundPresetClose" type="button" aria-label="닫기">×</button>
+    </div>
+
+    <div class="round-preset-top">
+      <select id="roundPresetSelect" aria-label="저장된 프리셋"></select>
+      <button id="roundPresetNew" type="button">새 프리셋</button>
+    </div>
+
+    <input id="roundPresetName" class="round-preset-name" type="text" placeholder="프리셋 이름" autocomplete="off">
+
+    <div class="round-preset-section">
+      <div class="round-preset-section-head">
+        <strong>과목 빠른 선택</strong>
+        <span id="roundPresetCount"></span>
+      </div>
+      <div id="roundPresetSubjectChips" class="round-preset-subjects"></div>
+      <div class="round-preset-mini-actions">
+        <button id="roundPresetAll" type="button">전체 선택</button>
+        <button id="roundPresetNone" type="button">전체 해제</button>
+      </div>
+    </div>
+
+    <div id="roundPresetLists" class="round-preset-lists"></div>
+
+    <div class="round-preset-footer">
+      <button id="roundPresetDelete" type="button" class="danger-lite">삭제</button>
+      <button id="roundPresetSave" type="button" class="primary">저장</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-backdrop hidden" id="settingsModal">
   <div class="modal settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
@@ -5333,7 +5430,7 @@ function parseBankWorksheet(ws,source,name){
   if(!ws["!ref"])return null;
   const range=XLSX.utils.decode_range(ws["!ref"]);
   const hA=cellValue(ws,"A1"),hB=cellValue(ws,"B1"),hC=cellValue(ws,"C1");
-  const looksLikeBank=/카테고리|분류/.test(hA)&&/문제|단어/.test(hB)&&/정답/.test(hC);
+  const looksLikeBank=/카테고리|분류/.test(hA)&&/문제|단어/.test(hB)&&/정답|답안|답/.test(hC);
   if(!looksLikeBank)return null;
   const sid=uid(),items=[];let inheritedCategory="",section="";
   for(let r=1;r<=range.e.r;r++){
@@ -5471,7 +5568,7 @@ async function importBankFiles(files){
         });
       }
     }else if(!failed.length){
-      alert("가져올 수 있는 문제 시트를 찾지 못했습니다.\nA열=카테고리/분류, B열=문제/단어, C열=정답 형식인지 확인해 주세요.");
+      alert("가져올 수 있는 문제 시트를 찾지 못했습니다.\nA열=카테고리/분류, B열=문제/단어, C열=정답/답 형식인지 확인해 주세요.");
     }
     if(failed.length)alert(`가져오지 못한 파일:\n${failed.join("\n")}`);
   }finally{
@@ -6141,11 +6238,13 @@ function renderBankToolbar(){
   panel.append(chosen);
 
   const manage=document.createElement("div");manage.className="quiz-manage";
+  const presetBtn=document.createElement("button");presetBtn.type="button";presetBtn.className="quiz-preset-btn";presetBtn.textContent="회독 프리셋";
+  presetBtn.onclick=()=>openRoundPresetManager();
   const more=document.createElement("button");more.textContent="•••";
   const menu=document.createElement("div");menu.className="menu hidden";
   const imp=document.createElement("button");imp.textContent="엑셀 가져오기";imp.onclick=()=>document.getElementById("bankExcelFiles").click();
   const edit=document.createElement("button");edit.textContent="문제 편집";edit.onclick=()=>{app.ui.bankMode="edit";saveLocal();renderMode()};
-  menu.append(imp,edit);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();manage.append(more,menu);panel.append(manage);
+  menu.append(imp,edit);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();manage.append(presetBtn,more,menu);panel.append(manage);
 
   const start=document.createElement("button");start.className="primary quiz-start";start.textContent=available?"시작":"문제 없음";start.disabled=!available;
   start.onclick=()=>{
@@ -7123,6 +7222,134 @@ function plannerDeleteScopePreset(id){
   store.items=store.items.filter(x=>x.id!==id);
   if(store.items.length!==before)markStudyCloud();
   return store.items.length!==before;
+}
+let roundPresetEditorState={id:"",memorySheetIds:new Set(),bankSheetIds:new Set()};
+
+function roundPresetEditorCatalog(){return plannerScopeCatalog()}
+function roundPresetEditorResetFromCurrentBank(){
+  const catalog=roundPresetEditorCatalog();
+  const selectedIds=new Set(selectedBankSheets().map(s=>s.id));
+  roundPresetEditorState={
+    id:"",
+    memorySheetIds:new Set(),
+    bankSheetIds:new Set(catalog.bank.filter(x=>selectedIds.has(x.id)).map(x=>x.id))
+  };
+}
+function roundPresetEditorLoad(preset){
+  const catalog=roundPresetEditorCatalog();
+  const validMemory=new Set(catalog.memory.map(x=>x.id)),validBank=new Set(catalog.bank.map(x=>x.id));
+  roundPresetEditorState={
+    id:preset?.id||"",
+    memorySheetIds:new Set((preset?.memorySheetIds||[]).filter(id=>validMemory.has(id))),
+    bankSheetIds:new Set((preset?.bankSheetIds||[]).filter(id=>validBank.has(id)))
+  };
+}
+function roundPresetEditorSelected(id){
+  return roundPresetEditorState.memorySheetIds.has(id)||roundPresetEditorState.bankSheetIds.has(id);
+}
+function roundPresetEditorToggleSubject(subject){
+  const ids=[...subject.memory,...subject.bank];
+  const all=ids.length&&ids.every(roundPresetEditorSelected);
+  for(const id of subject.memory){if(all)roundPresetEditorState.memorySheetIds.delete(id);else roundPresetEditorState.memorySheetIds.add(id)}
+  for(const id of subject.bank){if(all)roundPresetEditorState.bankSheetIds.delete(id);else roundPresetEditorState.bankSheetIds.add(id)}
+}
+function roundPresetEditorRefresh(){
+  const modal=document.getElementById("roundPresetModal");if(!modal||modal.classList.contains("hidden"))return;
+  const catalog=roundPresetEditorCatalog(),subjects=plannerScopeSubjects(catalog),store=plannerScopePresetStore();
+  const select=document.getElementById("roundPresetSelect"),name=document.getElementById("roundPresetName");
+  const chips=document.getElementById("roundPresetSubjectChips"),lists=document.getElementById("roundPresetLists");
+  const count=document.getElementById("roundPresetCount"),del=document.getElementById("roundPresetDelete");
+
+  const previous=roundPresetEditorState.id||"";
+  select.innerHTML="";
+  const first=document.createElement("option");first.value="";first.textContent="새 프리셋";select.append(first);
+  for(const p of store.items.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"))){
+    const o=document.createElement("option");o.value=p.id;o.textContent=p.name;select.append(o);
+  }
+  select.value=previous;
+  const active=store.items.find(x=>x.id===previous);
+  if(document.activeElement!==name)name.value=active?.name||name.value||"";
+  del.disabled=!active;
+
+  chips.innerHTML="";
+  for(const subject of subjects){
+    const ids=[...subject.memory,...subject.bank];
+    const n=ids.filter(roundPresetEditorSelected).length;
+    const b=document.createElement("button");b.type="button";
+    b.classList.toggle("on",ids.length>0&&n===ids.length);
+    b.classList.toggle("partial",n>0&&n<ids.length);
+    b.textContent=n===ids.length&&ids.length?`${subject.name} ✓`:n?`${subject.name} ${n}/${ids.length}`:subject.name;
+    b.onclick=()=>{roundPresetEditorToggleSubject(subject);roundPresetEditorRefresh()};
+    chips.append(b);
+  }
+
+  const selectedTotal=roundPresetEditorState.memorySheetIds.size+roundPresetEditorState.bankSheetIds.size;
+  count.textContent=`${selectedTotal}/${catalog.memory.length+catalog.bank.length} 시트`;
+
+  lists.innerHTML="";
+  for(const subject of subjects){
+    const memoryItems=catalog.memory.filter(x=>subject.memory.includes(x.id));
+    const bankItems=catalog.bank.filter(x=>subject.bank.includes(x.id));
+    const group=document.createElement("div");group.className="round-preset-group";
+    const head=document.createElement("div");head.className="round-preset-group-title";
+    const title=document.createElement("strong");title.textContent=subject.name;
+    const sub=document.createElement("small");sub.textContent=`문제은행 ${bankItems.length} · 암기판 ${memoryItems.length}`;
+    head.append(title,sub);group.append(head);
+
+    const addKind=(kindLabel,items,type)=>{
+      if(!items.length)return;
+      const kind=document.createElement("div");kind.className="round-preset-kind";kind.textContent=kindLabel;group.append(kind);
+      const set=type==="memory"?roundPresetEditorState.memorySheetIds:roundPresetEditorState.bankSheetIds;
+      for(const item of items){
+        const label=document.createElement("label");label.className="round-preset-item";
+        const cb=document.createElement("input");cb.type="checkbox";cb.checked=set.has(item.id);
+        cb.onchange=()=>{if(cb.checked)set.add(item.id);else set.delete(item.id);roundPresetEditorRefresh()};
+        const txt=document.createElement("span");
+        const shortLabel=String(item.label||"").split("›").slice(1).join("›").trim()||item.label;
+        txt.textContent=shortLabel;
+        const meta=document.createElement("small");meta.textContent=`${item.count}${type==="memory"?"항목":"문제"}`;
+        label.append(cb,txt,meta);group.append(label);
+      }
+    };
+    addKind("문제은행",bankItems,"bank");
+    addKind("암기판",memoryItems,"memory");
+    lists.append(group);
+  }
+}
+function openRoundPresetManager(){
+  const modal=document.getElementById("roundPresetModal");if(!modal)return;
+  roundPresetEditorResetFromCurrentBank();
+  const name=document.getElementById("roundPresetName");
+  name.value=app.ui.quiz.subject&&app.ui.quiz.subject!=="all"?`${plannerSubjectDisplayName(app.ui.quiz.subject)} 기본`:"";
+  modal.classList.remove("hidden");
+  roundPresetEditorRefresh();
+}
+function closeRoundPresetManager(){
+  document.getElementById("roundPresetModal")?.classList.add("hidden");
+}
+function saveRoundPresetFromEditor(){
+  const name=String(document.getElementById("roundPresetName")?.value||"").trim();
+  if(!name)return toast("프리셋 이름을 적어주세요");
+  if(!roundPresetEditorState.memorySheetIds.size&&!roundPresetEditorState.bankSheetIds.size)return toast("시트를 하나 이상 선택하세요");
+  const store=plannerScopePresetStore();
+  const current=store.items.find(x=>x.id===roundPresetEditorState.id);
+  const same=store.items.find(x=>x.name===name&&x.id!==current?.id);
+  if(same&&!confirm(`'${name}' 프리셋이 이미 있습니다. 덮어쓸까요?`))return;
+  const target=same||current;
+  if(target){
+    target.name=name;
+    target.memorySheetIds=[...roundPresetEditorState.memorySheetIds];
+    target.bankSheetIds=[...roundPresetEditorState.bankSheetIds];
+    target.updatedAt=Date.now();
+    roundPresetEditorState.id=target.id;
+    markStudyCloud();
+    roundPresetEditorRefresh();
+    toast("프리셋 저장됨");
+    return;
+  }
+  const saved=plannerSaveScopePreset(name,roundPresetEditorState,roundPresetEditorCatalog());
+  if(saved)roundPresetEditorState.id=saved.id;
+  roundPresetEditorRefresh();toast("프리셋 저장됨");
 }
 function plannerGetRoundDraft(today=plannerToday(),catalog=plannerScopeCatalog()){
   if(!plannerRoundDraft){
@@ -8239,13 +8466,11 @@ function renderPlanner(force=false){
         subjectButtons.push({subject,button:btn});subjectWrap.append(btn);
       });
 
-      const presetLabel=document.createElement("div");presetLabel.className="planner-preset-label";presetLabel.textContent="내 프리셋";
+      const presetLabel=document.createElement("div");presetLabel.className="planner-preset-label";presetLabel.textContent="저장된 프리셋";
       const presetRow=document.createElement("div");presetRow.className="planner-preset-row";
       presetSelect=document.createElement("select");presetSelect.setAttribute("aria-label","회독 범위 프리셋");
-      const loadBtn=document.createElement("button");loadBtn.type="button";loadBtn.textContent="불러오기";
-      const saveBtn=document.createElement("button");saveBtn.type="button";saveBtn.textContent="저장";
-      const deleteBtn=document.createElement("button");deleteBtn.type="button";deleteBtn.textContent="삭제";deleteBtn.className="planner-preset-delete";
-      const updatePresetButtons=()=>{const has=!!presetSelect.value;loadBtn.disabled=!has;deleteBtn.disabled=!has};
+      const loadBtn=document.createElement("button");loadBtn.type="button";loadBtn.textContent="적용";
+      const updatePresetButtons=()=>{loadBtn.disabled=!presetSelect.value};
       refreshPresetSelect();updatePresetButtons();
       presetSelect.onchange=updatePresetButtons;
       loadBtn.onclick=e=>{
@@ -8255,29 +8480,9 @@ function renderPlanner(force=false){
         syncBuiltChecks();plannerTouchRoundForm(3500);
         toast(result.excluded?`프리셋 적용 · 보관/삭제 ${result.excluded}개 제외`:`프리셋 적용 · ${result.applied}시트`);
       };
-      saveBtn.onclick=e=>{
-        e.preventDefault();
-        const selected=plannerScopePresetStore().items.find(x=>x.id===presetSelect.value);
-        const raw=prompt("프리셋 이름",selected?.name||"");
-        const name=String(raw||"").trim();if(!name)return;
-        const same=plannerScopePresetStore().items.find(x=>x.name===name);
-        if(same&&same.id!==selected?.id&&!confirm(`'${name}' 프리셋을 덮어쓸까요?`))return;
-        if(same&&same.id!==selected?.id){
-          same.memorySheetIds=[...draft.memorySheetIds];same.bankSheetIds=[...draft.bankSheetIds];same.updatedAt=Date.now();markStudyCloud();
-          refreshPresetSelect(same.id);updatePresetButtons();toast("프리셋 업데이트됨");
-          return;
-        }
-        const saved=plannerSaveScopePreset(name,draft,catalog);
-        refreshPresetSelect(saved?.id||"");updatePresetButtons();toast(same?"프리셋 업데이트됨":"프리셋 저장됨");
-      };
-      deleteBtn.onclick=e=>{
-        e.preventDefault();
-        const preset=plannerScopePresetStore().items.find(x=>x.id===presetSelect.value);if(!preset)return;
-        if(!confirm(`'${preset.name}' 프리셋을 삭제할까요?`))return;
-        plannerDeleteScopePreset(preset.id);refreshPresetSelect();updatePresetButtons();toast("프리셋 삭제됨");
-      };
-      presetRow.append(presetSelect,loadBtn,saveBtn,deleteBtn);
-      presetPanel.append(subjectLabel,subjectWrap,presetLabel,presetRow);
+      presetRow.append(presetSelect,loadBtn);
+      const hint=document.createElement("div");hint.className="planner-preset-manage-hint";hint.textContent="프리셋 생성·수정은 문제은행 → 회독 프리셋에서";
+      presetPanel.append(subjectLabel,subjectWrap,presetLabel,presetRow,hint);
       scopeBox.append(presetPanel);
 
       const makeGroup=(titleText,items,type)=>{
@@ -9069,6 +9274,47 @@ document.getElementById("newSubjectChoice").onclick=()=>{document.getElementById
 document.getElementById("excelSubjectChoice").onclick=()=>document.getElementById("studyExcelFiles").click();
 document.getElementById("studyExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";document.getElementById("subjectModal").classList.add("hidden");if(files.length)await importStudyFiles(files)};
 document.getElementById("bankExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";if(files.length){try{await importBankFiles(files)}catch(err){console.error(err);bankImportBusy=false;alert("문제은행을 가져오는 중 오류가 났습니다. 다시 시도해 주세요.")}}};
+
+document.getElementById("roundPresetClose").onclick=closeRoundPresetManager;
+document.getElementById("roundPresetModal").onclick=e=>{if(e.target.id==="roundPresetModal")closeRoundPresetManager()};
+document.getElementById("roundPresetSelect").onchange=e=>{
+  const preset=plannerScopePresetStore().items.find(x=>x.id===e.target.value);
+  if(preset){
+    roundPresetEditorLoad(preset);
+    document.getElementById("roundPresetName").value=preset.name;
+  }else{
+    roundPresetEditorResetFromCurrentBank();
+    document.getElementById("roundPresetName").value=app.ui.quiz.subject&&app.ui.quiz.subject!=="all"?`${plannerSubjectDisplayName(app.ui.quiz.subject)} 기본`:"";
+  }
+  roundPresetEditorRefresh();
+};
+document.getElementById("roundPresetNew").onclick=()=>{
+  roundPresetEditorResetFromCurrentBank();
+  document.getElementById("roundPresetName").value=app.ui.quiz.subject&&app.ui.quiz.subject!=="all"?`${plannerSubjectDisplayName(app.ui.quiz.subject)} 기본`:"";
+  roundPresetEditorRefresh();
+  document.getElementById("roundPresetName").focus();
+};
+document.getElementById("roundPresetAll").onclick=()=>{
+  const c=roundPresetEditorCatalog();
+  roundPresetEditorState.memorySheetIds=new Set(c.memory.map(x=>x.id));
+  roundPresetEditorState.bankSheetIds=new Set(c.bank.map(x=>x.id));
+  roundPresetEditorRefresh();
+};
+document.getElementById("roundPresetNone").onclick=()=>{
+  roundPresetEditorState.memorySheetIds.clear();
+  roundPresetEditorState.bankSheetIds.clear();
+  roundPresetEditorRefresh();
+};
+document.getElementById("roundPresetSave").onclick=saveRoundPresetFromEditor;
+document.getElementById("roundPresetDelete").onclick=()=>{
+  const preset=plannerScopePresetStore().items.find(x=>x.id===roundPresetEditorState.id);if(!preset)return;
+  if(!confirm(`'${preset.name}' 프리셋을 삭제할까요?`))return;
+  plannerDeleteScopePreset(preset.id);
+  roundPresetEditorResetFromCurrentBank();
+  document.getElementById("roundPresetName").value="";
+  roundPresetEditorRefresh();
+  toast("프리셋 삭제됨");
+};
 
 document.getElementById("quizStopSave").onclick=()=>{
   const snapshot=quizSessionSnapshot();if(!snapshot)return;
