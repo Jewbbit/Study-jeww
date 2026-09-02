@@ -6215,6 +6215,7 @@ function activeProgressRound(){
 }
 function setActiveProgressRound(id){
   app.ui.activePlannerRoundId=id||"__cumulative__";
+  adventureStore().activeSheetId="";
   saveLocal();renderQuiz();
 }
 function roundPathMissions(round,sheetId,order){
@@ -6239,13 +6240,23 @@ function buildProgressRoundHeader(area,label="진도 학습"){
   const round=activeProgressRound();select.value=round?.id||"__cumulative__";
   select.onchange=()=>setActiveProgressRound(select.value);
   head.append(title,select);area.append(head);
+  if(round){
+    const bankIds=plannerRoundBankSheetIds(round);
+    const bankMissions=(round.missions||[]).filter(m=>m.kind==="bankPath"&&!plannerMissionExcluded(round,m));
+    const info=document.createElement("div");info.className="progress-round-info";
+    info.textContent=bankIds.length?`이번 회독 · 문제은행 ${bankIds.length}시트 · ${bankMissions.length}세트`:`이번 회독 · 문제은행 범위 없음`;
+    area.append(info);
+  }
   return round;
 }
 function renderAdventureSheetPicker(area){
   const store=adventureStore(),round=activeProgressRound();
   if(round)plannerRepairMissingBankSnapshot(round);
   const roundMissions=round?(round.missions||[]).filter(m=>m.kind==="bankPath"&&!plannerMissionExcluded(round,m)):[];
-  const roundSheetIds=round?new Set(roundMissions.map(m=>m.sheetId)):null;
+  const roundSheetIds=round?new Set([
+    ...plannerRoundBankSheetIds(round),
+    ...roundMissions.map(m=>m.sheetId)
+  ]):null;
   const sheets=round
     ? app.bank.sheets.filter(s=>!s.legacyWrong&&roundSheetIds.has(s.id))
     : app.bank.sheets.filter(s=>!s.legacyWrong&&!s.archived);
@@ -6299,7 +6310,9 @@ function renderAdventureSheetPicker(area){
 function renderAdventurePath(area,sheetId){
   const store=adventureStore(),sheet=adventureSheet(sheetId);
   if(!sheet){store.activeSheetId="";saveLocal();renderAdventureSheetPicker(area);return}
-  const state=adventureSheetState(sheetId),selectedRound=activeProgressRound();
+  const selectedRound=activeProgressRound();
+  if(selectedRound&&plannerRoundBankSheetIds(selectedRound).includes(sheetId))plannerRepairMissingBankSnapshot(selectedRound);
+  const state=adventureSheetState(sheetId);
   const snapMission=selectedRound?(selectedRound.missions||[]).find(m=>m.kind==="bankPath"&&m.sheetId===sheetId&&!plannerMissionExcluded(selectedRound,m)):null;
   if(snapMission){
     const snapOrder=snapMission.order||"sequence";
@@ -7041,12 +7054,24 @@ function plannerScopePresetStore(){
   s.items=s.items.filter(x=>x&&x.id&&x.name&&Array.isArray(x.memorySheetIds)&&Array.isArray(x.bankSheetIds));
   return s;
 }
+function plannerSubjectDisplayName(value){
+  return String(value||"기타")
+    .normalize("NFKC")
+    .replace(/[\u200B-\u200D\u2060\uFEFF]/g,"")
+    .replace(/\s+/g," ")
+    .trim()||"기타";
+}
+function plannerSubjectKey(value){
+  return plannerSubjectDisplayName(value).replace(/\s+/g,"").toLocaleLowerCase("ko-KR");
+}
 function plannerScopeSubjects(catalog=plannerScopeCatalog()){
   const map=new Map();
   const add=(item,type)=>{
-    const name=String(item.subject||"기타").trim()||"기타";
-    if(!map.has(name))map.set(name,{name,memory:[],bank:[]});
-    map.get(name)[type].push(item.id);
+    const name=plannerSubjectDisplayName(item.subject);
+    const key=plannerSubjectKey(name);
+    if(!map.has(key))map.set(key,{name,memory:[],bank:[]});
+    const row=map.get(key);
+    if(!row[type].includes(item.id))row[type].push(item.id);
   };
   catalog.memory.forEach(x=>add(x,"memory"));
   catalog.bank.forEach(x=>add(x,"bank"));
@@ -7321,17 +7346,74 @@ function plannerNextRoundNumber(){
   return Math.max(0,...nums)+1;
 }
 function plannerRoundById(id){return plannerStore().rounds.find(r=>r.id===id)||null}
+function plannerRoundBankSheetIds(round){
+  if(!round)return [];
+  const ids=new Set(Array.isArray(round.scope?.bankSheetIds)?round.scope.bankSheetIds:[]);
+  for(const m of (round.missions||[]))if(m?.kind==="bankPath"&&m.sheetId)ids.add(m.sheetId);
+  return [...ids];
+}
 function plannerRepairMissingBankSnapshot(round,{persist=true}={}){
-  if(!round||!Array.isArray(round.scope?.bankSheetIds)||!round.scope.bankSheetIds.length)return false;
+  if(!round)return false;
   if(!Array.isArray(round.missions))round.missions=[];
-  const represented=new Set(round.missions.filter(m=>m.kind==="bankPath").map(m=>m.sheetId));
-  const missing=[...new Set(round.scope.bankSheetIds)].filter(id=>!represented.has(id)&&!!adventureSheet(id));
-  if(!missing.length)return false;
-  const repaired=plannerSnapshotMissions(round.start,round.end,{memorySheetIds:[],bankSheetIds:missing}).filter(m=>m.kind==="bankPath");
-  if(!repaired.length)return false;
-  round.missions.push(...repaired);
+  const sheetIds=plannerRoundBankSheetIds(round).filter(id=>!!adventureSheet(id));
+  if(!sheetIds.length)return false;
+
+  const dates=plannerDates(round.start,round.end);
+  if(!dates.length)return false;
+
+  const dateLoads=new Map(dates.map(d=>[d,0]));
+  for(const m of round.missions){
+    if(dateLoads.has(m.date))dateLoads.set(m.date,(dateLoads.get(m.date)||0)+(Number(m.weight)||1));
+  }
+  const nextDate=()=>{
+    let best=dates[0],score=Infinity;
+    for(const d of dates){
+      const n=dateLoads.get(d)||0;
+      if(n<score){score=n;best=d}
+    }
+    dateLoads.set(best,(dateLoads.get(best)||0)+1);
+    return best;
+  };
+
+  const p=plannerStore();
+  let changed=false;
+  for(const sheetId of sheetIds){
+    const sheet=adventureSheet(sheetId);if(!sheet)continue;
+    const existingForSheet=round.missions.filter(m=>m.kind==="bankPath"&&m.sheetId===sheetId);
+    const state=adventureSheetState(sheetId);
+    const order=(existingForSheet[0]?.order==="random"||existingForSheet[0]?.order==="sequence")
+      ?existingForSheet[0].order
+      :(state.lastOrder||state.activeOrder||"sequence");
+    const cfg=adventureConfig(sheetId,{quiet:true,order});if(!cfg)continue;
+    const meta=bankSheetMeta(sheet),total=adventureSetCount(cfg);
+
+    for(let i=0;i<total;i++){
+      const ids=adventureSetIds(cfg,i);if(!ids.length)continue;
+      let mission=round.missions.find(m=>m.kind==="bankPath"&&m.sheetId===sheetId&&(m.order||"sequence")===order&&Number(m.setIndex)===i);
+      if(!mission){
+        const pathKey=plannerPathKey(sheetId,order,i);
+        mission={
+          id:`bp:${sheetId}:${order}:${i}`,date:nextDate(),kind:"bankPath",
+          subject:meta.subject||"문제은행",
+          title:`${meta.subject||"문제은행"} › ${meta.area||sheet.name} › ${i+1}세트`,
+          detail:`${order==="random"?"랜덤길":"순서길"} · ${ids.length}문제`,
+          subjectId:"",sheetId,rowId:"",order,setIndex:i,pathKey,weight:1,
+          pathBaseline:Number(p.pathProgress[pathKey]?.count)||0,
+          problemIds:[...ids],completionMode:"round-v2"
+        };
+        round.missions.push(mission);changed=true;
+      }else{
+        if(!Array.isArray(mission.problemIds)||!mission.problemIds.length){
+          mission.problemIds=[...ids];changed=true;
+        }
+        if(!mission.completionMode){mission.completionMode="round-v2";changed=true}
+      }
+    }
+  }
+
+  if(!changed)return false;
   round.missions.sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))||String(a.id||"").localeCompare(String(b.id||"")));
-  round.progressSnapshotVersion=2;
+  round.progressSnapshotVersion=3;
   if(persist){
     plannerSaveLocal();
     if(cloudUser)plannerSaveRound(round);
@@ -7548,7 +7630,8 @@ function plannerAddRound(){
   const bankMissionCount=missions.filter(m=>m.kind==="bankPath").length;
   if(bankCount>0&&!bankMissionCount)return alert("문제은행 진도 세트를 만들지 못했습니다. 진도 화면을 한 번 연 뒤 다시 시도해 주세요.");
   const roundId=uid(),roundName=name||`${plannerNextRoundNumber()}회독`,reviewDate=plannerAddDays(end,1);
-  const round={id:roundId,name:roundName,start,end,reviewDate,createdAt:Date.now(),scope,wrongIds:[],wrongReviewDone:false,progressSnapshotVersion:2,missions};
+  const round={id:roundId,name:roundName,start,end,reviewDate,createdAt:Date.now(),scope,wrongIds:[],wrongReviewDone:false,progressSnapshotVersion:3,missions};
+  plannerRepairMissingBankSnapshot(round,{persist:false});
   round.missions.push({id:`rw:${roundId}`,roundId,date:reviewDate,kind:"roundWrong",subject:"오답",title:`${roundName} 오답 데이`,detail:"이 회독에서 틀린 문제만 다시 풀기",weight:1,completionMode:"round-v2"});
   p.rounds.push(round);p.rounds.sort((a,b)=>a.start.localeCompare(b.start));
   app.ui.activePlannerRoundId=round.id;
