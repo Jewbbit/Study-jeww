@@ -2420,6 +2420,28 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   border:1px solid #e4e4e7!important;background:#fff!important;border-radius:5px!important;
   padding:4px 7px!important;font-size:9.5px!important;color:#66676d!important;
 }
+.planner-preset-panel{padding:6px 0 7px;border-top:1px solid #f0f0f2}
+.planner-preset-label{font-size:9px;font-weight:700;color:#777980;margin:0 0 4px}
+.planner-subject-presets{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px}
+.planner-subject-presets button{
+  border:1px solid #e2e2e6!important;background:#fff!important;border-radius:999px!important;
+  padding:4px 7px!important;font-size:9.5px!important;color:#55565b!important;white-space:nowrap
+}
+.planner-subject-presets button.on{background:#f0f0f3!important;border-color:#cfcfd5!important;color:#242529!important;font-weight:700}
+.planner-subject-presets button.partial{background:#fafafa!important;border-style:dashed!important;color:#777980!important}
+.planner-preset-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:4px;align-items:center}
+.planner-preset-row select{
+  min-width:0;height:29px;border:1px solid #e1e1e5;border-radius:6px;background:#fff;padding:0 7px;font-size:10px;color:#44454a
+}
+.planner-preset-row button{
+  height:29px;border:1px solid #e1e1e5!important;background:#fff!important;border-radius:6px!important;
+  padding:0 7px!important;font-size:9.5px!important;color:#5f6066!important;white-space:nowrap
+}
+.planner-preset-row button:disabled{opacity:.38}
+@media(max-width:520px){
+  .planner-preset-row{grid-template-columns:minmax(0,1fr) auto auto}
+  .planner-preset-row .planner-preset-delete{grid-column:3}
+}
 .planner-scope-group{padding:6px 0 5px;border-top:1px solid #f0f0f2}
 .planner-scope-group>strong{display:block;margin-bottom:3px;font-size:10px;color:#777980}
 .planner-scope-item{
@@ -7003,14 +7025,66 @@ function plannerScopeCatalog(){
     for(const sheet of subject.sheets||[]){
       if(sheet.archived)continue;
       const count=(sheet.rows||[]).filter(r=>r?.type!=="section"&&(r.correct||r.category||r.memo)).length;
-      if(count)memory.push({id:sheet.id,label:`${subject.name} › ${sheet.name}`,count});
+      if(count)memory.push({id:sheet.id,subject:subject.name||"암기판",label:`${subject.name} › ${sheet.name}`,count});
     }
   }
   for(const sheet of (app.bank.sheets||[]).filter(x=>!x.legacyWrong&&!x.archived)){
-    const meta=bankSheetMeta(sheet);
-    bank.push({id:sheet.id,label:`${meta.subject||"문제은행"} › ${meta.area||sheet.name}`,count:(sheet.items||[]).length});
+    const meta=bankSheetMeta(sheet),subject=meta.subject||"문제은행";
+    bank.push({id:sheet.id,subject,label:`${subject} › ${meta.area||sheet.name}`,count:(sheet.items||[]).length});
   }
   return {memory,bank};
+}
+function plannerScopePresetStore(){
+  let s=app.study.roundScopePresets;
+  if(!s||typeof s!=="object")s=app.study.roundScopePresets={version:1,items:[]};
+  if(!Array.isArray(s.items))s.items=[];
+  s.items=s.items.filter(x=>x&&x.id&&x.name&&Array.isArray(x.memorySheetIds)&&Array.isArray(x.bankSheetIds));
+  return s;
+}
+function plannerScopeSubjects(catalog=plannerScopeCatalog()){
+  const map=new Map();
+  const add=(item,type)=>{
+    const name=String(item.subject||"기타").trim()||"기타";
+    if(!map.has(name))map.set(name,{name,memory:[],bank:[]});
+    map.get(name)[type].push(item.id);
+  };
+  catalog.memory.forEach(x=>add(x,"memory"));
+  catalog.bank.forEach(x=>add(x,"bank"));
+  return [...map.values()].sort((a,b)=>a.name.localeCompare(b.name,"ko"));
+}
+function plannerApplyScopePreset(preset,draft,catalog=plannerScopeCatalog()){
+  if(!preset||!draft)return {applied:0,excluded:0};
+  const validMemory=new Set(catalog.memory.map(x=>x.id)),validBank=new Set(catalog.bank.map(x=>x.id));
+  const rawMemory=[...new Set(preset.memorySheetIds||[])],rawBank=[...new Set(preset.bankSheetIds||[])];
+  const memory=rawMemory.filter(id=>validMemory.has(id)),bank=rawBank.filter(id=>validBank.has(id));
+  draft.memorySheetIds=new Set(memory);draft.bankSheetIds=new Set(bank);
+  return {applied:memory.length+bank.length,excluded:(rawMemory.length-memory.length)+(rawBank.length-bank.length)};
+}
+function plannerSaveScopePreset(name,draft,catalog=plannerScopeCatalog()){
+  name=String(name||"").trim();
+  if(!name)return null;
+  const store=plannerScopePresetStore(),now=Date.now();
+  const validMemory=new Set(catalog.memory.map(x=>x.id)),validBank=new Set(catalog.bank.map(x=>x.id));
+  const data={
+    memorySheetIds:[...draft.memorySheetIds].filter(id=>validMemory.has(id)),
+    bankSheetIds:[...draft.bankSheetIds].filter(id=>validBank.has(id))
+  };
+  const existing=store.items.find(x=>x.name===name);
+  if(existing){
+    existing.memorySheetIds=data.memorySheetIds;existing.bankSheetIds=data.bankSheetIds;existing.updatedAt=now;
+    markStudyCloud();
+    return existing;
+  }
+  const preset={id:`preset_${uid()}`,name,...data,createdAt:now,updatedAt:now};
+  store.items.push(preset);
+  markStudyCloud();
+  return preset;
+}
+function plannerDeleteScopePreset(id){
+  const store=plannerScopePresetStore(),before=store.items.length;
+  store.items=store.items.filter(x=>x.id!==id);
+  if(store.items.length!==before)markStudyCloud();
+  return store.items.length!==before;
 }
 function plannerGetRoundDraft(today=plannerToday(),catalog=plannerScopeCatalog()){
   if(!plannerRoundDraft){
@@ -8018,11 +8092,18 @@ function renderPlanner(force=false){
     const scopeTools=document.createElement("div");scopeTools.className="planner-scope-tools";
     const allBtn=document.createElement("button");allBtn.type="button";allBtn.textContent="전체 선택";
     const noneBtn=document.createElement("button");noneBtn.type="button";noneBtn.textContent="전체 해제";
-    let scopeBuilt=false;
+    let scopeBuilt=false,presetSelect=null,subjectButtons=[];
+    const subjects=plannerScopeSubjects(catalog);
     const refreshScopeSummary=()=>{
       const checked=draft.memorySheetIds.size+draft.bankSheetIds.size;
       const totalCount=catalog.memory.length+catalog.bank.length;
       scopeSummary.textContent=`범위 선택 · ${checked}/${totalCount}`;
+      for(const row of subjectButtons){
+        const allIds=[...row.subject.memory,...row.subject.bank],selected=allIds.filter(id=>draft.memorySheetIds.has(id)||draft.bankSheetIds.has(id)).length;
+        row.button.classList.toggle("on",allIds.length>0&&selected===allIds.length);
+        row.button.classList.toggle("partial",selected>0&&selected<allIds.length);
+        row.button.textContent=selected===allIds.length&&allIds.length?`${row.subject.name} ✓`:selected?`${row.subject.name} ${selected}/${allIds.length}`:row.subject.name;
+      }
     };
     const syncBuiltChecks=()=>{
       if(!scopeBuilt)return;
@@ -8030,9 +8111,78 @@ function renderPlanner(force=false){
         const set=cb.dataset.plannerScope==="memory"?draft.memorySheetIds:draft.bankSheetIds;
         cb.checked=set.has(cb.value);
       });
+      refreshScopeSummary();
+    };
+    const refreshPresetSelect=(selectedId="")=>{
+      if(!presetSelect)return;
+      const previous=selectedId||presetSelect.value;
+      presetSelect.innerHTML="";
+      const placeholder=document.createElement("option");placeholder.value="";placeholder.textContent="내 프리셋 선택";presetSelect.append(placeholder);
+      for(const preset of plannerScopePresetStore().items.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"))){
+        const opt=document.createElement("option");opt.value=preset.id;opt.textContent=preset.name;presetSelect.append(opt);
+      }
+      if([...presetSelect.options].some(x=>x.value===previous))presetSelect.value=previous;
     };
     const buildScope=()=>{
       if(scopeBuilt)return;scopeBuilt=true;
+
+      const presetPanel=document.createElement("div");presetPanel.className="planner-preset-panel";
+      const subjectLabel=document.createElement("div");subjectLabel.className="planner-preset-label";subjectLabel.textContent="과목 빠른 선택";
+      const subjectWrap=document.createElement("div");subjectWrap.className="planner-subject-presets";
+      subjects.forEach(subject=>{
+        const btn=document.createElement("button");btn.type="button";
+        btn.onclick=e=>{
+          e.preventDefault();
+          const allIds=[...subject.memory,...subject.bank];
+          const allSelected=allIds.length&&allIds.every(id=>draft.memorySheetIds.has(id)||draft.bankSheetIds.has(id));
+          for(const id of subject.memory){if(allSelected)draft.memorySheetIds.delete(id);else draft.memorySheetIds.add(id)}
+          for(const id of subject.bank){if(allSelected)draft.bankSheetIds.delete(id);else draft.bankSheetIds.add(id)}
+          syncBuiltChecks();plannerTouchRoundForm(3000);
+        };
+        subjectButtons.push({subject,button:btn});subjectWrap.append(btn);
+      });
+
+      const presetLabel=document.createElement("div");presetLabel.className="planner-preset-label";presetLabel.textContent="내 프리셋";
+      const presetRow=document.createElement("div");presetRow.className="planner-preset-row";
+      presetSelect=document.createElement("select");presetSelect.setAttribute("aria-label","회독 범위 프리셋");
+      const loadBtn=document.createElement("button");loadBtn.type="button";loadBtn.textContent="불러오기";
+      const saveBtn=document.createElement("button");saveBtn.type="button";saveBtn.textContent="저장";
+      const deleteBtn=document.createElement("button");deleteBtn.type="button";deleteBtn.textContent="삭제";deleteBtn.className="planner-preset-delete";
+      const updatePresetButtons=()=>{const has=!!presetSelect.value;loadBtn.disabled=!has;deleteBtn.disabled=!has};
+      refreshPresetSelect();updatePresetButtons();
+      presetSelect.onchange=updatePresetButtons;
+      loadBtn.onclick=e=>{
+        e.preventDefault();
+        const preset=plannerScopePresetStore().items.find(x=>x.id===presetSelect.value);if(!preset)return;
+        const result=plannerApplyScopePreset(preset,draft,catalog);
+        syncBuiltChecks();plannerTouchRoundForm(3500);
+        toast(result.excluded?`프리셋 적용 · 보관/삭제 ${result.excluded}개 제외`:`프리셋 적용 · ${result.applied}시트`);
+      };
+      saveBtn.onclick=e=>{
+        e.preventDefault();
+        const selected=plannerScopePresetStore().items.find(x=>x.id===presetSelect.value);
+        const raw=prompt("프리셋 이름",selected?.name||"");
+        const name=String(raw||"").trim();if(!name)return;
+        const same=plannerScopePresetStore().items.find(x=>x.name===name);
+        if(same&&same.id!==selected?.id&&!confirm(`'${name}' 프리셋을 덮어쓸까요?`))return;
+        if(same&&same.id!==selected?.id){
+          same.memorySheetIds=[...draft.memorySheetIds];same.bankSheetIds=[...draft.bankSheetIds];same.updatedAt=Date.now();markStudyCloud();
+          refreshPresetSelect(same.id);updatePresetButtons();toast("프리셋 업데이트됨");
+          return;
+        }
+        const saved=plannerSaveScopePreset(name,draft,catalog);
+        refreshPresetSelect(saved?.id||"");updatePresetButtons();toast(same?"프리셋 업데이트됨":"프리셋 저장됨");
+      };
+      deleteBtn.onclick=e=>{
+        e.preventDefault();
+        const preset=plannerScopePresetStore().items.find(x=>x.id===presetSelect.value);if(!preset)return;
+        if(!confirm(`'${preset.name}' 프리셋을 삭제할까요?`))return;
+        plannerDeleteScopePreset(preset.id);refreshPresetSelect();updatePresetButtons();toast("프리셋 삭제됨");
+      };
+      presetRow.append(presetSelect,loadBtn,saveBtn,deleteBtn);
+      presetPanel.append(subjectLabel,subjectWrap,presetLabel,presetRow);
+      scopeBox.append(presetPanel);
+
       const makeGroup=(titleText,items,type)=>{
         const group=document.createElement("div");group.className="planner-scope-group";
         const title=document.createElement("strong");title.textContent=titleText;group.append(title);
@@ -8050,8 +8200,8 @@ function renderPlanner(force=false){
       makeGroup("문제은행",catalog.bank,"bank");
       syncBuiltChecks();
     };
-    allBtn.onclick=e=>{e.preventDefault();catalog.memory.forEach(x=>draft.memorySheetIds.add(x.id));catalog.bank.forEach(x=>draft.bankSheetIds.add(x.id));syncBuiltChecks();refreshScopeSummary();plannerTouchRoundForm(3000)};
-    noneBtn.onclick=e=>{e.preventDefault();draft.memorySheetIds.clear();draft.bankSheetIds.clear();syncBuiltChecks();refreshScopeSummary();plannerTouchRoundForm(3000)};
+    allBtn.onclick=e=>{e.preventDefault();catalog.memory.forEach(x=>draft.memorySheetIds.add(x.id));catalog.bank.forEach(x=>draft.bankSheetIds.add(x.id));syncBuiltChecks();plannerTouchRoundForm(3000)};
+    noneBtn.onclick=e=>{e.preventDefault();draft.memorySheetIds.clear();draft.bankSheetIds.clear();syncBuiltChecks();plannerTouchRoundForm(3000)};
     scopeTools.append(allBtn,noneBtn);scopeBox.append(scopeSummary,scopeTools);
     scopeBox.addEventListener("toggle",()=>{draft.scopeOpen=scopeBox.open;plannerTouchRoundForm(scopeBox.open?5000:1400);if(scopeBox.open)buildScope()});
     if(scopeBox.open)buildScope();
