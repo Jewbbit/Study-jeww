@@ -1283,13 +1283,12 @@ main{
 /* 편집 중에도 선택한 색을 바로 확인 */
 .edit-color-wrap{position:relative;flex:0 0 auto}
 .edit-color-button{
-  display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:4px!important;
-  min-width:38px!important;height:25px!important;padding:0 5px!important;
-  border:1px solid #dedee2!important;background:#fff!important;border-radius:5px!important;
-  font-size:8.5px!important;color:#77787e!important;white-space:nowrap
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  width:24px!important;min-width:24px!important;height:24px!important;padding:0!important;
+  border:1px solid #dedee2!important;background:#fff!important;border-radius:6px!important
 }
 .edit-color-button .edit-color-dot{
-  width:9px;height:9px;border-radius:50%;border:1px solid rgba(0,0,0,.14);background:#fff;position:relative
+  width:13px;height:13px;border-radius:50%;border:1px solid rgba(0,0,0,.16);background:#fff;position:relative
 }
 .edit-color-button.no-color .edit-color-dot:after{
   content:"";position:absolute;left:0;right:0;top:4px;height:1px;background:#b55e58;transform:rotate(-35deg)
@@ -2614,6 +2613,41 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .wide-planner-list .planner-task-check{
   min-width:30px!important;
   min-height:32px!important;
+}
+</style>
+<style>
+/* 폰: 미션 UI는 글자보다 상태 숫자/아이콘 중심으로 압축 */
+@media(max-width:699px){
+  #plannerQuickBtn{
+    min-width:34px!important;max-width:48px!important;
+    padding:5px 5px!important;font-size:10.5px!important;font-weight:700!important;
+    letter-spacing:-.02em
+  }
+  #plannerQuickBtn.mission-complete{font-size:15px!important}
+  #plannerView .planner-task{
+    grid-template-columns:27px minmax(0,1fr) 25px!important;
+    gap:3px!important;padding:5px 0!important
+  }
+  #plannerView .planner-task-check{
+    width:26px!important;min-width:26px!important;height:30px!important;
+    font-size:16px!important
+  }
+  #plannerView .planner-task-exclude,
+  .mobile-mission-list .planner-task-exclude{
+    width:24px!important;min-width:24px!important;height:28px!important;
+    padding:0!important;font-size:0!important;color:#9a9ba0!important;
+    border:0!important;background:transparent!important
+  }
+  #plannerView .planner-task-exclude::before,
+  .mobile-mission-list .planner-task-exclude::before{
+    content:"×";font-size:15px!important;line-height:1
+  }
+  #plannerView .planner-task-text{font-size:11.5px!important}
+  #plannerView .planner-task-text small{font-size:8.5px!important;margin-top:1px!important}
+  .mobile-mission-list .planner-task{
+    grid-template-columns:27px minmax(0,1fr) 25px!important;
+    gap:3px!important;padding:5px 0!important
+  }
 }
 </style>
 <style>
@@ -5203,9 +5237,9 @@ function makeEditColorPicker(row,onDone){
   const button=document.createElement("button");button.type="button";button.className="edit-color-button"+(row.color?"":" no-color");
   const dot=document.createElement("span");dot.className="edit-color-dot";
   if(row.color)dot.style.background=row.color;
-  const name=document.createElement("span");name.textContent=row.color?studyColorName(row.color):"색";
-  button.append(dot,name);
+  button.append(dot);
   button.title=`행 색 · ${studyColorName(row.color)}`;
+  button.setAttribute("aria-label",`행 색 · ${studyColorName(row.color)}`);
   const menu=document.createElement("div");menu.className="menu edit-color-menu hidden";
   appendColorPalette(menu,row,()=>onDone?.());
   button.onclick=e=>{e.preventDefault();e.stopPropagation();toggleFloatingMenu(button,menu)};
@@ -5247,6 +5281,45 @@ function addNextEditItem(index){
   markStudyCloud();
   renderEdit();
   focusEditCorrect(index+1);
+}
+function labelTitleFromRow(row){
+  if(!row)return "";
+  if(row.type==="section"||row.type==="label")return String(row.title||"").trim();
+  return String(row.category||row.correct||row.memo||"").trim();
+}
+function labelBackupFromRow(row){
+  if(!row)return null;
+  if(row.type==="section")return {
+    type:"section",title:row.title||"",level:row.level||"sub",color:row.color||"",
+    memorize:!!row.memorize,user:row.user||"",last:row.last||""
+  };
+  if(row.type==="item")return {
+    type:"item",category:row.category||"",correct:row.correct||"",memo:row.memo||"",
+    color:row.color||"",user:row.user||"",flagged:!!row.flagged,flagCount:Number(row.flagCount)||0,
+    last:row.last||""
+  };
+  return null;
+}
+function convertRowToLabel(index){
+  const rows=sh().rows,row=rows[index];if(!row||row.type==="label")return;
+  const backup=labelBackupFromRow(row);
+  rows[index]={
+    id:row.id,type:"label",title:labelTitleFromRow(row),color:row.color||"",
+    _labelBackup:backup,revealed:false
+  };
+  markStudyCloud();renderEdit();renderStudy();
+}
+function restoreLabelRow(index,targetType=""){
+  const rows=sh().rows,row=rows[index];if(!row||row.type!=="label")return;
+  const backup=row._labelBackup;
+  if(backup&&(!targetType||backup.type===targetType)){
+    rows[index]={id:row.id,...backup,color:row.color||backup.color||"",revealed:false};
+  }else if(targetType==="section"){
+    rows[index]={id:row.id,type:"section",title:row.title||"",level:"sub",color:row.color||"",memorize:!!sh().sectionMemorize,user:"",last:"",revealed:false};
+  }else{
+    rows[index]={id:row.id,type:"item",category:row.title||"",correct:"",memo:"",color:row.color||"",user:"",flagged:false,flagCount:0,last:"",revealed:false};
+  }
+  markStudyCloud();renderEdit();renderStudy();
 }
 function insertAt(index,type){sh().rows.splice(index,0,type==="section"?sectionRow():type==="label"?labelRow():studyRow());markStudyCloud();renderEdit()}
 function moveRow(index,delta){const rows=sh().rows,target=index+delta;if(target<0||target>=rows.length)return;const x=rows.splice(index,1)[0];rows.splice(target,0,x);markStudyCloud();renderEdit()}
@@ -5338,6 +5411,14 @@ function makeActionMenu(index){
   add("위에 소제목",()=>insertAt(index,"section"));add("아래에 소제목",()=>insertAt(index+1,"section"));
   add("위에 구분 라벨",()=>insertAt(index,"label"));add("아래에 구분 라벨",()=>insertAt(index+1,"label"));
   const sep=document.createElement("div");sep.className="menu-sep";menu.append(sep);
+  if(row?.type!=="label"){
+    add("구분 라벨로 변경",()=>convertRowToLabel(index));
+  }else{
+    if(row._labelBackup)add("원래 행으로 복원",()=>restoreLabelRow(index));
+    add("일반 항목으로 변경",()=>restoreLabelRow(index,"item"));
+    add("소제목으로 변경",()=>restoreLabelRow(index,"section"));
+  }
+  const sepMove=document.createElement("div");sepMove.className="menu-sep";menu.append(sepMove);
   if(row?.type==="section"&&row.level==="major"){
     add("대주제 통째로 위로",()=>moveMajorSectionBlock(index,-1));
     add("대주제 통째로 아래로",()=>moveMajorSectionBlock(index,1));
@@ -8390,6 +8471,7 @@ function plannerTaskRow(round,mission,{compact=false}={}){
   bindAction(text,()=>openPlannerUnit(mission,round));
 
   const exclude=document.createElement("button");exclude.type="button";exclude.className="planner-task-exclude";exclude.textContent="제외";
+  exclude.setAttribute("aria-label","미션 제외");exclude.title="미션 제외";
   bindAction(exclude,()=>plannerExcludeMission(round,mission));
 
   row.append(check,text,exclude);return row;
@@ -8695,9 +8777,27 @@ function plannerDaySummary(date=plannerToday()){
 }
 function updatePlannerQuickButton(button=document.getElementById("plannerQuickBtn")){
   if(!button)return;
-  if(!useCompactMissionPanel()){button.textContent="오늘";return}
+  button.classList.remove("mission-complete","mission-has-count");
+  if(!useCompactMissionPanel()){
+    button.textContent="오늘";
+    button.setAttribute("aria-label","오늘의 뽀개기");
+    return;
+  }
   const x=plannerDaySummary(plannerToday());
-  button.textContent=x.total?(x.done>=x.total?"미션 ✓":`미션 ${x.done}/${x.total}`):"미션";
+  if(!x.total){
+    button.textContent="오늘";
+    button.setAttribute("aria-label","오늘 미션 없음");
+    return;
+  }
+  if(x.done>=x.total){
+    button.textContent="✓";
+    button.classList.add("mission-complete");
+    button.setAttribute("aria-label",`오늘 미션 완료 ${x.total}/${x.total}`);
+  }else{
+    button.textContent=`${x.done}/${x.total}`;
+    button.classList.add("mission-has-count");
+    button.setAttribute("aria-label",`오늘 미션 ${x.done}/${x.total} 완료`);
+  }
 }
 function openMobileMissionSheet(date=plannerToday()){
   mobileMissionDate=/^\d{4}-\d{2}-\d{2}$/.test(String(date||""))?String(date):plannerToday();
