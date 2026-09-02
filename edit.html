@@ -2984,6 +2984,43 @@ body.mobile-mission-open{overflow:hidden}
 .planner-task.round-wrong .planner-task-text>span{font-weight:750}
 @media(max-width:640px){.quiz-history-card{min-height:calc(100dvh - 84px)!important}}
 </style>
+
+<style>
+/* 2026-09 문제은행 버전/일괄 업데이트 */
+.path-sheet-pill-value{
+  position:relative;z-index:1;display:block;margin-top:3px;
+  font-size:9px;line-height:1;color:#85868c;font-weight:700
+}
+.path-sheet-pill.out-of-round{opacity:.58}
+.bulk-update-modal{width:min(920px,100%)!important;max-height:90dvh;overflow:auto}
+.bulk-update-head{display:flex;align-items:flex-start;gap:8px;border-bottom:1px solid #ececef}
+.bulk-update-head>div:first-child{flex:1;min-width:0}
+.bulk-update-sub{font-size:10.5px;color:#7b7c82;padding:0 4px 9px;line-height:1.45}
+.bulk-update-errors{margin:8px 2px;padding:7px 9px;border-radius:7px;background:#fff4f3;color:#a6534c;font-size:10.5px}
+.bulk-update-table-wrap{overflow:auto;margin:8px 0;border:1px solid #e6e6e9;border-radius:8px}
+.bulk-update-table{min-width:720px}
+.bulk-update-table th{background:#fafafa;position:sticky;top:0;z-index:1}
+.bulk-update-table td{font-size:11px;padding:7px 8px;vertical-align:middle}
+.bulk-update-table th:first-child,.bulk-update-table td:first-child{width:48px;text-align:center}
+.bulk-update-source{max-width:190px;width:100%;border:1px solid #dedee2;background:#fff;border-radius:6px;padding:5px 6px;font-size:10.5px}
+.bulk-update-missing{margin:8px 2px;padding:9px 10px;background:#f8f8f9;border-radius:8px}
+.bulk-update-missing strong{display:block;font-size:11px;margin-bottom:4px}
+.bulk-update-missing div{font-size:10.5px;color:#5f6065;line-height:1.5}
+.bulk-update-missing small{display:block;margin-top:4px;color:#8b8c91;font-size:9.5px}
+.bulk-update-actions{display:flex;justify-content:flex-end;gap:6px;padding-top:8px;border-top:1px solid #eeeeef}
+.bulk-update-actions button,.version-history-row button{border:1px solid #dedee2;background:#fff;border-radius:7px;padding:8px 10px;font-size:11px}
+.version-history-modal{width:min(460px,100%)!important}
+.version-history-list{display:grid;gap:5px;padding:8px 0}
+.version-history-row{display:flex;align-items:center;gap:8px;padding:8px 9px;border:1px solid #e5e5e8;border-radius:8px}
+.version-history-info{flex:1;min-width:0;display:grid;gap:2px}
+.version-history-info strong{font-size:11.5px}
+.version-history-info small{font-size:9px;color:#8a8b90}
+.version-history-note{font-size:9.5px;color:#7f8085;line-height:1.45;padding:7px 2px 2px}
+@media(max-width:640px){
+  .bulk-update-modal{padding:10px!important;max-height:92dvh}
+  .bulk-update-table-wrap{margin-left:-2px;margin-right:-2px}
+}
+</style>
 </head>
 <body>
 <header>
@@ -3147,6 +3184,7 @@ body.mobile-mission-open{overflow:hidden}
   </div>
 </div>
 <input class="hidden" id="bankExcelFiles" type="file" multiple accept=".xlsx,.xlsm,.xls,.xlsb">
+<input class="hidden" id="bankBulkUpdateFiles" type="file" multiple accept=".xlsx,.xlsm,.xls,.xlsb">
 
 <div class="modal-backdrop hidden" id="roundPresetModal">
   <div class="modal round-preset-modal" role="dialog" aria-modal="true" aria-labelledby="roundPresetTitle">
@@ -3683,8 +3721,8 @@ function cleanup(){
 }
 function activeStudySheets(subject=sub()){return (subject?.sheets||[]).filter(x=>!x.archived)}
 function archivedStudySheets(subject=sub()){return (subject?.sheets||[]).filter(x=>!!x.archived)}
-function activeBankSheets(){return (app.bank.sheets||[]).filter(x=>!x.legacyWrong&&!x.archived)}
-function archivedBankSheets(){return (app.bank.sheets||[]).filter(x=>!x.legacyWrong&&!!x.archived)}
+function activeBankSheets(){return (app.bank.sheets||[]).filter(x=>!x.legacyWrong&&!x.archived&&!x.versionHidden)}
+function archivedBankSheets(){return (app.bank.sheets||[]).filter(x=>!x.legacyWrong&&!!x.archived&&!x.versionHidden)}
 cleanup();
 cleanExistingBankData();
 
@@ -5669,7 +5707,7 @@ function parseBankWorksheet(ws,source,name){
     if(seen.has(key))continue;
     seen.add(key);deduped.push(item);
   }
-  return {id:sid,source,name,legacyWrong:isLegacyWrongSheet(name),archived:false,items:deduped,updatedAt:Date.now()};
+  return {id:sid,source,name,legacyWrong:isLegacyWrongSheet(name),archived:false,versionGroupId:sid,versionNo:1,versionHidden:false,versionCreatedAt:Date.now(),previousVersionId:"",items:deduped,updatedAt:Date.now()};
 }
 function uniqueBankSheetName(base){
   const used=new Set(app.bank.sheets.map(x=>x.name));
@@ -5705,7 +5743,8 @@ function moveBankItems(source,target,ids){
   return moving.length;
 }
 function makeEmptyBankSheet(name,source="앱에서 생성"){
-  return {id:uid(),source,name,legacyWrong:false,archived:false,items:[],updatedAt:Date.now()};
+  const id=uid(),now=Date.now();
+  return {id,source,name,legacyWrong:false,archived:false,versionGroupId:id,versionNo:1,versionHidden:false,versionCreatedAt:now,previousVersionId:"",items:[],updatedAt:now};
 }
 let bankImportBusy=false;
 async function importBankFiles(files){
@@ -5737,7 +5776,6 @@ async function importBankFiles(files){
     if(newSheets.length){
       // 업로드는 무조건 "추가". 기존 시트를 몰래 교체하거나 전체 통합 계산하지 않는다.
       app.bank.sheets.push(...newSheets);
-      cleanExistingBankData();
       app.ui.bankEditSheetId=newSheets[0].id;
       if(!app.ui.quiz.sheetId)app.ui.quiz.sheetId="all";
       app.bank.contentUpdatedAt=Date.now();
@@ -5765,6 +5803,347 @@ async function importBankFiles(files){
     bankImportBusy=false;
   }
 }
+
+let bankBulkUpdateBusy=false,bankBulkUpdateState=null;
+
+function bankVersionGroupId(sheet){return sheet?.versionGroupId||sheet?.id||""}
+function bankVersionNo(sheet){return Math.max(1,Number(sheet?.versionNo)||1)}
+function bankVersionsFor(sheet){
+  const gid=bankVersionGroupId(sheet);
+  return (app.bank.sheets||[]).filter(x=>!x.legacyWrong&&bankVersionGroupId(x)===gid);
+}
+function bankVersionCurrentFor(sheet){
+  const versions=bankVersionsFor(sheet);
+  return versions.find(x=>!x.versionHidden&&!x.archived)||versions.find(x=>x.id===sheet?.id)||null;
+}
+function bankVersionCreatedAt(sheet){return Number(sheet?.versionCreatedAt)||Number(sheet?.updatedAt)||0}
+
+function replaceBankVersionReferences(oldId,newId){
+  if(!oldId||!newId||oldId===newId)return false;
+  let studyChanged=false;
+  const presets=plannerScopePresetStore().items||[];
+  presets.forEach(p=>{
+    if((p.bankSheetIds||[]).includes(oldId)){
+      p.bankSheetIds=[...new Set((p.bankSheetIds||[]).map(id=>id===oldId?newId:id))];
+      p.updatedAt=Date.now();studyChanged=true;
+    }
+  });
+  if(plannerRoundDraft?.bankSheetIds instanceof Set&&plannerRoundDraft.bankSheetIds.has(oldId)){
+    plannerRoundDraft.bankSheetIds.delete(oldId);plannerRoundDraft.bankSheetIds.add(newId);
+  }
+  if(typeof roundPresetEditorState!=="undefined"&&roundPresetEditorState?.bankSheetIds instanceof Set&&roundPresetEditorState.bankSheetIds.has(oldId)){
+    roundPresetEditorState.bankSheetIds.delete(oldId);roundPresetEditorState.bankSheetIds.add(newId);
+  }
+  if(app.ui.bankEditSheetId===oldId)app.ui.bankEditSheetId=newId;
+  if(app.ui.quiz?.sheetId===oldId)app.ui.quiz.sheetId=newId;
+  plannerBaseCache={key:"",units:[],map:new Map()};
+  quizCountCache.clear();
+  return studyChanged;
+}
+
+function cloneNewPhysicalBankSheet(parsed,{name,source,versionGroupId,versionNo,previousVersionId="",now=Date.now()}){
+  const id=uid();
+  const items=(parsed?.items||[]).map((item,i)=>({...item,id:uid(),row:i+1}));
+  return {
+    ...parsed,id,name:name||parsed?.name||"시트",source:source||parsed?.source||"",
+    legacyWrong:!!parsed?.legacyWrong,archived:false,
+    versionGroupId:versionGroupId||id,versionNo:Math.max(1,Number(versionNo)||1),versionHidden:false,
+    versionCreatedAt:now,previousVersionId:previousVersionId||"",items,updatedAt:now
+  };
+}
+
+async function commitBankSheetVersionStage({stagedSheets,newSheets=[],changedExisting=[],originalExisting=[],updatedAt}){
+  if(!cloudUser)return;
+  const uploadedNew=[];
+  try{
+    // 1) 신규 physical version을 먼저 올린다. 이 단계에서는 index/current pointer를 건드리지 않는다.
+    for(const sheet of newSheets){
+      await setDoc(bankSheetDoc(cloudUser.uid,sheet.id),sheet);
+      uploadedNew.push(sheet.id);
+      await new Promise(r=>setTimeout(r,0));
+    }
+    // 2) 기존 physical body는 삭제하지 않고 version metadata만 반영한 문서로 저장한다.
+    for(const sheet of changedExisting){
+      await setDoc(bankSheetDoc(cloudUser.uid,sheet.id),sheet);
+      await new Promise(r=>setTimeout(r,0));
+    }
+    // 3) index를 마지막에 저장한다. 이 문서가 current/hidden pointer의 권위 있는 상태다.
+    await writeBankIndexCloudSnapshot(stagedSheets,updatedAt);
+  }catch(err){
+    console.error("bank version commit failed",err);
+    // 기존 문서는 절대 삭제하지 않는다. metadata가 일부 써졌다면 원상복구를 best-effort로 시도한다.
+    for(const sheet of originalExisting){
+      try{await setDoc(bankSheetDoc(cloudUser.uid,sheet.id),sheet)}catch(e){console.warn("bank version restore failed",sheet.id,e)}
+    }
+    // 아직 index에 연결되지 않은 이번 신규 문서만 orphan cleanup한다.
+    for(const id of uploadedNew){
+      try{await deleteDoc(bankSheetDoc(cloudUser.uid,id))}catch(e){console.warn("new orphan cleanup failed",id,e)}
+    }
+    throw err;
+  }
+}
+
+function closeBankBulkUpdatePreview(){
+  document.getElementById("bankBulkUpdatePreview")?.remove();
+  bankBulkUpdateState=null;
+}
+function updateBulkPreviewRowVisual(rowState,rowEl){
+  const c=rowState.candidates[rowState.selectedCandidate]||null;
+  const countCell=rowEl.querySelector("[data-role='counts']");
+  const actionCell=rowEl.querySelector("[data-role='action']");
+  const check=rowEl.querySelector("input[type='checkbox']");
+  const valid=!!c?.parsed&&!rowState.targetConflict;
+  if(countCell)countCell.textContent=rowState.targetConflict?`${rowState.targetCount||0} → 보류`:(valid?`${rowState.targetCount||0} → ${c.parsed.items.length}`:(rowState.targetCount?`${rowState.targetCount} → 오류`:"0 → 오류"));
+  if(actionCell){
+    if(rowState.targetConflict)actionCell.textContent="현재 시트 이름 중복 · 제외";
+    else if(rowState.candidates.length>1&&!valid)actionCell.textContent="충돌 · 파일 선택";
+    else if(!valid)actionCell.textContent="오류 · 제외";
+    else actionCell.textContent=rowState.targetId?"업데이트":"새로 추가";
+  }
+  if(check){
+    check.disabled=!valid;
+    if(!valid)check.checked=false;
+  }
+}
+function showBankBulkUpdatePreview(state){
+  closeBankBulkUpdatePreview();
+  bankBulkUpdateState=state;
+  const back=document.createElement("div");back.className="modal-backdrop";back.id="bankBulkUpdatePreview";
+  const modal=document.createElement("div");modal.className="modal bulk-update-modal";
+  const head=document.createElement("div");head.className="bulk-update-head";
+  const title=document.createElement("div");
+  title.innerHTML=`<div class="modal-title">엑셀 일괄 업데이트</div><div class="bulk-update-sub">이름이 정확히 같은 현재 활성 시트만 업데이트합니다. 적용 전에는 아무 데이터도 바뀌지 않습니다.</div>`;
+  const close=document.createElement("button");close.className="icon";close.textContent="×";close.onclick=closeBankBulkUpdatePreview;
+  head.append(title,close);modal.append(head);
+
+  if(state.fileErrors.length){
+    const err=document.createElement("div");err.className="bulk-update-errors";
+    err.textContent=`읽기 실패: ${state.fileErrors.join(", ")}`;modal.append(err);
+  }
+
+  const tableWrap=document.createElement("div");tableWrap.className="bulk-update-table-wrap";
+  const table=document.createElement("table");table.className="bulk-update-table";
+  table.innerHTML="<thead><tr><th>적용</th><th>엑셀 시트</th><th>파일</th><th>현재 시트</th><th>기존 → 새</th><th>처리</th></tr></thead>";
+  const tbody=document.createElement("tbody");
+  state.rows.forEach(rowState=>{
+    const tr=document.createElement("tr");
+    const pickTd=document.createElement("td"),check=document.createElement("input");check.type="checkbox";
+    pickTd.append(check);
+    const nameTd=document.createElement("td");nameTd.textContent=rowState.name;
+    const fileTd=document.createElement("td");
+    if(rowState.candidates.length>1){
+      const select=document.createElement("select");select.className="bulk-update-source";
+      const blank=document.createElement("option");blank.value="";blank.textContent="충돌 — 파일 선택";select.append(blank);
+      rowState.candidates.forEach((c,i)=>{
+        const o=document.createElement("option");o.value=String(i);o.textContent=`${c.fileName}${c.parsed?"": " · 오류"}`;if(!c.parsed)o.disabled=true;select.append(o);
+      });
+      select.value="";
+      rowState.selectedCandidate=-1;
+      select.onchange=()=>{
+        rowState.selectedCandidate=select.value===""?-1:Number(select.value);
+        const c=rowState.candidates[rowState.selectedCandidate];
+        check.checked=!!c?.parsed;
+        updateBulkPreviewRowVisual(rowState,tr);
+      };
+      fileTd.append(select);
+    }else{
+      const c=rowState.candidates[0];fileTd.textContent=c?.fileName||"";
+      rowState.selectedCandidate=0;check.checked=!!c?.parsed;
+    }
+    const currentTd=document.createElement("td");currentTd.textContent=rowState.targetConflict?"이름 중복":(rowState.targetId?"일치":"없음");
+    const countsTd=document.createElement("td");countsTd.dataset.role="counts";
+    const actionTd=document.createElement("td");actionTd.dataset.role="action";
+    tr.append(pickTd,nameTd,fileTd,currentTd,countsTd,actionTd);tbody.append(tr);
+    rowState._check=check;
+    updateBulkPreviewRowVisual(rowState,tr);
+  });
+  table.append(tbody);tableWrap.append(table);modal.append(tableWrap);
+
+  const missing=document.createElement("div");missing.className="bulk-update-missing";
+  const mh=document.createElement("strong");mh.textContent="새 엑셀에 없는 기존 시트";
+  const mv=document.createElement("div");mv.textContent=state.missingExisting.length?state.missingExisting.join(" · "):"없음";
+  const keep=document.createElement("small");keep.textContent="목록에 없어도 기존 시트는 그대로 유지합니다.";
+  missing.append(mh,mv,keep);modal.append(missing);
+
+  const actions=document.createElement("div");actions.className="bulk-update-actions";
+  const cancel=document.createElement("button");cancel.textContent="취소";cancel.onclick=closeBankBulkUpdatePreview;
+  const apply=document.createElement("button");apply.className="primary";apply.textContent="일괄 적용";
+  apply.onclick=()=>applyBankBulkUpdatePreview(apply);
+  actions.append(cancel,apply);modal.append(actions);
+  back.append(modal);
+  back.onclick=e=>{if(e.target===back)closeBankBulkUpdatePreview()};
+  document.body.append(back);
+}
+async function prepareBankBulkUpdate(files){
+  if(quizSession)return toast("현재 문제풀이를 종료/저장한 뒤 업데이트해 주세요");
+  if(bankBulkUpdateBusy||bankImportBusy)return toast("문제은행 작업 중입니다");
+  if(typeof XLSX==="undefined")return alert("엑셀 읽기 기능을 불러오지 못했습니다.");
+  bankBulkUpdateBusy=true;
+  const candidates=[],fileErrors=[];
+  try{
+    toast("업데이트 미리보기 만드는 중…");
+    for(const file of files){
+      try{
+        await new Promise(r=>setTimeout(r,0));
+        const source=file.name.replace(/\.(xlsx|xlsm|xlsb|xls)$/i,"");
+        const wb=XLSX.read(await file.arrayBuffer(),{cellFormula:true,cellStyles:true});
+        for(const name of wb.SheetNames){
+          if(isDerivedBankSheet(name))continue;
+          let parsed=null,error="";
+          try{
+            parsed=parseBankWorksheet(wb.Sheets[name],source,name);
+            if(!parsed)error="파싱 실패 또는 0문제";
+          }catch(e){console.warn("worksheet parse failed",file.name,name,e);error=e?.message||"파싱 오류"}
+          candidates.push({fileName:file.name,source,name,parsed,error});
+        }
+      }catch(e){
+        console.error("bulk workbook read failed",file.name,e);fileErrors.push(file.name);
+      }
+    }
+    const grouped=new Map();
+    candidates.forEach(c=>{if(!grouped.has(c.name))grouped.set(c.name,[]);grouped.get(c.name).push(c)});
+    if(!grouped.size){
+      alert("업데이트할 워크시트를 찾지 못했습니다.\nA열=카테고리/분류, B열=문제/단어, C열=정답/답 형식을 확인해 주세요.");
+      return;
+    }
+    const active=activeBankSheets(),activeGroups=new Map();
+    active.forEach(s=>{if(!activeGroups.has(s.name))activeGroups.set(s.name,[]);activeGroups.get(s.name).push(s)});
+    const rows=[...grouped.entries()].map(([name,list])=>{
+      const targets=activeGroups.get(name)||[],target=targets.length===1?targets[0]:null;
+      return {name,candidates:list,targetId:target?.id||"",targetCount:targets.reduce((n,s)=>n+(s.items?.length||0),0),targetConflict:targets.length>1,selectedCandidate:list.length===1?0:-1,_check:null};
+    });
+    const incomingNames=new Set(grouped.keys());
+    const missingExisting=active.filter(s=>!incomingNames.has(s.name)).map(s=>s.name);
+    showBankBulkUpdatePreview({rows,missingExisting,fileErrors});
+  }finally{
+    bankBulkUpdateBusy=false;
+  }
+}
+async function applyBankBulkUpdatePreview(button){
+  if(quizSession)return toast("현재 문제풀이를 종료/저장한 뒤 업데이트해 주세요");
+  const state=bankBulkUpdateState;if(!state)return;
+  const picked=state.rows.filter(r=>r._check?.checked).map(r=>({row:r,candidate:r.candidates[r.selectedCandidate]})).filter(x=>x.candidate?.parsed);
+  if(!picked.length)return toast("적용할 시트를 선택하세요");
+  button.disabled=true;button.textContent="적용 중…";
+  const now=Date.now();
+  let staged=[...(app.bank.sheets||[])];
+  const newSheets=[],changedExisting=[],originalExisting=[],mappings=[];
+  try{
+    for(const {row,candidate} of picked){
+      const target=row.targetId?app.bank.sheets.find(s=>s.id===row.targetId&&!s.versionHidden&&!s.archived):null;
+      if(target){
+        const gid=target.versionGroupId||target.id;
+        const group=(app.bank.sheets||[]).filter(s=>bankVersionGroupId(s)===gid);
+        const nextNo=Math.max(1,...group.map(bankVersionNo))+1;
+        const oldNext={
+          ...target,versionGroupId:gid,versionNo:bankVersionNo(target),versionHidden:true,
+          versionCreatedAt:bankVersionCreatedAt(target)||now,updatedAt:now
+        };
+        const fresh=cloneNewPhysicalBankSheet(candidate.parsed,{
+          name:row.name,source:candidate.source,versionGroupId:gid,versionNo:nextNo,previousVersionId:target.id,now
+        });
+        const ix=staged.findIndex(s=>s.id===target.id);
+        if(ix>=0){staged[ix]=oldNext;staged.splice(ix+1,0,fresh)}else staged.push(fresh);
+        originalExisting.push(target);changedExisting.push(oldNext);newSheets.push(fresh);
+        mappings.push([target.id,fresh.id]);
+      }else{
+        const fresh=cloneNewPhysicalBankSheet(candidate.parsed,{name:row.name,source:candidate.source,now});
+        fresh.versionGroupId=fresh.id;fresh.versionNo=1;fresh.previousVersionId="";
+        staged.push(fresh);newSheets.push(fresh);
+      }
+    }
+
+    if(cloudUser){
+      updateSync("…",true);
+      await commitBankSheetVersionStage({stagedSheets:staged,newSheets,changedExisting,originalExisting,updatedAt:now});
+    }
+
+    // Cloud commit 성공 뒤에만 로컬 current pointer를 바꾼다.
+    app.bank.sheets=staged;app.bank.contentUpdatedAt=now;
+    let studyChanged=false;
+    mappings.forEach(([oldId,newId])=>{studyChanged=replaceBankVersionReferences(oldId,newId)||studyChanged});
+    saveLocalNow();await writeBankCacheNow();
+    if(studyChanged)markStudyCloud();
+    plannerBaseCache={key:"",units:[],map:new Map()};quizCountCache.clear();
+    closeBankBulkUpdatePreview();
+    renderQuiz();renderBankEditor();renderWidePlannerSide();
+    if(cloudUser)updateSync("✓",true);
+    const updates=mappings.length,adds=newSheets.length-updates;
+    toast(`일괄 적용 완료 · 업데이트 ${updates} · 새 시트 ${adds}`);
+  }catch(e){
+    console.error(e);if(cloudUser)updateSync("!",false);
+    button.disabled=false;button.textContent="일괄 적용";
+    alert("일괄 업데이트를 적용하지 못했습니다.\n기존 활성 시트와 회독은 변경하지 않았습니다.");
+  }
+}
+
+function closeBankVersionHistory(){
+  document.getElementById("bankVersionHistoryModal")?.remove();
+}
+function openBankVersionHistory(sheet=currentBankEditSheet()){
+  if(!sheet)return;
+  closeBankVersionHistory();
+  const versions=bankVersionsFor(sheet).sort((a,b)=>bankVersionNo(b)-bankVersionNo(a)||bankVersionCreatedAt(b)-bankVersionCreatedAt(a));
+  const current=versions.find(v=>!v.versionHidden&&!v.archived)||sheet;
+  const back=document.createElement("div");back.className="modal-backdrop";back.id="bankVersionHistoryModal";
+  const modal=document.createElement("div");modal.className="modal version-history-modal";
+  const head=document.createElement("div");head.className="bulk-update-head";
+  const title=document.createElement("div");title.innerHTML=`<div class="modal-title">버전 기록</div><div class="bulk-update-sub">${escapeHtml(current.name||sheet.name)}</div>`;
+  const close=document.createElement("button");close.className="icon";close.textContent="×";close.onclick=closeBankVersionHistory;head.append(title,close);modal.append(head);
+  const list=document.createElement("div");list.className="version-history-list";
+  versions.forEach(v=>{
+    const line=document.createElement("div");line.className="version-history-row";
+    const info=document.createElement("div");info.className="version-history-info";
+    const label=document.createElement("strong");label.textContent=`v${bankVersionNo(v)} · ${(v.items||[]).length}문제${v.id===current.id?" · 현재":""}`;
+    const date=document.createElement("small");
+    const at=bankVersionCreatedAt(v);date.textContent=at?new Date(at).toLocaleString("ko-KR"):"";
+    info.append(label,date);line.append(info);
+    if(v.id!==current.id){
+      const use=document.createElement("button");use.textContent=v.archived?"보관된 버전":"이 버전 사용";use.disabled=!!v.archived;
+      use.onclick=()=>switchBankVersion(current.id,v.id,use);line.append(use);
+    }
+    list.append(line);
+  });
+  modal.append(list);
+  const note=document.createElement("div");note.className="version-history-note";note.textContent="과거 버전의 문제·통계·기존 회독 참조는 그대로 보존됩니다.";
+  modal.append(note);back.append(modal);back.onclick=e=>{if(e.target===back)closeBankVersionHistory()};document.body.append(back);
+}
+async function switchBankVersion(currentId,targetId,button){
+  if(quizSession)return toast("현재 문제풀이를 종료/저장한 뒤 변경해 주세요");
+  const current=app.bank.sheets.find(s=>s.id===currentId),target=app.bank.sheets.find(s=>s.id===targetId);
+  if(!current||!target||bankVersionGroupId(current)!==bankVersionGroupId(target))return toast("버전 정보를 찾지 못했습니다");
+  if(target.archived)return toast("보관된 버전은 먼저 보관함에서 복원해 주세요");
+  if(!confirm(`현재 v${bankVersionNo(current)} → v${bankVersionNo(target)}로 변경\n기존 회독에는 영향 없음`))return;
+  button.disabled=true;button.textContent="변경 중…";
+  const now=Date.now(),gid=bankVersionGroupId(current);
+  const originals=(app.bank.sheets||[]).filter(s=>bankVersionGroupId(s)===gid);
+  const changed=originals.map(s=>({
+    ...s,versionGroupId:gid,versionNo:bankVersionNo(s),versionHidden:s.id!==target.id,
+    versionCreatedAt:bankVersionCreatedAt(s)||now,updatedAt:now
+  }));
+  const byId=new Map(changed.map(s=>[s.id,s]));
+  const staged=(app.bank.sheets||[]).map(s=>byId.get(s.id)||s);
+  try{
+    if(cloudUser){
+      updateSync("…",true);
+      await commitBankSheetVersionStage({stagedSheets:staged,newSheets:[],changedExisting:changed,originalExisting:originals,updatedAt:now});
+    }
+    app.bank.sheets=staged;app.bank.contentUpdatedAt=now;
+    const studyChanged=replaceBankVersionReferences(current.id,target.id);
+    saveLocalNow();await writeBankCacheNow();
+    if(studyChanged)markStudyCloud();
+    closeBankVersionHistory();
+    plannerBaseCache={key:"",units:[],map:new Map()};quizCountCache.clear();
+    renderQuiz();renderBankEditor();renderWidePlannerSide();
+    if(cloudUser)updateSync("✓",true);
+    toast(`v${bankVersionNo(target)} 사용 중 · 기존 회독 보존`);
+  }catch(e){
+    console.error(e);if(cloudUser)updateSync("!",false);
+    button.disabled=false;button.textContent="이 버전 사용";
+    alert("버전을 변경하지 못했습니다.\n기존 활성 버전과 회독은 그대로입니다.");
+  }
+}
+
 function bankQuestions(includeLegacy=false){
   return app.bank.sheets.filter(s=>includeLegacy||!s.legacyWrong).flatMap(s=>s.items.map(i=>({...i,sheetId:s.id,sheetName:s.name,source:s.source})));
 }
@@ -6433,8 +6812,9 @@ function renderBankToolbar(){
   const more=document.createElement("button");more.textContent="•••";
   const menu=document.createElement("div");menu.className="menu hidden";
   const imp=document.createElement("button");imp.textContent="엑셀 가져오기";imp.onclick=()=>document.getElementById("bankExcelFiles").click();
+  const bulkUpdate=document.createElement("button");bulkUpdate.textContent="엑셀 일괄 업데이트";bulkUpdate.onclick=()=>{if(quizSession)return toast("현재 문제풀이를 종료/저장한 뒤 업데이트해 주세요");document.getElementById("bankBulkUpdateFiles").click()};
   const edit=document.createElement("button");edit.textContent="문제 편집";edit.onclick=()=>{app.ui.bankMode="edit";saveLocal();renderMode()};
-  menu.append(imp,edit);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();manage.append(presetBtn,more,menu);panel.append(manage);
+  menu.append(imp,bulkUpdate,edit);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();manage.append(presetBtn,more,menu);panel.append(manage);
 
   const start=document.createElement("button");start.className="primary quiz-start";start.textContent=available?"시작":"문제 없음";start.disabled=!available;
   start.onclick=()=>{
@@ -6540,24 +6920,12 @@ function buildProgressRoundHeader(area,label="진도 학습"){
 }
 function renderAdventureSheetPicker(area){
   const store=adventureStore(),round=activeProgressRound();
-  if(round)plannerRepairMissingBankSnapshot(round);
-  const roundMissions=round?(round.missions||[]).filter(m=>m.kind==="bankPath"&&!plannerMissionExcluded(round,m)):[];
-  const roundSheetIds=round?new Set([
-    ...plannerRoundBankSheetIds(round),
-    ...roundMissions.map(m=>m.sheetId)
-  ]):null;
-  const sheets=round
-    ? app.bank.sheets.filter(s=>!s.legacyWrong&&roundSheetIds.has(s.id))
-    : app.bank.sheets.filter(s=>!s.legacyWrong&&!s.archived);
+  // 목록의 존재 여부는 회독 snapshot과 분리한다.
+  // 현재 활성 문제은행 시트는 항상 전부 보이고, 선택 회독은 진도 수치만 바꾼다.
+  const sheets=activeBankSheets();
   if(!sheets.length){
     const empty=document.createElement("div");empty.className="bank-empty";
-    if(round&&(round.scope?.bankSheetIds||[]).length){
-      empty.innerHTML=`<strong>${escapeHtml(round.name||"이번 회독")} 진도 생성 확인 필요</strong><br>선택한 문제은행 시트는 있지만 진도 세트가 만들어지지 않았습니다.<br><small>현재 문제은행 원본이 로드되면 자동 복구를 한 번 시도합니다.</small>`;
-    }else if(round){
-      empty.innerHTML=`<strong>${escapeHtml(round.name||"이번 회독")}에는 문제은행 진도가 없습니다.</strong><br><small>회독을 만들 때 문제은행 시트를 범위에 포함해야 합니다.</small>`;
-    }else{
-      empty.textContent="진도 학습에 사용할 문제 시트가 없습니다.";
-    }
+    empty.textContent="진도 학습에 사용할 현재 문제 시트가 없습니다.";
     area.append(empty);return;
   }
   const groups=new Map();
@@ -6575,18 +6943,23 @@ function renderAdventureSheetPicker(area){
       const roundMission=round?(round.missions||[]).find(m=>m.kind==="bankPath"&&m.sheetId===sheet.id&&!plannerMissionExcluded(round,m)):null;
       const order=roundMission?(roundMission.order||"sequence"):(state.lastOrder||state.activeOrder||"sequence");
       const cfg=adventureConfig(sheet.id,{quiet:true,order}),meta=bankSheetMeta(sheet);
-      const items=adventureBaseItems(sheet,cfg.mode),round=activeProgressRound();
+      const items=adventureBaseItems(sheet,cfg.mode);
       const roundProgress=round?roundPathProgress(round,sheet.id,order):null;
-      const progress=roundProgress?.total?roundProgress:adventureProgress(cfg);
+      const cumulative=adventureProgress(cfg);
+      const inRound=!!(round&&roundProgress?.total);
+      const viewPct=round?(inRound?roundProgress.pct:null):cumulative.pct;
       const active=Object.keys(cfg.activeSessions||{}).length;
       const b=document.createElement("button");b.className="path-sheet-pill";
-      if(progress.pct>=100)b.classList.add("done");
-      if(round&&!roundProgress?.total)b.classList.add("out-of-round");
+      if(viewPct!=null&&viewPct>=100)b.classList.add("done");
+      if(round&&!inRound)b.classList.add("out-of-round");
       if(active)b.classList.add("active-progress");
       const label=meta.area||sheet.name;
       b.innerHTML=`<span class="path-sheet-pill-name">${escapeHtml(label)}</span>
-        <span class="path-sheet-pill-progress"><i style="width:${progress.pct}%"></i></span>`;
-      b.title=`${label} · ${round&&roundProgress?.total?(round.name||"회독")+" ":""}${progress.pct}% · ${items.length}문제 · ${order==="random"?"랜덤":"순서"}`;
+        <span class="path-sheet-pill-value">${viewPct==null?"—":viewPct+"%"}</span>
+        <span class="path-sheet-pill-progress"><i style="width:${viewPct==null?0:viewPct}%"></i></span>`;
+      b.title=round
+        ? `${label} · ${inRound?(round.name||"회독")+" "+roundProgress.pct+"%":"이번 회독 범위 아님"} · 누적 ${cumulative.pct}% · ${items.length}문제 · ${order==="random"?"랜덤":"순서"}`
+        : `${label} · ${cumulative.pct}% · ${items.length}문제 · ${order==="random"?"랜덤":"순서"}`;
       b.onclick=()=>{store.activeSheetId=sheet.id;state.activeOrder=order;saveLocal();renderQuiz()};
       scroller.append(b);
     });
@@ -6600,7 +6973,6 @@ function renderAdventurePath(area,sheetId){
   const store=adventureStore(),sheet=adventureSheet(sheetId);
   if(!sheet){store.activeSheetId="";saveLocal();renderAdventureSheetPicker(area);return}
   const selectedRound=activeProgressRound();
-  if(selectedRound&&plannerRoundBankSheetIds(selectedRound).includes(sheetId))plannerRepairMissingBankSnapshot(selectedRound);
   const state=adventureSheetState(sheetId);
   const snapMission=selectedRound?(selectedRound.missions||[]).find(m=>m.kind==="bankPath"&&m.sheetId===sheetId&&!plannerMissionExcluded(selectedRound,m)):null;
   if(snapMission){
@@ -6641,7 +7013,8 @@ function renderAdventurePath(area,sheetId){
   [["sequence","순서대로"],["random","랜덤"]].forEach(([order,label])=>{
     const b=document.createElement("button");b.textContent=label;b.className=state.activeOrder===order?"active":"";
     const p=adventureProgress(adventureConfig(sheetId,{quiet:true,order}));
-    const roundOrderAllowed=!selectedRound||roundPathMissions(selectedRound,sheetId,order).length>0;
+    const roundHasAny=!!selectedRound&&(selectedRound.missions||[]).some(m=>m.kind==="bankPath"&&m.sheetId===sheetId&&!plannerMissionExcluded(selectedRound,m));
+    const roundOrderAllowed=!selectedRound||!roundHasAny||roundPathMissions(selectedRound,sheetId,order).length>0;
     if(!roundOrderAllowed){b.disabled=true;b.title="이번 회독에 고정되지 않은 경로"}
     else if(p.done)b.title=`${p.pct}% 완료`;
     b.onclick=()=>{
@@ -6721,19 +7094,13 @@ function renderAdventurePath(area,sheetId){
   }
 }
 function renderAdventureHome(area){
-  const store=adventureStore(),round=activeProgressRound();
+  const store=adventureStore();
   buildProgressRoundHeader(area,"진도 학습");
 
   // 원래 UX 복구:
   // activeSheetId가 없으면 모든 시트의 진도 완료상황을 한 화면에서 보여주고,
   // 시트를 누르면 해당 지그재그 진도길로 들어간다.
   if(store.activeSheetId){
-    if(round&&!plannerRoundBankSheetIds(round).includes(store.activeSheetId)){
-      store.activeSheetId="";
-      saveLocal();
-      renderAdventureSheetPicker(area);
-      return;
-    }
     renderAdventurePath(area,store.activeSheetId);
   }else{
     renderAdventureSheetPicker(area);
@@ -7130,6 +7497,12 @@ function renderBankEditor(){
   const importBtn=document.createElement("button");importBtn.textContent="엑셀 가져오기";
   importBtn.onclick=()=>document.getElementById("bankExcelFiles").click();
 
+  const bulkUpdateBtn=document.createElement("button");bulkUpdateBtn.textContent="엑셀 일괄 업데이트";
+  bulkUpdateBtn.onclick=()=>{if(quizSession)return toast("현재 문제풀이를 종료/저장한 뒤 업데이트해 주세요");document.getElementById("bankBulkUpdateFiles").click()};
+
+  const versionHistoryBtn=document.createElement("button");versionHistoryBtn.textContent="버전 기록";
+  versionHistoryBtn.onclick=()=>openBankVersionHistory(currentBankEditSheet());
+
   const newSheet=document.createElement("button");newSheet.textContent="빈 시트 추가";
   newSheet.onclick=()=>{
     const name=(prompt("시트 이름")||"").trim();if(!name)return;
@@ -7258,7 +7631,7 @@ function renderBankEditor(){
 
   const archiveCurrent=document.createElement("button");archiveCurrent.textContent="시트 보관";archiveCurrent.onclick=archiveCurrentBankSheet;
   const restoreArchive=document.createElement("button");restoreArchive.textContent=`보관함 복원${archivedBankSheets().length?` (${archivedBankSheets().length})`:""}`;restoreArchive.onclick=restoreArchivedBankSheet;
-  menu.append(importBtn,newSheet,rename,clearSameMemo,clearAllMemo,moveUp,moveDown,merge,archiveCurrent,restoreArchive,trashCurrent,restoreTrash,resetAll);
+  menu.append(importBtn,bulkUpdateBtn,versionHistoryBtn,newSheet,rename,clearSameMemo,clearAllMemo,moveUp,moveDown,merge,archiveCurrent,restoreArchive,trashCurrent,restoreTrash,resetAll);
   manageBtn.onclick=e=>{e.stopPropagation();toggleFloatingMenu(manageBtn,menu)};
   menu.onclick=e=>e.stopPropagation();manageWrap.append(manageBtn,menu);
   row.append(sel,add,bulk,manageWrap);
@@ -7343,7 +7716,7 @@ function plannerScopeCatalog(){
       if(count)memory.push({id:sheet.id,subject:subject.name||"암기판",label:`${subject.name} › ${sheet.name}`,count});
     }
   }
-  for(const sheet of (app.bank.sheets||[]).filter(x=>!x.legacyWrong&&!x.archived)){
+  for(const sheet of activeBankSheets()){
     const meta=bankSheetMeta(sheet),subject=meta.subject||"문제은행";
     bank.push({id:sheet.id,subject,label:`${subject} › ${meta.area||sheet.name}`,count:(sheet.items||[]).length});
   }
@@ -7716,7 +8089,9 @@ function plannerPathKey(sheetId,order,setIndex){return `${sheetId}:${order}:${se
 function plannerPathUnits(sheetIds=null,{includeArchived=false}={}){
   const out=[];
   const wanted=sheetIds?new Set(sheetIds):null;
-  for(const sheet of (app.bank.sheets||[]).filter(x=>!x.legacyWrong&&(includeArchived||!x.archived)&&(!wanted||wanted.has(x.id)))){
+  for(const sheet of (wanted
+    ? (app.bank.sheets||[]).filter(x=>!x.legacyWrong&&(includeArchived||!x.archived)&&wanted.has(x.id))
+    : activeBankSheets())){
     try{
       const state=adventureSheetState(sheet.id),order=state.activeOrder==="random"?"random":"sequence";
       const cfg=adventureConfig(sheet.id,{quiet:true,order});if(!cfg)continue;
@@ -7736,7 +8111,7 @@ function plannerPathUnits(sheetIds=null,{includeArchived=false}={}){
   return out;
 }
 function plannerBaseKey(){
-  const sheetSig=(app.bank.sheets||[]).filter(s=>!s.legacyWrong).map(s=>`${s.id}:${s.archived?1:0}:${(s.items||[]).length}`).join(",");
+  const sheetSig=activeBankSheets().map(s=>`${s.id}:${(s.items||[]).length}`).join(",");
   const studySig=(app.study.subjects||[]).map(x=>`${x.id}:${(x.sheets||[]).map(s=>`${s.id}:${s.archived?1:0}:${(s.rows||[]).length}`).join(",")}`).join("|");
   const pathSig=Object.entries(app.ui.quizAdventure?.configs||{}).map(([id,state])=>{
     const order=state?.activeOrder||"sequence",cfg=state?.paths?.[order]||{};
@@ -9288,10 +9663,22 @@ function scheduleBankStatsCloud(){
     catch(e){console.error(e);updateSync("!",false)}
   },700);
 }
+function bankIndexSheetMetadata(s){
+  return {
+    id:s.id,source:s.source||"",name:s.name||"",legacyWrong:!!s.legacyWrong,archived:!!s.archived,
+    versionGroupId:s.versionGroupId||s.id,versionNo:Number(s.versionNo)||1,versionHidden:!!s.versionHidden,
+    versionCreatedAt:Number(s.versionCreatedAt)||Number(s.updatedAt)||0,previousVersionId:s.previousVersionId||"",
+    updatedAt:s.updatedAt||0
+  };
+}
+async function writeBankIndexCloudSnapshot(sheets,updatedAt){
+  if(!cloudUser)return;
+  await setDoc(bankIndexDoc(cloudUser.uid),{sheets:(sheets||[]).map(bankIndexSheetMetadata),updatedAt});
+}
 async function saveBankIndexCloud(){
   if(!cloudUser)return;
   app.bank.contentUpdatedAt=Date.now();saveLocal();
-  await setDoc(bankIndexDoc(cloudUser.uid),{sheets:app.bank.sheets.map(s=>({id:s.id,source:s.source,name:s.name,legacyWrong:!!s.legacyWrong,updatedAt:s.updatedAt||0})),updatedAt:app.bank.contentUpdatedAt});
+  await writeBankIndexCloudSnapshot(app.bank.sheets,app.bank.contentUpdatedAt);
 }
 async function syncImportedBankSheets(sheets,deleted=[]){
   if(!cloudUser)return;
@@ -9306,7 +9693,13 @@ async function syncImportedBankSheets(sheets,deleted=[]){
 async function deleteBankSheetsCloud(ids){if(!cloudUser)return;try{await Promise.all(ids.map(id=>deleteDoc(bankSheetDoc(cloudUser.uid,id))))}catch(e){console.error(e)}}
 async function loadBankFromCloud(u,index){
   if(!index?.sheets)return;
-  const docs=await Promise.all(index.sheets.map(async x=>{const snap=await getDoc(bankSheetDoc(u,x.id));return snap.exists()?snap.data():null}));
+  const docs=await Promise.all(index.sheets.map(async meta=>{
+    const snap=await getDoc(bankSheetDoc(u,meta.id));if(!snap.exists())return null;
+    const body=snap.data();
+    // index metadata is authoritative for current/hidden/archive state.
+    // Even if a previous version commit stopped halfway, stale body metadata cannot activate a historical version.
+    return {...body,...bankIndexSheetMetadata({...body,...meta}),items:Array.isArray(body.items)?body.items:[]};
+  }));
   app.bank.sheets=docs.filter(Boolean);app.bank.contentUpdatedAt=index.updatedAt||app.bank.contentUpdatedAt;
   saveLocal();await writeBankCacheNow();
   reconcileExistingAdventureRoutes({persist:true});
@@ -9533,6 +9926,7 @@ document.getElementById("newSubjectChoice").onclick=()=>{document.getElementById
 document.getElementById("excelSubjectChoice").onclick=()=>document.getElementById("studyExcelFiles").click();
 document.getElementById("studyExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";document.getElementById("subjectModal").classList.add("hidden");if(files.length)await importStudyFiles(files)};
 document.getElementById("bankExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";if(files.length){try{await importBankFiles(files)}catch(err){console.error(err);bankImportBusy=false;alert("문제은행을 가져오는 중 오류가 났습니다. 다시 시도해 주세요.")}}};
+document.getElementById("bankBulkUpdateFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";if(files.length){try{await prepareBankBulkUpdate(files)}catch(err){console.error(err);bankBulkUpdateBusy=false;alert("업데이트 미리보기를 만드는 중 오류가 났습니다. 다시 시도해 주세요.")}}};
 
 document.getElementById("roundPresetClose").onclick=closeRoundPresetManager;
 document.getElementById("roundPresetModal").onclick=e=>{if(e.target.id==="roundPresetModal")closeRoundPresetManager()};
