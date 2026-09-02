@@ -6215,14 +6215,7 @@ function activeProgressRound(){
 }
 function setActiveProgressRound(id){
   app.ui.activePlannerRoundId=id||"__cumulative__";
-  const store=adventureStore(),round=activeProgressRound();
-  if(round){
-    const ids=plannerRoundBankSheetIds(round).filter(sheetId=>!!adventureSheet(sheetId));
-    if(ids.length&&!ids.includes(store.activeSheetId))store.activeSheetId=ids[0];
-  }else if(!store.activeSheetId){
-    const first=(app.bank.sheets||[]).find(s=>!s.legacyWrong&&!s.archived);
-    if(first)store.activeSheetId=first.id;
-  }
+  adventureStore().activeSheetId="";
   saveLocal();renderQuiz();
 }
 function roundPathMissions(round,sheetId,order){
@@ -6327,7 +6320,7 @@ function renderAdventurePath(area,sheetId){
   }
   const cfg=adventureConfig(sheetId),meta=bankSheetMeta(sheet),totalSets=adventureSetCount(cfg),total=cfg.orderIds.length;
   const top=document.createElement("div");top.className="path-head";
-  const back=document.createElement("button");back.className="path-back";back.textContent="‹ 시트";
+  const back=document.createElement("button");back.className="path-back";back.textContent="‹ 전체 진도";
   back.onclick=()=>{store.activeSheetId="";saveLocal();renderQuiz()};
   const title=document.createElement("div");title.className="path-title";title.innerHTML=`<strong>${escapeHtml(meta.area||sheet.name)}</strong><span>${total}문제 · ${totalSets}세트</span>`;
   const settings=document.createElement("button");settings.className="path-settings-btn";settings.textContent="설정";
@@ -6442,16 +6435,20 @@ function renderAdventureHome(area){
   const store=adventureStore(),round=activeProgressRound();
   buildProgressRoundHeader(area,"진도 학습");
 
-  if(round){
-    const ids=plannerRoundBankSheetIds(round).filter(sheetId=>!!adventureSheet(sheetId));
-    if(ids.length&&!ids.includes(store.activeSheetId))store.activeSheetId=ids[0];
-  }else if(!store.activeSheetId){
-    const first=(app.bank.sheets||[]).find(s=>!s.legacyWrong&&!s.archived);
-    if(first)store.activeSheetId=first.id;
+  // 원래 UX 복구:
+  // activeSheetId가 없으면 모든 시트의 진도 완료상황을 한 화면에서 보여주고,
+  // 시트를 누르면 해당 지그재그 진도길로 들어간다.
+  if(store.activeSheetId){
+    if(round&&!plannerRoundBankSheetIds(round).includes(store.activeSheetId)){
+      store.activeSheetId="";
+      saveLocal();
+      renderAdventureSheetPicker(area);
+      return;
+    }
+    renderAdventurePath(area,store.activeSheetId);
+  }else{
+    renderAdventureSheetPicker(area);
   }
-
-  if(store.activeSheetId)renderAdventurePath(area,store.activeSheetId);
-  else renderAdventureSheetPicker(area);
 }
 
 function renderQuiz(){
@@ -8166,7 +8163,7 @@ function renderPlanner(force=false){
       const b=document.createElement("span");b.textContent=`${r.start} ~ ${r.end} · ${prog.done}/${prog.total} · ${prog.remaining} 남음 · 오답 ${(r.wrongIds||[]).length}${r.reviewDate?` · 오답데이 ${r.reviewDate}`:""}`;
       main.append(a,b);
       const actions=document.createElement("div");actions.className="planner-round-actions";
-      const view=document.createElement("button");view.textContent=app.ui.activePlannerRoundId===r.id?"진도✓":"진도";view.onclick=()=>{app.ui.activePlannerRoundId=r.id;app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="path";const ids=plannerRoundBankSheetIds(r).filter(id=>!!adventureSheet(id));if(ids.length&&!ids.includes(adventureStore().activeSheetId))adventureStore().activeSheetId=ids[0];saveLocal();renderMode()};
+      const view=document.createElement("button");view.textContent=app.ui.activePlannerRoundId===r.id?"진도✓":"진도";view.onclick=()=>{app.ui.activePlannerRoundId=r.id;app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="path";adventureStore().activeSheetId="";saveLocal();renderMode()};
       const rename=document.createElement("button");rename.textContent="이름";rename.onclick=()=>plannerRenameRound(r.id);
       const del=document.createElement("button");del.textContent="삭제";del.onclick=()=>plannerDeleteRound(r.id);
       actions.append(view,rename,del);row.append(main,actions);rounds.append(row);
