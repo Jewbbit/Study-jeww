@@ -4871,19 +4871,9 @@ function bindTypingPracticeEnter(el,handler){
     clearFallback();
     if(moving)return;
     moving=true;pending=false;
-    // 한글 IME의 마지막 조합이 다음 칸으로 넘어가는 것을 막기 위해 현재 칸에서 먼저 확정한다.
-    // Samsung Internet은 blur 직후 같은 작업에서 다음 칸을 focus하면 이전 조합이 새 칸에 재입력될 수 있어
-    // 한 프레임 뒤 이동한다. 일반 Safari/iOS는 기존처럼 같은 작업에서 바로 이동한다.
-    if(document.activeElement===el){
-      if(isSamsungInternet()){
-        try{el.blur()}catch{}
-        requestAnimationFrame(()=>{
-          try{handler()}finally{requestAnimationFrame(()=>{moving=false})}
-        });
-        return;
-      }
-      try{el.blur()}catch{}
-    }
+    // 핵심: blur로 이전 한글 조합의 귀속을 현재 칸에 확정하되,
+    // 다음 칸 focus는 같은 작업 안에서 바로 실행해 iOS 키보드가 내려갔다 올라오는 시간을 없앤다.
+    if(document.activeElement===el&&!isSamsungInternet()){try{el.blur()}catch{}}
     try{handler()}finally{requestAnimationFrame(()=>{moving=false})}
   };
   const afterCommittedInput=()=>{
