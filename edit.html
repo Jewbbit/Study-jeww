@@ -3415,6 +3415,7 @@ try{
 let cloudUser=null,studyUnsub=null,plannerRoundsUnsub=null,plannerChecksUnsub=null,plannerManualUnsub=null,plannerLogsUnsub=null,bankIndexUnsub=null,bankStatsUnsub=null,cloudTimer=null;
 let applyingRemote=false;
 let quizSession=null;
+let roundWrongSessionSaveTimer=0;
 
 function quizSessionSnapshot(){
   if(!quizSession)return null;
@@ -3466,6 +3467,15 @@ function saveQuizSessionLocal(){
       cfg.lastTouchedAt=Date.now();
       const state=adventureSheetState(adv.sheetId);
       state.activeOrder=cfg.order;state.lastOrder=cfg.order;
+    }
+  }
+  if(quizSession.roundWrongReview&&quizSession.plannerRoundId){
+    const round=plannerRoundById(quizSession.plannerRoundId);
+    if(round){
+      round.wrongReviewSession={...snapshot,savedAt:Date.now()};
+      round.wrongReviewDone=false;
+      clearTimeout(roundWrongSessionSaveTimer);
+      roundWrongSessionSaveTimer=setTimeout(()=>plannerSaveRound(round),900);
     }
   }
   saveLocal();
@@ -3550,6 +3560,17 @@ function exitQuizAfterStop(){
 let pendingStopSnapshot=null;
 function requestQuizStop(){
   if(!quizSession)return;
+  if(quizSession.roundWrongReview&&quizSession.plannerRoundId){
+    const round=plannerRoundById(quizSession.plannerRoundId);
+    saveQuizSessionLocal();
+    saveLocalNow();
+    if(round)plannerSaveRound(round);
+    quizSession=null;delete app.ui.quizDraft;
+    document.body.classList.remove("quiz-running");
+    app.ui.workspace="planner";
+    saveLocalNow();renderMode();renderPlanner();toast("오답 데이 진행 위치 저장됨");
+    return;
+  }
   if(quizSession.adventure){
     saveQuizSessionLocal();
     const sheetId=quizSession.adventure.sheetId;
@@ -6610,10 +6631,49 @@ function startAdventureRoundMission(round,mission){
   adventureStore().activeSheetId=mission.sheetId;app.ui.quizHomeMode="path";document.body.classList.add("quiz-running");
   buildChoices();saveQuizSessionLocal();markAdventureCloud();renderQuizQuestion();
 }
+function restoreRoundWrongReviewSession(round,mission){
+  const saved=round?.wrongReviewSession;
+  if(!saved||!Array.isArray(saved.itemIds)||!saved.itemIds.length)return false;
+  const byId=new Map();
+  bankQuestions(true).forEach(x=>{
+    byId.set(quizItemId(x),x);
+    const cid=canonicalProblemId(x);if(!byId.has(cid))byId.set(cid,x);
+  });
+  const items=saved.itemIds.map(id=>byId.get(id)).filter(Boolean);
+  if(!items.length)return false;
+  app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="quick";
+  app.ui.quiz.mode=saved.mode||app.ui.quiz.mode||"choice";
+  app.ui.quiz.order=saved.order||app.ui.quiz.order||"sequence";
+  quizSession={
+    items,index:Math.min(saved.index||0,items.length-1),
+    remaining:(saved.remainingIds||[]).map(id=>byId.get(id)).filter(Boolean),
+    answered:!!saved.answered,selected:saved.selected??null,showAnswer:!!saved.showAnswer,
+    awaitingExplanation:!!saved.awaitingExplanation,draft:saved.draft||"",choices:Array.isArray(saved.choices)?[...saved.choices]:[],
+    round:saved.round||1,nextRound:(saved.nextRoundIds||[]).map(id=>byId.get(id)).filter(Boolean),
+    deferred:(saved.deferredIds||[]).map(id=>byId.get(id)).filter(Boolean),
+    wrongItemIds:[...(saved.wrongItemIds||[])],recentAnswered:[...(saved.recentAnswered||[])],
+    mastery:saved.mastery!==false,rangeLabel:saved.rangeLabel||`${round.name} 오답 데이`,
+    initialCount:saved.initialCount||items.length,resumeSlotId:"",correctCount:saved.correctCount||0,wrongCount:saved.wrongCount||0,
+    quizMode:saved.mode||app.ui.quiz.mode||"choice",quizOrder:saved.order||"sequence",
+    roundWrongReview:true,plannerRoundId:round.id,plannerUnitId:mission?.id||saved.plannerUnitId||`rw:${round.id}`
+  };
+  document.body.classList.add("quiz-running");
+  if(activeQuizMode()==="choice"&&!quizSession.choices.length)buildChoices();
+  saveLocal();renderMode();renderQuizQuestion();
+  return true;
+}
 function startRoundWrongReview(round,mission){
-  const ids=[...(round?.wrongIds||[])];if(!round)return;
+  if(!round)return;
+  const ids=[...(round.wrongIds||[])];
   app.ui.activePlannerRoundId=round.id;
-  if(!ids.length){round.wrongReviewDone=true;plannerSaveLocal();plannerSaveRound(round);renderPlanner();return toast("이번 회독 오답이 없습니다 ✓")}
+  if(!round.wrongReviewDone&&restoreRoundWrongReviewSession(round,mission)){
+    toast(`오답 데이 이어하기 · ${Math.min((quizSession.index||0)+1,quizSession.items.length)}/${quizSession.items.length}`);
+    return;
+  }
+  if(!ids.length){
+    delete round.wrongReviewSession;round.wrongReviewDone=true;
+    plannerSaveLocal();plannerSaveRound(round);renderPlanner();return toast("이번 회독 오답이 없습니다 ✓")
+  }
   const byId=new Map();bankQuestions(true).forEach(x=>{byId.set(quizItemId(x),x);byId.set(canonicalProblemId(x),x)});
   const items=ids.map(id=>byId.get(id)).filter(Boolean);if(!items.length)return toast("오답 원본을 찾지 못했습니다");
   app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="quick";
@@ -6684,7 +6744,13 @@ function finishQuiz(){
   if(quizSession?.adventure){finishAdventureQuiz();return}
   if(quizSession?.roundWrongReview&&quizSession?.plannerRoundId){
     const round=plannerRoundById(quizSession.plannerRoundId);
-    if(round){round.wrongReviewDone=true;const mission=(round.missions||[]).find(m=>m.kind==="roundWrong");if(mission)plannerSetMissionState(round,mission,{done:true,completedDate:plannerToday()});plannerSaveLocal();plannerSaveRound(round)}
+    if(round){
+      delete round.wrongReviewSession;
+      round.wrongReviewDone=true;
+      const mission=(round.missions||[]).find(m=>m.kind==="roundWrong");
+      if(mission)plannerSetMissionState(round,mission,{done:true,completedDate:plannerToday()});
+      plannerSaveLocal();plannerSaveRound(round);
+    }
   }
   const plannerUnitId=quizSession?.plannerUnitId||"";
   if(plannerUnitId)plannerMarkUnitCompleteById(plannerUnitId);
@@ -8929,7 +8995,7 @@ function renderPlanner(force=false){
       if(missions.length&&done===missions.length)b.classList.add("done");
       const n=document.createElement("span");n.className="planner-day-num";n.textContent=String(plannerDate(date).getDate());
       const meta=document.createElement("span");meta.className="planner-day-meta";
-      const labels=[];if(missions.length)labels.push(done===missions.length?"✓ 완료":`${done}/${missions.length}`);if(manual.length)labels.push(`＋${manual.length}`);
+      const labels=[];if(missions.length)labels.push(`${done}/${missions.length}${done===missions.length?" ✓":""}`);if(manual.length)labels.push(`＋${manual.length}`);
       meta.textContent=labels.join(" · ");b.append(n,meta);b.onclick=()=>plannerSelectDate(date);cal.append(b);
     });
     calWrap.append(cal);area.append(calWrap);
