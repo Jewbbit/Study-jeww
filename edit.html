@@ -4865,44 +4865,68 @@ function showTypingHint(rowId,guide){
   updateTypingChallengeSummary();
 }
 function bindTypingPracticeEnter(el,handler){
-  let composing=false,pending=false,moving=false,inputSerial=0,enterSerial=0,fallback=0;
-  const clearFallback=()=>{if(fallback){clearTimeout(fallback);fallback=0}};
+  let composing=false,pending=false,moving=false,enterReleased=false,settleTimer=0;
+  const clearSettle=()=>{if(settleTimer){clearTimeout(settleTimer);settleTimer=0}};
   const move=()=>{
-    clearFallback();
-    if(moving)return;
+    clearSettle();
+    if(moving||!pending||composing||!enterReleased)return;
     moving=true;pending=false;
-    // 핵심: blur로 이전 한글 조합의 귀속을 현재 칸에 확정하되,
-    // 다음 칸 focus는 같은 작업 안에서 바로 실행해 iOS 키보드가 내려갔다 올라오는 시간을 없앤다.
-    if(document.activeElement===el&&!isSamsungInternet()){try{el.blur()}catch{}}
+    // 조합이 끝난 뒤에도 Samsung/iOS IME가 마지막 글자를 한 번 더 전달하는 경우가 있다.
+    // 현재 칸을 그대로 유지한 채 조합 종료 + Enter keyup + 짧은 안정화 시간을 모두 지난 뒤 이동한다.
     try{handler()}finally{requestAnimationFrame(()=>{moving=false})}
   };
-  const afterCommittedInput=()=>{
-    if(!pending||composing)return;
-    if(inputSerial>enterSerial){
-      // 최종 input 이벤트가 현재 칸에 들어온 것을 확인했으므로 바로 이동한다.
-      if(typeof queueMicrotask==="function")queueMicrotask(move);else Promise.resolve().then(move);
-      return;
-    }
-    clearFallback();
-    // 일부 Safari는 compositionend 뒤 별도 input을 보내지 않는다. 한 프레임만 기다린다.
-    fallback=setTimeout(move,18);
+  const scheduleMove=()=>{
+    if(!pending||composing||!enterReleased)return;
+    clearSettle();
+    settleTimer=setTimeout(move,isSamsungInternet()?140:45);
   };
-  el.addEventListener("compositionstart",()=>{composing=true;pending=false;clearFallback()});
-  el.addEventListener("input",()=>{inputSerial++;afterCommittedInput()});
-  el.addEventListener("compositionend",()=>{composing=false;afterCommittedInput()});
+  el.addEventListener("compositionstart",()=>{
+    composing=true;
+    clearSettle();
+  });
+  el.addEventListener("compositionend",()=>{
+    composing=false;
+    if(enterReleased)scheduleMove();
+    else if(pending){
+      // 일부 모바일 키보드는 Enter keyup을 주지 않는다. 충분히 늦은 fallback으로만 이동한다.
+      clearSettle();
+      settleTimer=setTimeout(()=>{enterReleased=true;move()},isSamsungInternet()?220:100);
+    }
+  });
+  // compositionend 뒤 후속 input이 오면 그 시점부터 안정화 시간을 다시 센다.
+  el.addEventListener("input",()=>{if(pending&&!composing)scheduleMove()});
   el.addEventListener("keydown",e=>{
     if(e.key!=="Enter"||e.shiftKey||e.repeat)return;
+    pending=true;enterReleased=false;clearSettle();
     if(composing||e.isComposing||e.keyCode===229){
-      // Enter가 조합 확정 키인 경우 기본 동작은 허용하고, 확정 input을 현재 칸에서 받은 뒤 이동한다.
-      pending=true;enterSerial=inputSerial;clearFallback();return;
+      // 이 Enter는 한글 조합 확정에도 쓰인다. 기본 동작을 막지 않고 현재 칸에서 확정시킨다.
+      return;
     }
-    e.preventDefault();pending=false;move();
+    e.preventDefault();
+    // 조합 중이 아닌 Enter는 이미 확정된 입력이므로 keyup이 없어도 이동 가능하게 한다.
+    enterReleased=true;
+    scheduleMove();
   });
   el.addEventListener("keyup",e=>{
-    if(e.key!=="Enter"||e.shiftKey)return;
-    if(pending&&!composing&&!e.isComposing&&e.keyCode!==229){e.preventDefault();afterCommittedInput()}
+    if(e.key!=="Enter"||e.shiftKey||!pending)return;
+    e.preventDefault();
+    enterReleased=true;
+    scheduleMove();
   });
-  el.addEventListener("blur",()=>{if(!moving&&!composing){pending=false;clearFallback()}});
+  el.addEventListener("blur",()=>{
+    if(moving)return;
+    // OS가 Enter를 '다음' 키로 해석해 임의로 포커스를 넘기면 즉시 현재 칸으로 되돌린다.
+    // 실제 이동은 위의 안정화 절차를 통과한 뒤에만 일어난다.
+    if(pending){
+      setTimeout(()=>{
+        if(!pending||moving)return;
+        try{el.focus({preventScroll:true})}catch{try{el.focus()}catch{}}
+        scheduleMove();
+      },0);
+      return;
+    }
+    clearSettle();
+  });
 }
 
 function makeTypingPracticeField(row,target){
@@ -4914,7 +4938,8 @@ function makeTypingPracticeField(row,target){
   const input=document.createElement("input");input.type="text";input.className="study-answer typing-practice-input";
   input.dataset.target=target;
   input.autocomplete="off";input.spellcheck=false;input.autocorrect="off";input.autocapitalize="off";
-  input.enterKeyHint="next";
+  // 타자연습은 OS의 네이티브 "다음" 포커스 이동을 쓰지 않는다. JS가 IME 확정 뒤 직접 이동한다.
+  input.enterKeyHint="enter";
 
   const session=typingSession(row.id);
   input.value=session.value||"";
@@ -4963,7 +4988,9 @@ function makeTypingPracticeField(row,target){
     if(e.repeat)return;
     showTypingHint(row.id,guide);
   });
-  bindTypingPracticeEnter(input,()=>{
+  // 타자연습 Enter도 공용의 보수적인 IME 처리 사용.
+  // 현재 칸을 blur해 한글 조합을 확정한 뒤 2프레임 + 60ms 후 다음 칸으로 이동한다.
+  bindSafeEnter(input,()=>{
     const done=applyState(typingNormalize(input.value),input.value);
     if(done){
       if(ensureTypingChallenge().remaining===0)finishTypingChallenge();
