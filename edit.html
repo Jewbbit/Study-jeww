@@ -3412,7 +3412,7 @@ try{
   const quickStudy=JSON.parse(localStorage.getItem(STUDY_EDIT_KEY)||"null");
   if(quickStudy?.study&&(quickStudy.updatedAt||0)>=(app.study.updatedAt||0))app.study=quickStudy.study;
 }catch(e){console.warn("study quick restore failed",e)}
-let cloudUser=null,studyUnsub=null,plannerRoundsUnsub=null,plannerChecksUnsub=null,plannerManualUnsub=null,plannerLogsUnsub=null,bankIndexUnsub=null,bankStatsUnsub=null,cloudTimer=null;
+let cloudUser=null,studyUnsub=null,plannerRoundsUnsub=null,plannerChecksUnsub=null,plannerPathsUnsub=null,plannerManualUnsub=null,plannerLogsUnsub=null,bankIndexUnsub=null,bankStatsUnsub=null,cloudTimer=null;
 let applyingRemote=false;
 let quizSession=null;
 let roundWrongSessionSaveTimer=0;
@@ -9231,9 +9231,64 @@ function renderPlanner(force=false){
   }
 }
 
+function plannerApplyMissionStateRealtime(snap){
+  const p=plannerStore();let changed=false;
+  for(const change of snap.docChanges()){
+    const d=change.doc.data();
+    if(!d?.roundId||!d?.missionId)continue;
+    const key=plannerMissionStateKey(d.roundId,d.missionId),local=p.missionState[key];
+    if(change.type==="removed"){
+      // 이 기기에서 아직 서버에 못 보낸 변경은 원격 삭제보다 우선 보존한다.
+      if(local?.dirty)continue;
+      if(local){delete p.missionState[key];changed=true}
+      continue;
+    }
+    const incoming={
+      done:!!d.done,excluded:!!d.excluded,
+      completedDate:/^\d{4}-\d{2}-\d{2}$/.test(String(d.completedDate||""))?d.completedDate:"",
+      updatedAt:Number(d.updatedAt)||0
+    };
+    // 로컬 dirty가 같거나 더 최신이면 서버 echo/구버전으로 덮지 않는다.
+    if(local?.dirty&&(Number(local.updatedAt)||0)>=(Number(incoming.updatedAt)||0))continue;
+    const different=!local||!!local.done!==incoming.done||!!local.excluded!==incoming.excluded||String(local.completedDate||"")!==incoming.completedDate||(Number(local.updatedAt)||0)!==incoming.updatedAt||!!local.dirty;
+    if(different){p.missionState[key]=incoming;changed=true}
+  }
+  if(!changed)return;
+  plannerRealtime.lastAt=Date.now();plannerSaveLocal();plannerSetRealtime("saved");plannerScheduleUiRender();
+  if(app.ui.workspace==="bank"&&app.ui.quizHomeMode==="path")renderQuiz();
+}
+function plannerApplyPathProgressRealtime(snap){
+  const p=plannerStore();let changed=false;
+  for(const change of snap.docChanges()){
+    if(change.type==="removed")continue; // 경로 카운터는 누적값이라 원격 삭제로 로컬 완료를 지우지 않는다.
+    const d=change.doc.data();if(!d?.pathKey)continue;
+    const key=String(d.pathKey),local=p.pathProgress[key]||{};
+    const remoteCount=Math.max(0,Number(d.count)||0),remoteLast=Math.max(0,Number(d.lastAt)||0);
+    // increment 기반 카운터는 단조 증가한다. 이 기기의 막 끝낸 세트를 오래된 snapshot이 되돌리지 않게 max 병합한다.
+    const nextCount=Math.max(Number(local.count)||0,remoteCount);
+    const nextLast=Math.max(Number(local.lastAt)||0,remoteLast);
+    if(nextCount!==(Number(local.count)||0)||nextLast!==(Number(local.lastAt)||0)){
+      p.pathProgress[key]={count:nextCount,lastAt:nextLast};changed=true;
+    }
+  }
+  if(!changed)return;
+  plannerRealtime.lastAt=Date.now();plannerSaveLocal();plannerSetRealtime("saved");
+  // planner7Paths가 완료 여부의 권위 데이터다. legacy 진도길 표시는 삭제하지 않고 필요한 완료만 로컬에 보충한다.
+  reconcilePlannerDoneIntoAdventure({persist:false});
+  plannerScheduleUiRender();
+  if(app.ui.workspace==="bank"&&app.ui.quizHomeMode==="path")renderQuiz();
+}
+function plannerAttachRealtime(user){
+  if(!user)return;
+  if(plannerChecksUnsub)try{plannerChecksUnsub()}catch{}
+  if(plannerPathsUnsub)try{plannerPathsUnsub()}catch{}
+  plannerChecksUnsub=onSnapshot(collection(db,"users",user.uid,"planner7MissionState"),plannerApplyMissionStateRealtime,err=>plannerSignalError("mission realtime",err));
+  plannerPathsUnsub=onSnapshot(collection(db,"users",user.uid,"planner7Paths"),plannerApplyPathProgressRealtime,err=>plannerSignalError("path realtime",err));
+}
 async function plannerV7Init(user){
   plannerRealtime={state:"syncing",uid:user.uid.slice(-6),lastAt:0,error:"",channels:{}};
   await plannerSyncNow({quiet:true});
+  plannerAttachRealtime(user);
 }
 /* 넓은 가로 화면용 고정 보조영역: 오늘 / 노래 */
 let widePlannerSideTab="today";
@@ -9808,10 +9863,10 @@ onAuthStateChanged(auth,async user=>{
   cloudUser=user;
   bankStatsHydrated=false;
   adventureStructureDirty=false;
-  for(const fn of [studyUnsub,plannerRoundsUnsub,plannerChecksUnsub,plannerManualUnsub,plannerLogsUnsub,bankIndexUnsub,bankStatsUnsub]){
+  for(const fn of [studyUnsub,plannerRoundsUnsub,plannerChecksUnsub,plannerPathsUnsub,plannerManualUnsub,plannerLogsUnsub,bankIndexUnsub,bankStatsUnsub]){
     if(fn)try{fn()}catch{}
   }
-  studyUnsub=plannerRoundsUnsub=plannerChecksUnsub=plannerManualUnsub=plannerLogsUnsub=bankIndexUnsub=bankStatsUnsub=null;
+  studyUnsub=plannerRoundsUnsub=plannerChecksUnsub=plannerPathsUnsub=plannerManualUnsub=plannerLogsUnsub=bankIndexUnsub=bankStatsUnsub=null;
   plannerRealtime={state:user?"syncing":"off",uid:user?.uid?user.uid.slice(-6):"",lastAt:0,error:"",channels:{}};
   renderSubjects();if(!user){if(app.study.mode==="planner")renderPlanner();return}
   updateSync("…",true);
