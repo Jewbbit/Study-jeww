@@ -3177,6 +3177,28 @@ body.mobile-mission-open{overflow:hidden}
 .thumb-keypad.collapsed .thumb-keypad-tab{display:block}
 @media(max-width:699px){.thumb-keypad{display:none!important}}
 </style>
+<style>
+/* 2026-09-09 오른쪽 보조패널: 진도 워프 + 빈 탭 */
+@media (min-width:700px) and (min-height:600px){
+  .wide-planner-tabs button{padding-left:6px!important;padding-right:6px!important}
+  .wide-planner-tabs .wide-planner-blank-tab{width:24px!important;min-width:24px!important;padding:0!important}
+  .wide-planner-head>span{max-width:54px!important;overflow:hidden!important;text-overflow:ellipsis!important}
+  .wide-progress-round-head{display:flex;align-items:center;gap:8px;padding:8px 2px 6px;border-bottom:1px solid #ececef}
+  .wide-progress-round-head strong{flex:1;min-width:0;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wide-progress-round-head span{font-size:9px;color:#85868c;white-space:nowrap}
+  .wide-progress-row{display:block;width:100%;border:0!important;border-bottom:1px solid #efeff1!important;background:#fff!important;padding:8px 2px!important;text-align:left!important;color:#35363b!important}
+  .wide-progress-row:active{background:#f7f7f8!important}
+  .wide-progress-row.current{background:#f6f8f6!important}
+  .wide-progress-row.done{opacity:.72}
+  .wide-progress-row-top{display:flex;align-items:center;gap:8px;min-width:0}
+  .wide-progress-row-top strong{flex:1;min-width:0;font-size:11.5px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wide-progress-row-top b{font-size:9.5px;color:#66676d;font-weight:750;white-space:nowrap}
+  .wide-progress-row-sub{display:block;margin-top:2px;font-size:8.8px;color:#8a8b90;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .wide-progress-track{display:block;height:3px;margin-top:6px;background:#ececef;border-radius:999px;overflow:hidden}
+  .wide-progress-track i{display:block;height:100%;background:#777980;border-radius:999px}
+  .wide-progress-row.current .wide-progress-track i{background:#4f7a61}
+}
+</style>
 </head>
 <body>
 <header>
@@ -3289,6 +3311,8 @@ body.mobile-mission-open{overflow:hidden}
       <div class="wide-planner-tabs" role="tablist" aria-label="보조 패널">
         <button id="widePlannerTodayTab" type="button" role="tab">일정</button>
         <button id="widePlannerSongTab" type="button" role="tab">노래</button>
+        <button id="widePlannerProgressTab" type="button" role="tab">진도</button>
+        <button id="widePlannerBlankTab" class="wide-planner-blank-tab" type="button" role="tab" aria-label="빈 탭" title="빈 탭">&nbsp;</button>
       </div>
       <span id="widePlannerCount"></span>
     </div>
@@ -9935,6 +9959,69 @@ function renderWidePlannerSongs(list,count){
     list.append(row);
   });
 }
+function widePlannerProgressRound(){
+  const p=plannerStore(),today=plannerToday();
+  const selected=p.rounds.find(r=>r.id===app.ui.activePlannerRoundId);
+  const current=[...p.rounds].filter(r=>r.start<=today&&today<=(r.reviewDate||r.end)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+  const unfinished=[...p.rounds].filter(r=>plannerRoundProgress(r).remaining>0).sort((a,b)=>String(b.start||"").localeCompare(String(a.start||""))||(b.createdAt||0)-(a.createdAt||0))[0];
+  const latest=[...p.rounds].sort((a,b)=>String(b.start||"").localeCompare(String(a.start||""))||(b.createdAt||0)-(a.createdAt||0))[0];
+  return selected||current||unfinished||latest||null;
+}
+function widePlannerWarpProgress(round,sheetId,order="sequence"){
+  const sheet=adventureSheet(sheetId);
+  if(!round||!sheet)return toast("현재 회독의 진도 길을 찾지 못했습니다");
+  suspendQuizForWorkspaceNavigation();
+  app.ui.activePlannerRoundId=round.id;
+  setAdventureOrder(sheetId,order||"sequence");
+  adventureStore().activeSheetId=sheetId;
+  app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="path";
+  saveLocalNow();renderMode();renderWidePlannerSide();
+}
+function renderWidePlannerProgress(list,count){
+  const round=widePlannerProgressRound();
+  if(!round){
+    count.textContent="";
+    const empty=document.createElement("div");empty.className="wide-planner-empty";
+    empty.textContent="표시할 회독이 없습니다.";list.append(empty);return;
+  }
+  const ids=plannerRoundBankSheetIds(round);
+  const rows=[];
+  ids.forEach((sheetId,index)=>{
+    const sheet=adventureSheet(sheetId);if(!sheet)return;
+    const missions=(round.missions||[]).filter(m=>m.kind==="bankPath"&&m.sheetId===sheetId&&!plannerMissionExcluded(round,m));
+    const order=(missions[0]?.order||adventureSheetState(sheetId).activeOrder||"sequence")==="random"?"random":"sequence";
+    const prog=roundPathProgress(round,sheetId,order);
+    if(!prog.total)return;
+    rows.push({sheet,index,order,prog});
+  });
+  const allDone=rows.reduce((n,x)=>n+x.prog.done,0),allTotal=rows.reduce((n,x)=>n+x.prog.total,0);
+  count.textContent=rows.length?`${rows.length}시트`:"";
+  const head=document.createElement("div");head.className="wide-progress-round-head";
+  const name=document.createElement("strong");name.textContent=round.name||"이번 회독";
+  const meta=document.createElement("span");meta.textContent=`${allDone}/${allTotal}세트`;
+  head.append(name,meta);list.append(head);
+  if(!rows.length){
+    const empty=document.createElement("div");empty.className="wide-planner-empty";
+    empty.textContent="이번 회독에 활성화된 문제은행 진도가 없습니다.";list.append(empty);return;
+  }
+  rows.forEach(({sheet,order,prog})=>{
+    const row=document.createElement("button");row.type="button";row.className="wide-progress-row";
+    if(prog.done>=prog.total)row.classList.add("done");
+    if(adventureStore().activeSheetId===sheet.id&&app.ui.workspace==="bank"&&app.ui.quizHomeMode==="path")row.classList.add("current");
+    const meta=bankSheetMeta(sheet);
+    const top=document.createElement("span");top.className="wide-progress-row-top";
+    const title=document.createElement("strong");title.textContent=meta.area||sheet.name;
+    const pct=document.createElement("b");pct.textContent=`${prog.pct}%`;
+    top.append(title,pct);
+    const sub=document.createElement("span");sub.className="wide-progress-row-sub";
+    sub.textContent=`${meta.subject||"문제은행"} · ${prog.done}/${prog.total}세트 · ${order==="random"?"랜덤":"순서"}`;
+    const track=document.createElement("span");track.className="wide-progress-track";
+    const fill=document.createElement("i");fill.style.width=`${prog.pct}%`;track.append(fill);
+    row.append(top,sub,track);
+    row.onclick=()=>widePlannerWarpProgress(round,sheet.id,order);
+    list.append(row);
+  });
+}
 function renderWidePlannerSchedule(list,count,date){
   const p=plannerStore(),today=plannerToday(),pending=[],done=[];
   for(const round of p.rounds){
@@ -9988,9 +10075,10 @@ function renderWidePlannerSide(){
   const side=document.getElementById("widePlannerSide"),list=document.getElementById("widePlannerList");
   const count=document.getElementById("widePlannerCount"),toggle=document.getElementById("widePlannerToggle");
   const todayTab=document.getElementById("widePlannerTodayTab"),songTab=document.getElementById("widePlannerSongTab");
+  const progressTab=document.getElementById("widePlannerProgressTab"),blankTab=document.getElementById("widePlannerBlankTab");
   const dateNav=document.getElementById("widePlannerDateNav"),dateLabel=document.getElementById("widePlannerDateLabel");
   const datePicker=document.getElementById("widePlannerDatePicker"),todayButton=document.getElementById("widePlannerTodayButton");
-  if(!side||!list||!count||!toggle||!todayTab||!songTab||!dateNav||!dateLabel||!datePicker||!todayButton)return;
+  if(!side||!list||!count||!toggle||!todayTab||!songTab||!progressTab||!blankTab||!dateNav||!dateLabel||!datePicker||!todayButton)return;
 
   const eligible=widePlannerSideEligible();
   side.classList.toggle("eligible",eligible);
@@ -10004,11 +10092,16 @@ function renderWidePlannerSide(){
 
   todayTab.classList.toggle("active",widePlannerSideTab==="today");
   songTab.classList.toggle("active",widePlannerSideTab==="songs");
+  progressTab.classList.toggle("active",widePlannerSideTab==="progress");
+  blankTab.classList.toggle("active",widePlannerSideTab==="blank");
   todayTab.setAttribute("aria-selected",widePlannerSideTab==="today"?"true":"false");
   songTab.setAttribute("aria-selected",widePlannerSideTab==="songs"?"true":"false");
+  progressTab.setAttribute("aria-selected",widePlannerSideTab==="progress"?"true":"false");
+  blankTab.setAttribute("aria-selected",widePlannerSideTab==="blank"?"true":"false");
 
   const selectedDate=widePlannerSelectedDate(),today=plannerToday();
-  const renderKey=`${widePlannerSideTab}:${widePlannerSideTab==="today"?selectedDate:"songs"}`;
+  const progressRound=widePlannerSideTab==="progress"?widePlannerProgressRound():null;
+  const renderKey=widePlannerSideTab==="today"?`today:${selectedDate}`:widePlannerSideTab==="progress"?`progress:${progressRound?.id||"none"}`:widePlannerSideTab;
   const keepScroll=renderKey===widePlannerLastRenderKey;
   const previousScrollTop=keepScroll?list.scrollTop:0;
   dateNav.classList.toggle("hidden",widePlannerSideTab!=="today");
@@ -10024,6 +10117,8 @@ function renderWidePlannerSide(){
   widePlannerLastRenderKey=renderKey;
   if(!eligible)return;
   if(widePlannerSideTab==="songs")renderWidePlannerSongs(list,count);
+  else if(widePlannerSideTab==="progress")renderWidePlannerProgress(list,count);
+  else if(widePlannerSideTab==="blank"){count.textContent="";}
   else renderWidePlannerSchedule(list,count,selectedDate);
   if(keepScroll)requestAnimationFrame(()=>{
     const max=Math.max(0,list.scrollHeight-list.clientHeight);
@@ -10036,7 +10131,7 @@ function toggleWidePlannerSide(){
   renderWidePlannerSide();
 }
 function setWidePlannerSideTab(tab){
-  widePlannerSideTab=tab==="songs"?"songs":"today";
+  widePlannerSideTab=["today","songs","progress","blank"].includes(tab)?tab:"today";
   renderWidePlannerSide();
 }
 
@@ -10524,6 +10619,8 @@ document.getElementById("mobileMissionAdd")?.addEventListener("click",()=>planne
 document.getElementById("widePlannerToggle")?.addEventListener("click",toggleWidePlannerSide);
 document.getElementById("widePlannerTodayTab")?.addEventListener("click",()=>setWidePlannerSideTab("today"));
 document.getElementById("widePlannerSongTab")?.addEventListener("click",()=>setWidePlannerSideTab("songs"));
+document.getElementById("widePlannerProgressTab")?.addEventListener("click",()=>setWidePlannerSideTab("progress"));
+document.getElementById("widePlannerBlankTab")?.addEventListener("click",()=>setWidePlannerSideTab("blank"));
 document.getElementById("widePlannerPrevDate")?.addEventListener("click",()=>widePlannerShiftDate(-1));
 document.getElementById("widePlannerNextDate")?.addEventListener("click",()=>widePlannerShiftDate(1));
 document.getElementById("widePlannerTodayButton")?.addEventListener("click",()=>widePlannerSetDate(plannerToday()));
