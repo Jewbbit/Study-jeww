@@ -3084,98 +3084,70 @@ body.mobile-mission-open{overflow:hidden}
   grid-template-columns:34px minmax(0,1fr) 34px auto 34px!important
 }
 
-/* iPad용 엄지 키패드: 한손 엄지용 부채꼴 + 명확한 배치/Enter */
+/* iPad용 엄지 키패드: 개별 키 자유 배치 + 촘촘한 크기 조절 */
 .thumb-keypad{
-  --thumb-cell:70px;--thumb-gap:8px;
-  position:fixed;z-index:4800;display:none;
-  border:1px solid rgba(214,214,220,.9);border-radius:24px;
-  background:rgba(250,250,252,.965);box-shadow:0 14px 38px rgba(0,0,0,.14)!important;
-  backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-  padding:8px;touch-action:none;user-select:none;-webkit-user-select:none;
-  -webkit-tap-highlight-color:transparent
+  --thumb-cell:52px;
+  position:fixed;z-index:4800;display:none;width:252px;height:218px;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+  -webkit-tap-highlight-color:transparent;pointer-events:none
 }
 .thumb-keypad.show{display:block}
-.thumb-keypad[data-size="S"]{--thumb-cell:60px;--thumb-gap:7px}
-.thumb-keypad[data-size="M"]{--thumb-cell:72px;--thumb-gap:8px}
-.thumb-keypad[data-size="L"]{--thumb-cell:84px;--thumb-gap:9px}
 .thumb-keypad-head{
-  display:flex;align-items:center;justify-content:flex-end;height:32px;gap:5px;padding:0 1px 7px
+  position:absolute;left:50%;top:0;transform:translateX(-50%);height:34px;
+  display:flex;align-items:center;gap:4px;padding:4px 5px;
+  border:1px solid rgba(215,215,220,.9);border-radius:15px;
+  background:rgba(249,249,251,.96);box-shadow:0 5px 18px rgba(0,0,0,.08)!important;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  pointer-events:auto;white-space:nowrap
 }
 .thumb-keypad-drag{
-  flex:1;height:28px;min-width:36px;border:0;background:transparent!important;padding:0;cursor:grab;
-  touch-action:none;position:relative;border-radius:10px
+  width:38px;height:25px;border:0;background:transparent!important;padding:0;cursor:grab;
+  touch-action:none;position:relative;border-radius:9px
 }
 .thumb-keypad-drag::before{
-  content:"";position:absolute;left:50%;top:50%;width:34px;height:4px;transform:translate(-50%,-50%);
-  border-radius:999px;background:#c8c8ce
+  content:"";position:absolute;left:50%;top:50%;width:28px;height:4px;transform:translate(-50%,-50%);
+  border-radius:999px;background:#c6c7cc
 }
-.thumb-keypad-drag:active::before{background:#9e9ea5}
-.thumb-keypad-layout,.thumb-keypad-size,.thumb-keypad-collapse{
-  height:28px;border:0;background:#efeff2;border-radius:9px;
-  color:#5f6067;font-size:10px;font-weight:700;padding:0 8px;display:flex;align-items:center;justify-content:center
+.thumb-keypad-drag:active::before{background:#999aa1}
+.thumb-keypad-size-down,.thumb-keypad-size-up,.thumb-keypad-collapse{
+  height:25px;border:0;background:#efeff2;border-radius:8px;color:#5d5e64;
+  display:flex;align-items:center;justify-content:center;padding:0;font-weight:700
 }
-.thumb-keypad-layout{min-width:42px}
-.thumb-keypad-size{width:30px;padding:0}
-.thumb-keypad-collapse{width:30px;padding:0;font-size:16px;font-weight:500}
-.thumb-keypad-layout:active,.thumb-keypad-size:active,.thumb-keypad-collapse:active{background:#dedee3}
-.thumb-keypad-grid{display:grid;gap:var(--thumb-gap);justify-content:center;justify-items:center;align-items:center}
-/* 부채꼴: 엄지를 축으로 1→4가 실제 곡선을 따라 퍼지는 배치. 단순 회전/기울임이 아님. */
-.thumb-keypad[data-layout="arc"] .thumb-keypad-grid{
-  position:relative;display:block;
-  width:calc(var(--thumb-cell) + var(--thumb-cell) + 36px);
-  height:calc(var(--thumb-cell) + var(--thumb-cell) + 62px);
-  padding:0;margin:2px auto 0;
+.thumb-keypad-size-down,.thumb-keypad-size-up{width:25px;font-size:15px}
+.thumb-keypad-size-label{min-width:26px;text-align:center;font-size:10px;font-weight:700;color:#6f7076}
+.thumb-keypad-collapse{padding:0 8px;font-size:10px;font-weight:650}
+.thumb-keypad-size-down:active,.thumb-keypad-size-up:active,.thumb-keypad-collapse:active{background:#dedee3}
+.thumb-keypad-stage{
+  position:absolute;left:0;right:0;top:38px;bottom:0;pointer-events:none
 }
-.thumb-keypad[data-layout="arc"] .thumb-keypad-grid::before{
-  content:"";position:absolute;pointer-events:none;
-  width:calc(var(--thumb-cell) + var(--thumb-cell) + 2px);
-  height:calc(var(--thumb-cell) + 28px);
-  top:25px;left:17px;border-top:1px solid rgba(165,166,174,.26);
-  border-radius:50% 50% 0 0;
+.thumb-keypad-key{
+  position:absolute;width:var(--thumb-cell);height:var(--thumb-cell);
+  border:1px solid #d8d8de;background:#fff;border-radius:calc(var(--thumb-cell) * .28);
+  font-size:calc(var(--thumb-cell) * .43);font-weight:760;color:#24252a;padding:0;
+  box-shadow:0 2px 7px rgba(0,0,0,.055)!important;
+  touch-action:none;pointer-events:auto;-webkit-tap-highlight-color:transparent;
+  transition:background .06s ease,transform .06s ease
 }
-.thumb-keypad[data-layout="grid"] .thumb-keypad-grid{grid-template-columns:repeat(2,var(--thumb-cell));padding:5px 10px 1px}
-.thumb-keypad[data-layout="row"] .thumb-keypad-grid{grid-template-columns:repeat(4,var(--thumb-cell))}
-.thumb-keypad[data-layout="column"] .thumb-keypad-grid{grid-template-columns:var(--thumb-cell);justify-content:center}
-.thumb-keypad-grid button[data-thumb-choice]{
-  width:var(--thumb-cell);height:var(--thumb-cell);border:1px solid #d8d8de;
-  background:#fff;border-radius:22px;font-size:29px;font-weight:760;color:#24252a;padding:0;
-  box-shadow:0 2px 7px rgba(0,0,0,.05)!important;
-  touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:transform .06s ease,background .06s ease
-}
-.thumb-keypad[data-size="S"] .thumb-keypad-grid button[data-thumb-choice]{font-size:25px;border-radius:18px}
-.thumb-keypad[data-size="L"] .thumb-keypad-grid button[data-thumb-choice]{font-size:33px;border-radius:25px}
-.thumb-keypad-grid button[data-thumb-choice]:active{background:#e8e8ec;transform:scale(.96)!important}
-/* 오른손: 아래-왼쪽에서 위-오른쪽으로 펼쳐지는 1/4 부채꼴. 왼손이면 좌우 미러링. */
-.thumb-keypad[data-layout="arc"] button[data-thumb-choice]{position:absolute;margin:0;transform:none}
-.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="1"]{left:0;top:calc(var(--thumb-cell) + 7px)}
-.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="2"]{left:14px;top:34px}
-.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="3"]{left:calc(var(--thumb-cell) + 8px);top:0}
-.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="4"]{left:calc(var(--thumb-cell) + 30px);top:43px}
-.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="1"]{right:0;top:calc(var(--thumb-cell) + 7px)}
-.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="2"]{right:14px;top:34px}
-.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="3"]{right:calc(var(--thumb-cell) + 8px);top:0}
-.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="4"]{right:calc(var(--thumb-cell) + 30px);top:43px}
-.thumb-keypad[data-layout="arc"] .thumb-keypad-next{
-  position:absolute!important;left:0!important;right:0!important;bottom:0!important;
-}
-.thumb-keypad[data-layout="arc"][data-side="left"] .thumb-keypad-grid::before{transform:scaleX(-1)}
+.thumb-keypad-key:active{background:#e9e9ed}
+.thumb-keypad-key.dragging{transform:scale(1.04);box-shadow:0 5px 14px rgba(0,0,0,.11)!important}
 .thumb-keypad-next{
-  grid-column:1/-1!important;width:100%!important;height:44px!important;min-height:44px!important;
-  border:1px solid #d8d8de!important;border-radius:15px!important;background:#fff!important;color:#3f4046!important;
-  font-size:13px!important;font-weight:680!important;padding:0 14px!important;box-shadow:0 1px 4px rgba(0,0,0,.035)!important;
-  display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;
-  opacity:1!important
+  position:absolute;height:38px;min-height:38px;border:1px solid #d8d8de!important;
+  border-radius:12px!important;background:#fff!important;color:#44454b!important;
+  font-size:11px!important;font-weight:650!important;padding:0 13px!important;
+  box-shadow:0 1px 4px rgba(0,0,0,.04)!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;gap:5px!important;
+  touch-action:none;pointer-events:auto!important;-webkit-tap-highlight-color:transparent
 }
-.thumb-keypad-next small{font-size:9px;font-weight:600;color:#94959b;letter-spacing:.01em}
-.thumb-keypad-next:active{background:#ececef!important;transform:scale(.985)}
-.thumb-keypad-next:disabled{opacity:1!important;color:#3f4046!important;-webkit-text-fill-color:#3f4046!important}
-.thumb-keypad-next:disabled small{color:#94959b!important}
+.thumb-keypad-next small{font-size:8px;font-weight:600;color:#96979d}
+.thumb-keypad-next:active{background:#ececef!important}
 .thumb-keypad-tab{
-  display:none;border:0;background:#f0f0f3;border-radius:15px;padding:11px 15px;
-  font-size:14px;font-weight:760;letter-spacing:.08em;color:#44454b;white-space:nowrap
+  display:none;position:absolute;left:50%;top:0;transform:translateX(-50%);
+  border:1px solid #d8d8de;background:rgba(249,249,251,.97);border-radius:14px;padding:9px 12px;
+  font-size:12px;font-weight:720;letter-spacing:.04em;color:#55565c;white-space:nowrap;
+  box-shadow:0 4px 14px rgba(0,0,0,.07)!important;pointer-events:auto
 }
-.thumb-keypad.collapsed{padding:4px;border-radius:17px}
-.thumb-keypad.collapsed .thumb-keypad-head,.thumb-keypad.collapsed .thumb-keypad-grid{display:none}
+.thumb-keypad.collapsed{width:110px;height:42px}
+.thumb-keypad.collapsed .thumb-keypad-head,.thumb-keypad.collapsed .thumb-keypad-stage{display:none}
 .thumb-keypad.collapsed .thumb-keypad-tab{display:block}
 @media(max-width:699px){
   .thumb-keypad{display:none!important}
@@ -7607,22 +7579,43 @@ function selectChoice(i){
   if(!quizSession.awaitingExplanation)setTimeout(()=>{if(quizSession?.answered)nextQuiz()},ok?450:900);
 }
 
-/* iPad용 엄지 미니키보드: 물리 숫자키와 동일하게 selectChoice()만 호출한다. */
+/* iPad용 엄지 미니키보드: 숫자키/Enter를 개별 드래그하여 자유 배치한다. */
 const THUMB_KEYPAD_STORAGE_KEY="studyJewThumbKeypadV1";
-let thumbKeypadStateCache=null,thumbKeypadDrag=null;
+const THUMB_KEYPAD_SIZES=[44,48,52,56,60,64];
+const THUMB_KEYPAD_STAGE_W=252,THUMB_KEYPAD_STAGE_H=180;
+let thumbKeypadStateCache=null,thumbKeypadDrag=null,thumbKeyDrag=null;
+function thumbDefaultPositions(){
+  return {
+    "1":{x:24,y:84},
+    "2":{x:58,y:42},
+    "3":{x:112,y:18},
+    "4":{x:166,y:50},
+    enter:{x:88,y:126}
+  };
+}
 function thumbKeypadState(){
   if(thumbKeypadStateCache)return thumbKeypadStateCache;
   let saved={};
   try{saved=JSON.parse(localStorage.getItem(THUMB_KEYPAD_STORAGE_KEY)||"{}")||{}}catch{}
-  const size=["S","M","L"].includes(saved.size)?saved.size:"M";
+  let sizeIndex=2;
+  if(saved.design3&&Number.isInteger(saved.sizeIndex))sizeIndex=Math.max(0,Math.min(THUMB_KEYPAD_SIZES.length-1,saved.sizeIndex));
+  else if(saved.size==="S")sizeIndex=1;
+  else if(saved.size==="L")sizeIndex=3;
+  const defs=thumbDefaultPositions(),positions={};
+  for(const key of ["1","2","3","4","enter"]){
+    const q=saved.design3&&saved.positions?.[key];
+    positions[key]={
+      x:Number.isFinite(Number(q?.x))?Number(q.x):defs[key].x,
+      y:Number.isFinite(Number(q?.y))?Number(q.y):defs[key].y
+    };
+  }
   thumbKeypadStateCache={
-    size,
-    // 구형 키패드의 grid는 한 번만 새 부채꼴로 승격한다. 위치/크기/접힘은 그대로 보존.
-    layout:saved.design2&&["arc","grid","row","column"].includes(saved.layout)?saved.layout:"arc",
+    sizeIndex,
+    positions,
     rx:Number.isFinite(Number(saved.rx))?Math.max(0,Math.min(1,Number(saved.rx))):.84,
     ry:Number.isFinite(Number(saved.ry))?Math.max(0,Math.min(1,Number(saved.ry))):.64,
     collapsed:!!saved.collapsed,
-    design2:true
+    design3:true
   };
   return thumbKeypadStateCache;
 }
@@ -7639,101 +7632,127 @@ function thumbKeypadShouldShow(){
     &&Array.isArray(quizSession.choices)
     &&quizSession.choices.length>0;
 }
+function thumbKeypadSizePx(){return THUMB_KEYPAD_SIZES[thumbKeypadState().sizeIndex]}
+function thumbClampKeyPosition(key,pos){
+  const size=thumbKeypadSizePx();
+  const isEnter=key==="enter";
+  const w=isEnter?Math.max(76,Math.round(size*1.55)):size;
+  const h=isEnter?38:size;
+  return {
+    x:Math.max(0,Math.min(THUMB_KEYPAD_STAGE_W-w,Number(pos.x)||0)),
+    y:Math.max(0,Math.min(THUMB_KEYPAD_STAGE_H-h,Number(pos.y)||0))
+  };
+}
+function thumbKeypadApplyKeys(){
+  const pad=document.getElementById("thumbKeypad");if(!pad)return;
+  const st=thumbKeypadState(),size=thumbKeypadSizePx();
+  pad.style.setProperty("--thumb-cell",`${size}px`);
+  const label=pad.querySelector(".thumb-keypad-size-label");if(label)label.textContent=String(size);
+  pad.querySelectorAll("[data-thumb-free-key]").forEach(el=>{
+    const key=el.dataset.thumbFreeKey,p=thumbClampKeyPosition(key,st.positions[key]||{x:0,y:0});
+    st.positions[key]=p;
+    el.style.left=`${Math.round(p.x)}px`;el.style.top=`${Math.round(p.y)}px`;
+    if(key==="enter")el.style.width=`${Math.max(76,Math.round(size*1.55))}px`;
+  });
+}
 function thumbKeypadApplyPosition(){
   const pad=document.getElementById("thumbKeypad");if(!pad)return;
+  thumbKeypadApplyKeys();
   const st=thumbKeypadState(),rect=pad.getBoundingClientRect();
   const maxX=Math.max(6,window.innerWidth-rect.width-6),maxY=Math.max(6,window.innerHeight-rect.height-6);
   const left=Math.max(6,Math.min(maxX,6+st.rx*Math.max(0,maxX-6)));
   const top=Math.max(6,Math.min(maxY,6+st.ry*Math.max(0,maxY-6)));
   pad.style.left=`${Math.round(left)}px`;pad.style.top=`${Math.round(top)}px`;
-  pad.dataset.side=(left+rect.width/2)<window.innerWidth/2?"left":"right";
+}
+function bindFreeThumbKey(el,key,onTap){
+  el.addEventListener("pointerdown",e=>{
+    if(e.button!==undefined&&e.button!==0)return;
+    e.preventDefault();e.stopPropagation();
+    const st=thumbKeypadState(),p=st.positions[key]||{x:0,y:0};
+    thumbKeyDrag={id:e.pointerId,key,startX:e.clientX,startY:e.clientY,baseX:p.x,baseY:p.y,moved:false,el};
+    try{el.setPointerCapture(e.pointerId)}catch{}
+  });
+  el.addEventListener("pointermove",e=>{
+    if(!thumbKeyDrag||thumbKeyDrag.id!==e.pointerId||thumbKeyDrag.key!==key)return;
+    e.preventDefault();
+    const dx=e.clientX-thumbKeyDrag.startX,dy=e.clientY-thumbKeyDrag.startY;
+    if(!thumbKeyDrag.moved&&Math.hypot(dx,dy)>5){thumbKeyDrag.moved=true;el.classList.add("dragging")}
+    if(!thumbKeyDrag.moved)return;
+    const st=thumbKeypadState(),p=thumbClampKeyPosition(key,{x:thumbKeyDrag.baseX+dx,y:thumbKeyDrag.baseY+dy});
+    st.positions[key]=p;el.style.left=`${Math.round(p.x)}px`;el.style.top=`${Math.round(p.y)}px`;
+  });
+  const finish=e=>{
+    if(!thumbKeyDrag||thumbKeyDrag.id!==e.pointerId||thumbKeyDrag.key!==key)return;
+    const moved=thumbKeyDrag.moved;el.classList.remove("dragging");thumbKeyDrag=null;
+    try{el.releasePointerCapture(e.pointerId)}catch{}
+    if(moved)saveThumbKeypadState();else onTap();
+  };
+  el.addEventListener("pointerup",finish);el.addEventListener("pointercancel",e=>{
+    if(!thumbKeyDrag||thumbKeyDrag.id!==e.pointerId||thumbKeyDrag.key!==key)return;
+    el.classList.remove("dragging");thumbKeyDrag=null;saveThumbKeypadState();
+  });
 }
 function ensureThumbKeypad(){
   let pad=document.getElementById("thumbKeypad");if(pad)return pad;
   const st=thumbKeypadState();
-  pad=document.createElement("div");pad.id="thumbKeypad";pad.className="thumb-keypad";pad.dataset.size=st.size;pad.dataset.layout=st.layout;
+  pad=document.createElement("div");pad.id="thumbKeypad";pad.className="thumb-keypad";
   const head=document.createElement("div");head.className="thumb-keypad-head";
-  const drag=document.createElement("button");drag.type="button";drag.className="thumb-keypad-drag";drag.textContent="";drag.title="잡고 옮기기";drag.setAttribute("aria-label","미니키보드 이동");
-  const layout=document.createElement("button");layout.type="button";layout.className="thumb-keypad-layout";layout.title="배치 변경";layout.setAttribute("aria-label","미니키보드 배치 변경");
-  const layoutLabel=()=>({arc:"부채",grid:"2×2",row:"가로",column:"세로"}[pad.dataset.layout]||"부채");
-  layout.textContent=layoutLabel();
-  layout.onclick=e=>{
-    e.stopPropagation();
-    const order=["arc","grid","row","column"],state=thumbKeypadState();state.layout=order[(order.indexOf(state.layout)+1)%order.length];
-    pad.dataset.layout=state.layout;layout.textContent=layoutLabel();saveThumbKeypadState();
-    toast(`키패드 배치: ${layoutLabel()}`);
-    requestAnimationFrame(thumbKeypadApplyPosition);
+  const drag=document.createElement("button");drag.type="button";drag.className="thumb-keypad-drag";drag.title="키패드 전체 옮기기";drag.setAttribute("aria-label","미니키보드 전체 이동");
+  const down=document.createElement("button");down.type="button";down.className="thumb-keypad-size-down";down.textContent="−";down.title="키 작게";
+  const sizeLabel=document.createElement("span");sizeLabel.className="thumb-keypad-size-label";sizeLabel.textContent=String(thumbKeypadSizePx());
+  const up=document.createElement("button");up.type="button";up.className="thumb-keypad-size-up";up.textContent="+";up.title="키 크게";
+  const resize=delta=>{
+    const state=thumbKeypadState(),next=Math.max(0,Math.min(THUMB_KEYPAD_SIZES.length-1,state.sizeIndex+delta));
+    if(next===state.sizeIndex)return;
+    state.sizeIndex=next;thumbKeypadApplyKeys();saveThumbKeypadState();requestAnimationFrame(thumbKeypadApplyPosition);
   };
-  const size=document.createElement("button");size.type="button";size.className="thumb-keypad-size";size.textContent=st.size;size.title="크기 변경";
-  size.onclick=e=>{
-    e.stopPropagation();
-    const order=["S","M","L"],state=thumbKeypadState();state.size=order[(order.indexOf(state.size)+1)%order.length];
-    pad.dataset.size=state.size;size.textContent=state.size;saveThumbKeypadState();
-    toast(`키패드 크기: ${state.size==="S"?"작게":state.size==="M"?"보통":"크게"}`);
-    requestAnimationFrame(thumbKeypadApplyPosition);
-  };
-  const collapse=document.createElement("button");collapse.type="button";collapse.className="thumb-keypad-collapse";collapse.textContent="−";collapse.title="접기";
-  collapse.onclick=e=>{
-    e.stopPropagation();const state=thumbKeypadState();state.collapsed=true;pad.classList.add("collapsed");saveThumbKeypadState();requestAnimationFrame(thumbKeypadApplyPosition);
-  };
-  head.append(drag,layout,size,collapse);
-  const grid=document.createElement("div");grid.className="thumb-keypad-grid";
+  down.onclick=e=>{e.preventDefault();e.stopPropagation();resize(-1)};
+  up.onclick=e=>{e.preventDefault();e.stopPropagation();resize(1)};
+  const collapse=document.createElement("button");collapse.type="button";collapse.className="thumb-keypad-collapse";collapse.textContent="접기";
+  collapse.onclick=e=>{e.preventDefault();e.stopPropagation();st.collapsed=true;pad.classList.add("collapsed");saveThumbKeypadState();requestAnimationFrame(thumbKeypadApplyPosition)};
+  head.append(drag,down,sizeLabel,up,collapse);
+  const stage=document.createElement("div");stage.className="thumb-keypad-stage";
   [1,2,3,4].forEach(n=>{
-    const b=document.createElement("button");b.type="button";b.textContent=String(n);b.dataset.thumbChoice=String(n);b.setAttribute("aria-label",`${n}번 선택`);
-    b.addEventListener("pointerdown",e=>{e.preventDefault()});
-    b.onclick=e=>{e.preventDefault();e.stopPropagation();selectChoice(n-1)};
-    grid.append(b);
+    const b=document.createElement("button");b.type="button";b.className="thumb-keypad-key";b.textContent=String(n);b.dataset.thumbChoice=String(n);b.dataset.thumbFreeKey=String(n);b.setAttribute("aria-label",`${n}번 선택`);
+    bindFreeThumbKey(b,String(n),()=>selectChoice(n-1));stage.append(b);
   });
-  const advance=document.createElement("button");advance.type="button";advance.className="thumb-keypad-next";advance.setAttribute("aria-label","다음 문제 또는 메모 넘기기");
+  const advance=document.createElement("button");advance.type="button";advance.className="thumb-keypad-next";advance.dataset.thumbFreeKey="enter";advance.setAttribute("aria-label","다음 문제 또는 메모 넘기기");
   advance.innerHTML='<span>다음</span><small>Enter</small>';
-  advance.addEventListener("pointerdown",e=>{e.preventDefault()});
-  advance.onclick=e=>{
-    e.preventDefault();e.stopPropagation();
+  bindFreeThumbKey(advance,"enter",()=>{
     if(!quizSession)return;
     if(quizSession.awaitingExplanation||quizSession.answered||quizSession.showAnswer)nextQuiz(true);
-  };
-  grid.append(advance);
+  });
+  stage.append(advance);
   const tab=document.createElement("button");tab.type="button";tab.className="thumb-keypad-tab";tab.textContent="1 2 3 4";tab.title="미니키보드 펼치기";
-  tab.onclick=e=>{
-    e.stopPropagation();const state=thumbKeypadState();state.collapsed=false;pad.classList.remove("collapsed");saveThumbKeypadState();requestAnimationFrame(thumbKeypadApplyPosition);
-  };
+  tab.onclick=e=>{e.preventDefault();e.stopPropagation();st.collapsed=false;pad.classList.remove("collapsed");saveThumbKeypadState();requestAnimationFrame(thumbKeypadApplyPosition)};
   drag.addEventListener("pointerdown",e=>{
     if(e.button!==undefined&&e.button!==0)return;
-    e.preventDefault();e.stopPropagation();
-    const rect=pad.getBoundingClientRect();
+    e.preventDefault();e.stopPropagation();const rect=pad.getBoundingClientRect();
     thumbKeypadDrag={id:e.pointerId,dx:e.clientX-rect.left,dy:e.clientY-rect.top};
     try{drag.setPointerCapture(e.pointerId)}catch{}
   });
   drag.addEventListener("pointermove",e=>{
     if(!thumbKeypadDrag||thumbKeypadDrag.id!==e.pointerId)return;
-    e.preventDefault();
-    const rect=pad.getBoundingClientRect();
+    e.preventDefault();const rect=pad.getBoundingClientRect();
     const maxX=Math.max(6,window.innerWidth-rect.width-6),maxY=Math.max(6,window.innerHeight-rect.height-6);
     const left=Math.max(6,Math.min(maxX,e.clientX-thumbKeypadDrag.dx));
     const top=Math.max(6,Math.min(maxY,e.clientY-thumbKeypadDrag.dy));
     pad.style.left=`${Math.round(left)}px`;pad.style.top=`${Math.round(top)}px`;
-    pad.dataset.side=(left+rect.width/2)<window.innerWidth/2?"left":"right";
   });
   const finishDrag=e=>{
     if(!thumbKeypadDrag||thumbKeypadDrag.id!==e.pointerId)return;
-    const rect=pad.getBoundingClientRect(),maxX=Math.max(6,window.innerWidth-rect.width-6),maxY=Math.max(6,window.innerHeight-rect.height-6);
-    const st=thumbKeypadState();
-    st.rx=maxX<=6?0:Math.max(0,Math.min(1,(rect.left-6)/(maxX-6)));
-    st.ry=maxY<=6?0:Math.max(0,Math.min(1,(rect.top-6)/(maxY-6)));
-    thumbKeypadDrag=null;saveThumbKeypadState();
-    try{drag.releasePointerCapture(e.pointerId)}catch{}
+    const rect=pad.getBoundingClientRect(),maxX=Math.max(6,window.innerWidth-rect.width-6),maxY=Math.max(6,window.innerHeight-rect.height-6),state=thumbKeypadState();
+    state.rx=maxX<=6?0:Math.max(0,Math.min(1,(rect.left-6)/(maxX-6)));
+    state.ry=maxY<=6?0:Math.max(0,Math.min(1,(rect.top-6)/(maxY-6)));
+    thumbKeypadDrag=null;saveThumbKeypadState();try{drag.releasePointerCapture(e.pointerId)}catch{}
   };
   drag.addEventListener("pointerup",finishDrag);drag.addEventListener("pointercancel",finishDrag);
-  pad.append(head,grid,tab);document.body.append(pad);
-  pad.classList.toggle("collapsed",st.collapsed);
-  requestAnimationFrame(thumbKeypadApplyPosition);
-  return pad;
+  pad.append(head,stage,tab);document.body.append(pad);pad.classList.toggle("collapsed",st.collapsed);
+  requestAnimationFrame(thumbKeypadApplyPosition);return pad;
 }
 function syncThumbKeypad(){
   const pad=ensureThumbKeypad(),show=thumbKeypadShouldShow();
   pad.classList.toggle("show",show);
-  const advance=pad.querySelector(".thumb-keypad-next");
-  if(advance)advance.disabled=!(quizSession&&(quizSession.awaitingExplanation||quizSession.answered||quizSession.showAnswer));
   if(show)requestAnimationFrame(thumbKeypadApplyPosition);
 }
 window.addEventListener("resize",()=>{syncThumbKeypad();thumbKeypadApplyPosition()},{passive:true});
