@@ -1652,8 +1652,9 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
     font-weight:700!important;
   }
 }
-/* iPad half-width / Split View: edit forms become stacked before they get cramped. */
-@media (max-width:820px){
+/* 진짜 좁은 화면에서만 편집 폼을 카드형으로 전환한다.
+   iPad Split View/좁은 데스크톱은 태블릿 레이아웃을 유지한다. */
+@media (max-width:640px){
   main{
     padding-left:10px!important;
     padding-right:10px!important;
@@ -2025,7 +2026,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 
 
 /* 폰 편집: 카테고리·정답·메모 입력칸은 가로폭 끝까지 */
-@media(max-width:820px){
+@media(max-width:640px){
   #editView tr:not(.section-row){
     padding-left:7px!important;
     padding-right:7px!important;
@@ -2616,8 +2617,8 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 </style>
 <style>
-/* 폰: 미션 UI는 글자보다 상태 숫자/아이콘 중심으로 압축 */
-@media(max-width:699px){
+/* 진짜 폰 폭에서만 미션 UI를 압축 */
+@media(max-width:640px){
   #plannerQuickBtn{
     min-width:34px!important;max-width:48px!important;
     padding:5px 5px!important;font-size:10.5px!important;font-weight:700!important;
@@ -2864,7 +2865,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .path-sheet-pill.out-of-round,.path-node-row.out-of-round{opacity:.42}
 .mobile-mission-backdrop{display:none}
 body.mobile-mission-open{overflow:hidden}
-@media(max-width:999px), (orientation:portrait){
+@media(max-width:640px){
   .typing-float-badge{display:none!important}
   .mobile-mission-backdrop:not(.hidden){
     display:flex;position:fixed;inset:0;z-index:5000;align-items:flex-end;
@@ -3021,6 +3022,94 @@ body.mobile-mission-open{overflow:hidden}
   .bulk-update-table-wrap{margin-left:-2px;margin-right:-2px}
 }
 </style>
+
+<style>
+/* ===== 2026-09-09 planner compact overview + instant missions + thumb keypad ===== */
+.planner-v7-overview{
+  padding:7px 0 8px!important;margin:2px 0 10px!important;
+  border-top:1px solid #e7e7e9!important;border-bottom:1px solid #e7e7e9!important
+}
+.planner-overview-toggle{
+  display:flex;width:100%;align-items:center;gap:8px;border:0;background:transparent;
+  padding:2px 0 5px;text-align:left;color:#33343a
+}
+.planner-overview-toggle strong{font-size:12px}
+.planner-overview-toggle span{font-size:10px;color:#7d7e84}
+.planner-overview-toggle i{margin-left:auto;font-style:normal;font-size:10px;color:#999}
+.planner-overview-current{
+  display:flex;justify-content:space-between;gap:10px;align-items:center;
+  padding:4px 0 1px;font-size:11.5px
+}
+.planner-overview-current strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.planner-overview-current small{font-size:9px;color:#8b8c92;white-space:nowrap}
+.planner-overview-history{padding-top:5px;margin-top:5px;border-top:1px dashed #ececef}
+.planner-overview-history.hidden{display:none!important}
+.planner-overview-history .planner-v7-overview-row{padding:2px 0;font-size:10.5px}
+.planner-overview-history .planner-v7-overview-row small{font-size:8.5px}
+.planner-manual-link{
+  min-width:0;border:0;background:transparent;padding:0;text-align:left;color:#34353a;
+  font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+.planner-manual.done .planner-manual-link{text-decoration:line-through;color:#999}
+.planner-quick-add-modal{width:min(430px,100%)}
+.planner-quick-add-date{font-size:10px;color:#85868c;margin:-5px 4px 8px}
+.planner-quick-add-list{display:grid;gap:5px;max-height:min(58dvh,480px);overflow:auto}
+.planner-quick-add-list button{
+  display:block;width:100%;border:1px solid #e7e7ea;background:#fff;border-radius:9px;
+  padding:10px;text-align:left;color:#34353a
+}
+.planner-quick-add-list button strong{display:block;font-size:12px}
+.planner-quick-add-list button small{display:block;margin-top:2px;font-size:9px;color:#8b8c92}
+.planner-quick-add-back{border:0;background:transparent;padding:6px 4px;color:#777;font-size:10px}
+.wide-planner-date-nav{
+  grid-template-columns:30px minmax(0,1fr) 30px auto 30px!important
+}
+#widePlannerAdd,#mobileMissionAdd{
+  font-size:17px!important;font-weight:400!important;color:#66676d!important
+}
+.mobile-mission-date-nav{
+  grid-template-columns:34px minmax(0,1fr) 34px auto 34px!important
+}
+
+/* iPad용 1·2·3·4 미니키보드: 기존 selectChoice() 경로만 호출 */
+.thumb-keypad{
+  --thumb-cell:50px;
+  position:fixed;z-index:4800;display:none;
+  border:1px solid rgba(205,205,210,.95);border-radius:12px;
+  background:rgba(255,255,255,.94);box-shadow:0 6px 24px rgba(0,0,0,.12)!important;
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  padding:4px;touch-action:none;user-select:none;-webkit-user-select:none
+}
+.thumb-keypad.show{display:block}
+.thumb-keypad[data-size="S"]{--thumb-cell:42px}
+.thumb-keypad[data-size="M"]{--thumb-cell:50px}
+.thumb-keypad[data-size="L"]{--thumb-cell:58px}
+.thumb-keypad-head{display:flex;align-items:center;height:24px;gap:2px;padding:0 1px 3px}
+.thumb-keypad-drag{
+  flex:1;height:22px;border:0;background:transparent;color:#999;font-size:14px;cursor:grab;
+  touch-action:none
+}
+.thumb-keypad-size,.thumb-keypad-collapse{
+  width:25px;height:22px;border:0;background:transparent;border-radius:5px;
+  color:#777;font-size:9px;padding:0
+}
+.thumb-keypad-grid{display:grid;grid-template-columns:repeat(2,var(--thumb-cell));gap:3px}
+.thumb-keypad-grid button{
+  width:var(--thumb-cell);height:var(--thumb-cell);border:1px solid #e2e2e6;background:#fff;
+  border-radius:9px;font-size:18px;font-weight:700;color:#33343a;padding:0;
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent
+}
+.thumb-keypad-grid button:active{background:#ededf0}
+.thumb-keypad-tab{
+  display:none;border:0;background:transparent;padding:6px 8px;font-size:11px;font-weight:750;color:#555
+}
+.thumb-keypad.collapsed{padding:2px 4px}
+.thumb-keypad.collapsed .thumb-keypad-head,.thumb-keypad.collapsed .thumb-keypad-grid{display:none}
+.thumb-keypad.collapsed .thumb-keypad-tab{display:block}
+@media(max-width:699px){
+  .thumb-keypad{display:none!important}
+}
+</style>
 </head>
 <body>
 <header>
@@ -3141,6 +3230,7 @@ body.mobile-mission-open{overflow:hidden}
       <button id="widePlannerDateLabel" type="button" aria-label="날짜 선택"></button>
       <button id="widePlannerNextDate" type="button" aria-label="다음 날짜">›</button>
       <button id="widePlannerTodayButton" type="button">Today</button>
+      <button id="widePlannerAdd" type="button" aria-label="이 날짜에 즉석 미션 추가" title="즉석 미션 추가">＋</button>
       <input id="widePlannerDatePicker" type="date" aria-label="날짜 선택">
     </div>
     <div id="widePlannerList" class="wide-planner-list"></div>
@@ -3159,6 +3249,7 @@ body.mobile-mission-open{overflow:hidden}
       <strong id="mobileMissionDateLabel"></strong>
       <button id="mobileMissionNext" type="button" aria-label="다음 날짜">›</button>
       <button id="mobileMissionToday" type="button">오늘</button>
+      <button id="mobileMissionAdd" type="button" aria-label="이 날짜에 즉석 미션 추가">＋</button>
     </div>
     <div id="mobileMissionList" class="mobile-mission-list"></div>
   </section>
@@ -7329,6 +7420,7 @@ function renderQuizQuestion(){
   renderWidePlannerSide();
   updateTypingFloatingBadge();
   const area=document.getElementById("quizArea");area.innerHTML="";
+  requestAnimationFrame(syncThumbKeypad);
   if(quizSession?.historyOffset&&renderQuizHistoryView(area))return;
   const item=currentQuizItem();if(!item)return;
   if(activeQuizMode()==="choice"&&quizSession.awaitingExplanation&&item.memo){
@@ -7443,6 +7535,112 @@ function selectChoice(i){
   recordQuiz(item,ok);saveQuizSessionLocal();renderQuizQuestion();
   if(!quizSession.awaitingExplanation)setTimeout(()=>{if(quizSession?.answered)nextQuiz()},ok?450:900);
 }
+
+/* iPad용 엄지 미니키보드: 물리 숫자키와 동일하게 selectChoice()만 호출한다. */
+const THUMB_KEYPAD_STORAGE_KEY="studyJewThumbKeypadV1";
+let thumbKeypadStateCache=null,thumbKeypadDrag=null;
+function thumbKeypadState(){
+  if(thumbKeypadStateCache)return thumbKeypadStateCache;
+  let saved={};
+  try{saved=JSON.parse(localStorage.getItem(THUMB_KEYPAD_STORAGE_KEY)||"{}")||{}}catch{}
+  const size=["S","M","L"].includes(saved.size)?saved.size:"M";
+  thumbKeypadStateCache={
+    size,
+    rx:Number.isFinite(Number(saved.rx))?Math.max(0,Math.min(1,Number(saved.rx))):.78,
+    ry:Number.isFinite(Number(saved.ry))?Math.max(0,Math.min(1,Number(saved.ry))):.58,
+    collapsed:!!saved.collapsed
+  };
+  return thumbKeypadStateCache;
+}
+function saveThumbKeypadState(){
+  try{localStorage.setItem(THUMB_KEYPAD_STORAGE_KEY,JSON.stringify(thumbKeypadState()))}catch{}
+}
+function thumbKeypadShouldShow(){
+  return window.innerWidth>=700
+    &&app.ui.workspace==="bank"
+    &&(app.ui.bankMode||"quiz")==="quiz"
+    &&!!quizSession
+    &&activeQuizMode()==="choice"
+    &&!quizSession.answered
+    &&!quizSession.awaitingExplanation
+    &&Array.isArray(quizSession.choices)
+    &&quizSession.choices.length>0;
+}
+function thumbKeypadApplyPosition(){
+  const pad=document.getElementById("thumbKeypad");if(!pad)return;
+  const st=thumbKeypadState(),rect=pad.getBoundingClientRect();
+  const maxX=Math.max(6,window.innerWidth-rect.width-6),maxY=Math.max(6,window.innerHeight-rect.height-6);
+  const left=Math.max(6,Math.min(maxX,6+st.rx*Math.max(0,maxX-6)));
+  const top=Math.max(6,Math.min(maxY,6+st.ry*Math.max(0,maxY-6)));
+  pad.style.left=`${Math.round(left)}px`;pad.style.top=`${Math.round(top)}px`;
+}
+function ensureThumbKeypad(){
+  let pad=document.getElementById("thumbKeypad");if(pad)return pad;
+  const st=thumbKeypadState();
+  pad=document.createElement("div");pad.id="thumbKeypad";pad.className="thumb-keypad";pad.dataset.size=st.size;
+  const head=document.createElement("div");head.className="thumb-keypad-head";
+  const drag=document.createElement("button");drag.type="button";drag.className="thumb-keypad-drag";drag.textContent="⋮⋮";drag.title="잡고 옮기기";drag.setAttribute("aria-label","미니키보드 이동");
+  const size=document.createElement("button");size.type="button";size.className="thumb-keypad-size";size.textContent=st.size;size.title="크기 변경";
+  size.onclick=e=>{
+    e.stopPropagation();
+    const order=["S","M","L"],state=thumbKeypadState();state.size=order[(order.indexOf(state.size)+1)%order.length];
+    pad.dataset.size=state.size;size.textContent=state.size;saveThumbKeypadState();
+    requestAnimationFrame(thumbKeypadApplyPosition);
+  };
+  const collapse=document.createElement("button");collapse.type="button";collapse.className="thumb-keypad-collapse";collapse.textContent="−";collapse.title="접기";
+  collapse.onclick=e=>{
+    e.stopPropagation();const state=thumbKeypadState();state.collapsed=true;pad.classList.add("collapsed");saveThumbKeypadState();requestAnimationFrame(thumbKeypadApplyPosition);
+  };
+  head.append(drag,size,collapse);
+  const grid=document.createElement("div");grid.className="thumb-keypad-grid";
+  [1,2,3,4].forEach(n=>{
+    const b=document.createElement("button");b.type="button";b.textContent=String(n);b.setAttribute("aria-label",`${n}번 선택`);
+    b.addEventListener("pointerdown",e=>{e.preventDefault()});
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();selectChoice(n-1)};
+    grid.append(b);
+  });
+  const tab=document.createElement("button");tab.type="button";tab.className="thumb-keypad-tab";tab.textContent="1234";tab.title="미니키보드 펼치기";
+  tab.onclick=e=>{
+    e.stopPropagation();const state=thumbKeypadState();state.collapsed=false;pad.classList.remove("collapsed");saveThumbKeypadState();requestAnimationFrame(thumbKeypadApplyPosition);
+  };
+  drag.addEventListener("pointerdown",e=>{
+    if(e.button!==undefined&&e.button!==0)return;
+    e.preventDefault();e.stopPropagation();
+    const rect=pad.getBoundingClientRect();
+    thumbKeypadDrag={id:e.pointerId,dx:e.clientX-rect.left,dy:e.clientY-rect.top};
+    try{drag.setPointerCapture(e.pointerId)}catch{}
+  });
+  drag.addEventListener("pointermove",e=>{
+    if(!thumbKeypadDrag||thumbKeypadDrag.id!==e.pointerId)return;
+    e.preventDefault();
+    const rect=pad.getBoundingClientRect();
+    const maxX=Math.max(6,window.innerWidth-rect.width-6),maxY=Math.max(6,window.innerHeight-rect.height-6);
+    const left=Math.max(6,Math.min(maxX,e.clientX-thumbKeypadDrag.dx));
+    const top=Math.max(6,Math.min(maxY,e.clientY-thumbKeypadDrag.dy));
+    pad.style.left=`${Math.round(left)}px`;pad.style.top=`${Math.round(top)}px`;
+  });
+  const finishDrag=e=>{
+    if(!thumbKeypadDrag||thumbKeypadDrag.id!==e.pointerId)return;
+    const rect=pad.getBoundingClientRect(),maxX=Math.max(6,window.innerWidth-rect.width-6),maxY=Math.max(6,window.innerHeight-rect.height-6);
+    const st=thumbKeypadState();
+    st.rx=maxX<=6?0:Math.max(0,Math.min(1,(rect.left-6)/(maxX-6)));
+    st.ry=maxY<=6?0:Math.max(0,Math.min(1,(rect.top-6)/(maxY-6)));
+    thumbKeypadDrag=null;saveThumbKeypadState();
+    try{drag.releasePointerCapture(e.pointerId)}catch{}
+  };
+  drag.addEventListener("pointerup",finishDrag);drag.addEventListener("pointercancel",finishDrag);
+  pad.append(head,grid,tab);document.body.append(pad);
+  pad.classList.toggle("collapsed",st.collapsed);
+  requestAnimationFrame(thumbKeypadApplyPosition);
+  return pad;
+}
+function syncThumbKeypad(){
+  const pad=ensureThumbKeypad(),show=thumbKeypadShouldShow();
+  pad.classList.toggle("show",show);
+  if(show)requestAnimationFrame(thumbKeypadApplyPosition);
+}
+window.addEventListener("resize",()=>{syncThumbKeypad();thumbKeypadApplyPosition()},{passive:true});
+
 function checkSubjective(input){
   if(!quizSession||quizSession.answered||!quizSession.draft.trim())return;
   const item=currentQuizItem(),ok=norm(quizSession.draft)===norm(item.answer);
@@ -8761,25 +8959,140 @@ function plannerMarkUnitCompleteById(unitId){
   }
 }
 
-/* 직접 할 일 */
+/* 직접/즉석 할 일: 회독 미션과 분리된 독립 일정 */
+function plannerCreateManual(date,payload={}){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(date||"")))date=plannerToday();
+  const text=String(payload.text||"").trim();if(!text)return null;
+  const item={
+    id:uid(),date,text,done:false,updatedAt:Date.now(),
+    manualKind:payload.manualKind||"",
+    subjectId:payload.subjectId||"",
+    sheetId:payload.sheetId||""
+  },p=plannerStore();
+  if(!Array.isArray(p.manual[date]))p.manual[date]=[];
+  p.manual[date].push(item);plannerSaveLocal();plannerScheduleUiRender();renderWidePlannerSide();
+  if(!document.getElementById("mobileMissionBackdrop")?.classList.contains("hidden"))renderMobileMissionSheet();
+  if(cloudUser)plannerQueueWrite(setDoc(plannerManualDoc(cloudUser.uid,item.id),item));
+  return item;
+}
 function plannerAddManual(date){
   const v=prompt(`${date}에 할 일 추가`);if(v==null||!v.trim())return;
-  const item={id:uid(),date,text:v.trim(),done:false,updatedAt:Date.now()},p=plannerStore();
-  if(!Array.isArray(p.manual[date]))p.manual[date]=[];
-  p.manual[date].push(item);plannerSaveLocal();renderPlanner();
-  if(cloudUser)plannerQueueWrite(setDoc(plannerManualDoc(cloudUser.uid,item.id),item));
+  plannerCreateManual(date,{text:v.trim(),manualKind:"text"});
 }
 function plannerToggleManual(date,id){
   const x=(plannerStore().manual[date]||[]).find(v=>v.id===id);if(!x)return;
-  x.done=!x.done;x.updatedAt=Date.now();plannerSaveLocal();renderPlanner();
+  x.done=!x.done;x.updatedAt=Date.now();plannerSaveLocal();plannerScheduleUiRender();renderWidePlannerSide();
+  if(!document.getElementById("mobileMissionBackdrop")?.classList.contains("hidden"))renderMobileMissionSheet();
   if(cloudUser)plannerQueueWrite(setDoc(plannerManualDoc(cloudUser.uid,id),x));
 }
 function plannerDeleteManual(date,id){
   const p=plannerStore();
   p.manual[date]=(p.manual[date]||[]).filter(x=>x.id!==id);
   if(!p.manual[date].length)delete p.manual[date];
-  plannerSaveLocal();renderPlanner();
+  plannerSaveLocal();plannerScheduleUiRender();renderWidePlannerSide();
+  if(!document.getElementById("mobileMissionBackdrop")?.classList.contains("hidden"))renderMobileMissionSheet();
   if(cloudUser)plannerQueueWrite(deleteDoc(plannerManualDoc(cloudUser.uid,id)));
+}
+function plannerOpenManual(item){
+  if(!item)return;
+  if(item.manualKind==="memory"&&item.subjectId&&item.sheetId){
+    return openPlannerUnit({id:`manual:${item.id}`,kind:"memory",subjectId:item.subjectId,sheetId:item.sheetId,rowId:""},null);
+  }
+  if(item.manualKind==="bank"&&item.sheetId){
+    const sheet=adventureSheet(item.sheetId);
+    if(!sheet)return toast("현재 문제은행에서 이 시트를 찾지 못했습니다");
+    suspendQuizForWorkspaceNavigation();
+    const state=adventureSheetState(item.sheetId);
+    state.activeOrder=state.activeOrder==="random"?"random":"sequence";
+    adventureStore().activeSheetId=item.sheetId;
+    app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="path";
+    saveLocalNow();renderMode();return;
+  }
+}
+function plannerManualRow(date,item,{compact=false}={}){
+  const row=document.createElement("div");row.className="planner-manual"+(item.done?" done":"")+(compact?" planner-manual-compact":"");
+  const ck=document.createElement("button");ck.type="button";ck.textContent=item.done?"✓":"○";ck.onclick=()=>plannerToggleManual(date,item.id);
+  let tx;
+  if(item.manualKind==="memory"||item.manualKind==="bank"){
+    tx=document.createElement("button");tx.type="button";tx.className="planner-manual-link";tx.textContent=item.text;tx.onclick=()=>plannerOpenManual(item);
+  }else{
+    tx=document.createElement("span");tx.textContent=item.text;
+  }
+  const del=document.createElement("button");del.type="button";del.textContent="×";del.onclick=()=>plannerDeleteManual(date,item.id);
+  row.append(ck,tx,del);return row;
+}
+function closePlannerQuickAdd(){
+  document.getElementById("plannerQuickAddModal")?.remove();
+}
+function plannerQuickAdd(date=plannerToday()){
+  closePlannerQuickAdd();
+  const back=document.createElement("div");back.className="modal-backdrop";back.id="plannerQuickAddModal";
+  const modal=document.createElement("div");modal.className="modal planner-quick-add-modal";
+  const title=document.createElement("div");title.className="modal-title";title.textContent="즉석 미션 추가";
+  const when=document.createElement("div");when.className="planner-quick-add-date";when.textContent=date;
+  const content=document.createElement("div");
+  const renderChoices=()=>{
+    content.innerHTML="";
+    const list=document.createElement("div");list.className="planner-quick-add-list";
+    const addChoice=(label,subtext,fn,disabled=false)=>{
+      const b=document.createElement("button");b.type="button";b.disabled=disabled;
+      const strong=document.createElement("strong");strong.textContent=label;
+      const small=document.createElement("small");small.textContent=subtext||"";
+      b.append(strong,small);b.onclick=fn;list.append(b);
+    };
+    let currentSubject=null,currentSheet=null;
+    try{currentSubject=sub();currentSheet=sh()}catch{}
+    addChoice("현재 암기판 추가",
+      currentSubject&&currentSheet?`${currentSubject.name} › ${currentSheet.name}`:"현재 암기판 없음",
+      ()=>{
+        if(!currentSubject||!currentSheet)return;
+        plannerCreateManual(date,{text:`${currentSubject.name} › ${currentSheet.name}`,manualKind:"memory",subjectId:currentSubject.id,sheetId:currentSheet.id});
+        closePlannerQuickAdd();toast("즉석 미션 추가됨");
+      },!currentSubject||!currentSheet);
+    addChoice("암기판 선택","다른 암기판을 오늘/선택한 날짜에 추가",()=>renderMemoryList());
+    addChoice("문제은행 선택","문제은행 시트를 즉석 미션으로 추가",()=>renderBankList());
+    addChoice("직접 할 일","짧은 할 일을 직접 입력",()=>{
+      const v=prompt(`${date}에 할 일 추가`);if(v==null||!v.trim())return;
+      plannerCreateManual(date,{text:v.trim(),manualKind:"text"});closePlannerQuickAdd();toast("즉석 미션 추가됨");
+    });
+    content.append(list);
+  };
+  const renderMemoryList=()=>{
+    content.innerHTML="";
+    const backBtn=document.createElement("button");backBtn.className="planner-quick-add-back";backBtn.textContent="‹ 종류 선택";backBtn.onclick=renderChoices;content.append(backBtn);
+    const list=document.createElement("div");list.className="planner-quick-add-list";
+    plannerMemoryUnits().forEach(unit=>{
+      const b=document.createElement("button");b.type="button";
+      const strong=document.createElement("strong");strong.textContent=unit.title;
+      const small=document.createElement("small");small.textContent=unit.detail||"암기판";
+      b.append(strong,small);b.onclick=()=>{
+        plannerCreateManual(date,{text:unit.title,manualKind:"memory",subjectId:unit.subjectId,sheetId:unit.sheetId});
+        closePlannerQuickAdd();toast("암기판 미션 추가됨");
+      };list.append(b);
+    });
+    if(!list.children.length){const e=document.createElement("div");e.className="planner-note";e.textContent="추가할 암기판이 없습니다.";list.append(e)}
+    content.append(list);
+  };
+  const renderBankList=()=>{
+    content.innerHTML="";
+    const backBtn=document.createElement("button");backBtn.className="planner-quick-add-back";backBtn.textContent="‹ 종류 선택";backBtn.onclick=renderChoices;content.append(backBtn);
+    const list=document.createElement("div");list.className="planner-quick-add-list";
+    activeBankSheets().forEach(sheet=>{
+      const meta=bankSheetMeta(sheet),label=`${meta.subject||"문제은행"} › ${meta.area||sheet.name}`;
+      const b=document.createElement("button");b.type="button";
+      const strong=document.createElement("strong");strong.textContent=label;
+      const small=document.createElement("small");small.textContent=`${(sheet.items||[]).length}문제`;
+      b.append(strong,small);b.onclick=()=>{
+        plannerCreateManual(date,{text:label,manualKind:"bank",sheetId:sheet.id});
+        closePlannerQuickAdd();toast("문제은행 미션 추가됨");
+      };list.append(b);
+    });
+    if(!list.children.length){const e=document.createElement("div");e.className="planner-note";e.textContent="추가할 문제은행 시트가 없습니다.";list.append(e)}
+    content.append(list);
+  };
+  const cancel=document.createElement("button");cancel.className="modal-cancel";cancel.textContent="닫기";cancel.onclick=closePlannerQuickAdd;
+  modal.append(title,when,content,cancel);back.append(modal);back.onclick=e=>{if(e.target===back)closePlannerQuickAdd()};document.body.append(back);
+  renderChoices();
 }
 
 /* 원본 열기 */
@@ -8986,16 +9299,37 @@ function renderPlanner(force=false){
     const todayBtn=document.createElement("button");todayBtn.type="button";todayBtn.textContent="오늘";todayBtn.onclick=()=>plannerSelectDate(today);
     head.append(title,sync,syncBtn,todayBtn);area.append(head);
 
-    /* 전체 진행 */
+    /* 회독 현황: 캘린더를 밀어내지 않도록 요약 + 현재 회독 1줄, 과거 목록은 펼쳐보기 */
     if(p.rounds.length){
+      const states=p.rounds.map(r=>({round:r,prog:plannerRoundProgress(r)}));
+      const completed=states.filter(x=>x.prog.total>0&&x.prog.remaining===0).length;
+      const unfinished=states.length-completed;
+      const activeById=p.rounds.find(r=>r.id===app.ui.activePlannerRoundId);
+      const currentByDate=[...p.rounds].filter(r=>r.start<=today&&today<=(r.reviewDate||r.end)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+      const latestUnfinished=[...states].filter(x=>x.prog.remaining>0).sort((a,b)=>String(b.round.start||"").localeCompare(String(a.round.start||"")))[0]?.round;
+      const current=activeById||currentByDate||latestUnfinished||p.rounds[p.rounds.length-1];
+      const currentProg=plannerRoundProgress(current);
       const overview=document.createElement("div");overview.className="planner-v7-overview";
+      const toggle=document.createElement("button");toggle.type="button";toggle.className="planner-overview-toggle";
+      const label=document.createElement("strong");label.textContent="회독 현황";
+      const stat=document.createElement("span");stat.textContent=`${completed}완료 · ${unfinished}진행`;
+      const arrow=document.createElement("i");arrow.textContent=app.ui.plannerRoundOverviewOpen?"⌃":"⌄";
+      toggle.append(label,stat,arrow);
+      const cur=document.createElement("div");cur.className="planner-overview-current";
+      const curText=document.createElement("strong");curText.textContent=`${current.name}  ${currentProg.done}/${currentProg.total} · ${currentProg.remaining} 남음`;
+      const curRange=document.createElement("small");curRange.textContent=`${current.start} ~ ${current.end}`;
+      cur.append(curText,curRange);
+      const history=document.createElement("div");history.className="planner-overview-history"+(app.ui.plannerRoundOverviewOpen?"":" hidden");
       p.rounds.forEach(r=>{
         const prog=plannerRoundProgress(r),line=document.createElement("div");line.className="planner-v7-overview-row";
         const txt=document.createElement("span");txt.innerHTML=`<strong>${escapeHtml(r.name)}</strong> ${prog.done}/${prog.total} · ${prog.remaining} 남음`;
         const range=document.createElement("small");range.textContent=`${r.start} ~ ${r.end}`;
-        line.append(txt,range);overview.append(line);
+        line.append(txt,range);history.append(line);
       });
-      area.append(overview);
+      toggle.onclick=()=>{
+        app.ui.plannerRoundOverviewOpen=!app.ui.plannerRoundOverviewOpen;saveLocal();renderPlanner();
+      };
+      overview.append(toggle,cur,history);area.append(overview);
     }
 
     /* 캘린더: 고정된 전체 분량 */
@@ -9033,7 +9367,7 @@ function renderPlanner(force=false){
     const dt=document.createElement("strong");dt.textContent=selected===today?`오늘 · ${selected}`:selected;
     const quick=document.createElement("div");quick.className="planner-v7-date-actions";
     const tomorrow=document.createElement("button");tomorrow.type="button";tomorrow.textContent="내일";tomorrow.onclick=()=>plannerSelectDate(plannerAddDays(today,1));
-    const add=document.createElement("button");add.type="button";add.textContent="＋ 할 일";add.onclick=()=>plannerAddManual(selected);
+    const add=document.createElement("button");add.type="button";add.textContent="＋ 추가";add.onclick=()=>plannerQuickAdd(selected);
     quick.append(tomorrow,add);dh.append(dt,quick);detail.append(dh);
 
     let selectedCount=0,selectedDone=0;
@@ -9052,19 +9386,15 @@ function renderPlanner(force=false){
       const line=document.createElement("div");line.className="planner-completed-divider";detail.append(line);
     }
     doneRows.forEach(([r,m])=>detail.append(plannerTaskRow(r,m,{compact:true})));
+    const selectedManual=p.manual[selected]||[];
+    selectedCount+=selectedManual.length;selectedDone+=selectedManual.filter(x=>x.done).length;
     if(!selectedCount){
       const empty=document.createElement("div");empty.className="planner-note";empty.textContent="이 날짜에 표시할 미션이 없습니다.";detail.append(empty);
     }else{
       const info=document.createElement("div");info.className="planner-v7-day-progress";info.textContent=`이날 전체 ${selectedDone}/${selectedCount} 완료`;detail.prepend(info);
     }
 
-    (p.manual[selected]||[]).forEach(item=>{
-      const row=document.createElement("div");row.className="planner-manual"+(item.done?" done":"");
-      const ck=document.createElement("button");ck.textContent=item.done?"✓":"○";ck.onclick=()=>plannerToggleManual(selected,item.id);
-      const tx=document.createElement("span");tx.textContent=item.text;
-      const del=document.createElement("button");del.textContent="×";del.onclick=()=>plannerDeleteManual(selected,item.id);
-      row.append(ck,tx,del);detail.append(row);
-    });
+    selectedManual.forEach(item=>detail.append(plannerManualRow(selected,item)));
     area.append(detail);
 
     /* 밀린 미션은 미완료만 원래 예정일 기준으로 표시 */
@@ -9298,10 +9628,11 @@ let mobileMissionDate="";
 function hasPermanentSidePanel(){return window.matchMedia("(min-width:700px) and (min-height:600px)").matches}
 function useCompactMissionPanel(){return !hasPermanentSidePanel()}
 function plannerDaySummary(date=plannerToday()){
-  let done=0,total=0;
-  for(const round of plannerStore().rounds){
+  const p=plannerStore();let done=0,total=0;
+  for(const round of p.rounds){
     const missions=plannerMissionsForDate(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;
   }
+  const manual=p.manual[date]||[];total+=manual.length;done+=manual.filter(x=>x.done).length;
   return {done,total};
 }
 function updatePlannerQuickButton(button=document.getElementById("plannerQuickBtn")){
@@ -9407,8 +9738,10 @@ function renderWidePlannerSchedule(list,count,date){
     overdue.sort((a,b)=>a[1].date.localeCompare(b[1].date));
   }
 
-  const unfinished=overdue.length+pending.length;
-  count.textContent=`${done.length}/${unfinished+done.length} 완료`;
+  const manual=(p.manual[date]||[]),manualPending=manual.filter(x=>!x.done),manualDone=manual.filter(x=>x.done);
+  const unfinished=overdue.length+pending.length+manualPending.length;
+  const finished=done.length+manualDone.length;
+  count.textContent=`${finished}/${unfinished+finished} 완료`;
 
   if(overdue.length){
     const label=document.createElement("div");label.className="wide-planner-label";label.textContent=`밀린 미션 ${overdue.length}`;
@@ -9421,13 +9754,15 @@ function renderWidePlannerSchedule(list,count,date){
     });
   }
   pending.forEach(([r,m])=>list.append(plannerTaskRow(r,m,{compact:true})));
+  manualPending.forEach(item=>list.append(plannerManualRow(date,item,{compact:true})));
 
-  if((overdue.length||pending.length)&&done.length){
+  if((overdue.length||pending.length||manualPending.length)&&(done.length||manualDone.length)){
     const line=document.createElement("div");line.className="wide-planner-divider";list.append(line);
   }
   done.forEach(([r,m])=>list.append(plannerTaskRow(r,m,{compact:true})));
+  manualDone.forEach(item=>list.append(plannerManualRow(date,item,{compact:true})));
 
-  if(!overdue.length&&!pending.length&&!done.length){
+  if(!overdue.length&&!pending.length&&!done.length&&!manual.length){
     const empty=document.createElement("div");empty.className="wide-planner-empty";
     empty.textContent=date===today?"오늘 표시할 미션이 없습니다.":"이 날짜에 표시할 미션이 없습니다.";
     list.append(empty);
@@ -9582,6 +9917,7 @@ function renderMode(){
   renderWidePlannerSide();
   updateTypingFloatingBadge();
   updateAppBackButton();
+  syncThumbKeypad();
 }
 function render(){renderSubjects();renderSheets();updateMemorySummary();renderStudy();renderEdit();renderMode()}
 
@@ -9968,12 +10304,14 @@ document.getElementById("mobileMissionBackdrop")?.addEventListener("click",e=>{i
 document.getElementById("mobileMissionPrev")?.addEventListener("click",()=>shiftMobileMissionDate(-1));
 document.getElementById("mobileMissionNext")?.addEventListener("click",()=>shiftMobileMissionDate(1));
 document.getElementById("mobileMissionToday")?.addEventListener("click",()=>{mobileMissionDate=plannerToday();renderMobileMissionSheet()});
+document.getElementById("mobileMissionAdd")?.addEventListener("click",()=>plannerQuickAdd(mobileMissionDate||plannerToday()));
 document.getElementById("widePlannerToggle")?.addEventListener("click",toggleWidePlannerSide);
 document.getElementById("widePlannerTodayTab")?.addEventListener("click",()=>setWidePlannerSideTab("today"));
 document.getElementById("widePlannerSongTab")?.addEventListener("click",()=>setWidePlannerSideTab("songs"));
 document.getElementById("widePlannerPrevDate")?.addEventListener("click",()=>widePlannerShiftDate(-1));
 document.getElementById("widePlannerNextDate")?.addEventListener("click",()=>widePlannerShiftDate(1));
 document.getElementById("widePlannerTodayButton")?.addEventListener("click",()=>widePlannerSetDate(plannerToday()));
+document.getElementById("widePlannerAdd")?.addEventListener("click",()=>plannerQuickAdd(widePlannerSelectedDate()));
 document.getElementById("widePlannerDatePicker")?.addEventListener("change",e=>widePlannerSetDate(e.target.value));
 document.getElementById("widePlannerDateLabel")?.addEventListener("click",()=>{
   const picker=document.getElementById("widePlannerDatePicker");if(!picker)return;
