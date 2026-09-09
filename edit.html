@@ -2669,6 +2669,19 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 #memoryHeader .sheet-navline #sheets::-webkit-scrollbar{display:none}
 
+/* 오른쪽 보조패널 미션은 폭이 줄어도 브라우저 기본 버튼 회색 박스가 생기지 않게 */
+.wide-planner-list .planner-task-check,
+.wide-planner-list .planner-task-link,
+.wide-planner-list .planner-task-exclude{
+  appearance:none!important;-webkit-appearance:none!important;
+  border:0!important;background:transparent!important;box-shadow:none!important;
+  color:inherit;
+}
+.wide-planner-list .planner-task-link{
+  display:block!important;width:100%!important;min-width:0!important;
+  margin:0!important;padding:0!important;text-align:left!important;font:inherit!important;
+}
+
 /* 오른쪽 고정 보조영역: 흰 바탕 + 선택된 기능만 연한 회색 */
 @media (min-width:1000px) and (orientation:landscape){
   .wide-planner-side.eligible{
@@ -3071,7 +3084,7 @@ body.mobile-mission-open{overflow:hidden}
   grid-template-columns:34px minmax(0,1fr) 34px auto 34px!important
 }
 
-/* iPad용 엄지 키패드: 엄지 궤적에 맞춘 호선형 + 명확한 배치/Enter */
+/* iPad용 엄지 키패드: 한손 엄지용 부채꼴 + 명확한 배치/Enter */
 .thumb-keypad{
   --thumb-cell:70px;--thumb-gap:8px;
   position:fixed;z-index:4800;display:none;
@@ -3106,7 +3119,20 @@ body.mobile-mission-open{overflow:hidden}
 .thumb-keypad-collapse{width:30px;padding:0;font-size:16px;font-weight:500}
 .thumb-keypad-layout:active,.thumb-keypad-size:active,.thumb-keypad-collapse:active{background:#dedee3}
 .thumb-keypad-grid{display:grid;gap:var(--thumb-gap);justify-content:center;justify-items:center;align-items:center}
-.thumb-keypad[data-layout="arc"] .thumb-keypad-grid,
+/* 부채꼴: 엄지를 축으로 1→4가 실제 곡선을 따라 퍼지는 배치. 단순 회전/기울임이 아님. */
+.thumb-keypad[data-layout="arc"] .thumb-keypad-grid{
+  position:relative;display:block;
+  width:calc(var(--thumb-cell) + var(--thumb-cell) + 36px);
+  height:calc(var(--thumb-cell) + var(--thumb-cell) + 62px);
+  padding:0;margin:2px auto 0;
+}
+.thumb-keypad[data-layout="arc"] .thumb-keypad-grid::before{
+  content:"";position:absolute;pointer-events:none;
+  width:calc(var(--thumb-cell) + var(--thumb-cell) + 2px);
+  height:calc(var(--thumb-cell) + 28px);
+  top:25px;left:17px;border-top:1px solid rgba(165,166,174,.26);
+  border-radius:50% 50% 0 0;
+}
 .thumb-keypad[data-layout="grid"] .thumb-keypad-grid{grid-template-columns:repeat(2,var(--thumb-cell));padding:5px 10px 1px}
 .thumb-keypad[data-layout="row"] .thumb-keypad-grid{grid-template-columns:repeat(4,var(--thumb-cell))}
 .thumb-keypad[data-layout="column"] .thumb-keypad-grid{grid-template-columns:var(--thumb-cell);justify-content:center}
@@ -3119,25 +3145,31 @@ body.mobile-mission-open{overflow:hidden}
 .thumb-keypad[data-size="S"] .thumb-keypad-grid button[data-thumb-choice]{font-size:25px;border-radius:18px}
 .thumb-keypad[data-size="L"] .thumb-keypad-grid button[data-thumb-choice]{font-size:33px;border-radius:25px}
 .thumb-keypad-grid button[data-thumb-choice]:active{background:#e8e8ec;transform:scale(.96)!important}
-/* 기본 호선 배치: 패드를 둔 쪽 손의 엄지 궤적을 따라 살짝 비틀어 배치 */
-.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="1"]{transform:translate(-7px,7px) rotate(-4deg)}
-.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="2"]{transform:translate(-1px,1px) rotate(2deg)}
-.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="3"]{transform:translate(1px,-1px) rotate(-2deg)}
-.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="4"]{transform:translate(7px,-7px) rotate(4deg)}
-.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="1"]{transform:translate(7px,7px) rotate(4deg)}
-.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="2"]{transform:translate(1px,1px) rotate(-2deg)}
-.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="3"]{transform:translate(-1px,-1px) rotate(2deg)}
-.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="4"]{transform:translate(-7px,-7px) rotate(-4deg)}
+/* 오른손: 아래-왼쪽에서 위-오른쪽으로 펼쳐지는 1/4 부채꼴. 왼손이면 좌우 미러링. */
+.thumb-keypad[data-layout="arc"] button[data-thumb-choice]{position:absolute;margin:0;transform:none}
+.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="1"]{left:0;top:calc(var(--thumb-cell) + 7px)}
+.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="2"]{left:14px;top:34px}
+.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="3"]{left:calc(var(--thumb-cell) + 8px);top:0}
+.thumb-keypad[data-layout="arc"][data-side="right"] button[data-thumb-choice="4"]{left:calc(var(--thumb-cell) + 30px);top:43px}
+.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="1"]{right:0;top:calc(var(--thumb-cell) + 7px)}
+.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="2"]{right:14px;top:34px}
+.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="3"]{right:calc(var(--thumb-cell) + 8px);top:0}
+.thumb-keypad[data-layout="arc"][data-side="left"] button[data-thumb-choice="4"]{right:calc(var(--thumb-cell) + 30px);top:43px}
+.thumb-keypad[data-layout="arc"] .thumb-keypad-next{
+  position:absolute!important;left:0!important;right:0!important;bottom:0!important;
+}
+.thumb-keypad[data-layout="arc"][data-side="left"] .thumb-keypad-grid::before{transform:scaleX(-1)}
 .thumb-keypad-next{
   grid-column:1/-1!important;width:100%!important;height:44px!important;min-height:44px!important;
-  border:0!important;border-radius:15px!important;background:#ececef!important;color:#34353a!important;
-  font-size:13px!important;font-weight:720!important;padding:0 14px!important;box-shadow:none!important;
-  display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important
+  border:1px solid #d8d8de!important;border-radius:15px!important;background:#fff!important;color:#3f4046!important;
+  font-size:13px!important;font-weight:680!important;padding:0 14px!important;box-shadow:0 1px 4px rgba(0,0,0,.035)!important;
+  display:flex!important;align-items:center!important;justify-content:center!important;gap:7px!important;
+  opacity:1!important
 }
-.thumb-keypad-next small{font-size:9px;font-weight:650;color:#8b8c92;letter-spacing:.01em}
-.thumb-keypad-next:not(:disabled){background:#25262b!important;color:#fff!important}
-.thumb-keypad-next:not(:disabled) small{color:#d5d5da}
-.thumb-keypad-next:disabled{opacity:.58}
+.thumb-keypad-next small{font-size:9px;font-weight:600;color:#94959b;letter-spacing:.01em}
+.thumb-keypad-next:active{background:#ececef!important;transform:scale(.985)}
+.thumb-keypad-next:disabled{opacity:1!important;color:#3f4046!important;-webkit-text-fill-color:#3f4046!important}
+.thumb-keypad-next:disabled small{color:#94959b!important}
 .thumb-keypad-tab{
   display:none;border:0;background:#f0f0f3;border-radius:15px;padding:11px 15px;
   font-size:14px;font-weight:760;letter-spacing:.08em;color:#44454b;white-space:nowrap
@@ -7585,7 +7617,7 @@ function thumbKeypadState(){
   const size=["S","M","L"].includes(saved.size)?saved.size:"M";
   thumbKeypadStateCache={
     size,
-    // 구형 키패드의 grid는 한 번만 새 호선형으로 승격한다. 위치/크기/접힘은 그대로 보존.
+    // 구형 키패드의 grid는 한 번만 새 부채꼴로 승격한다. 위치/크기/접힘은 그대로 보존.
     layout:saved.design2&&["arc","grid","row","column"].includes(saved.layout)?saved.layout:"arc",
     rx:Number.isFinite(Number(saved.rx))?Math.max(0,Math.min(1,Number(saved.rx))):.84,
     ry:Number.isFinite(Number(saved.ry))?Math.max(0,Math.min(1,Number(saved.ry))):.64,
@@ -7623,7 +7655,7 @@ function ensureThumbKeypad(){
   const head=document.createElement("div");head.className="thumb-keypad-head";
   const drag=document.createElement("button");drag.type="button";drag.className="thumb-keypad-drag";drag.textContent="";drag.title="잡고 옮기기";drag.setAttribute("aria-label","미니키보드 이동");
   const layout=document.createElement("button");layout.type="button";layout.className="thumb-keypad-layout";layout.title="배치 변경";layout.setAttribute("aria-label","미니키보드 배치 변경");
-  const layoutLabel=()=>({arc:"호선",grid:"2×2",row:"가로",column:"세로"}[pad.dataset.layout]||"호선");
+  const layoutLabel=()=>({arc:"부채",grid:"2×2",row:"가로",column:"세로"}[pad.dataset.layout]||"부채");
   layout.textContent=layoutLabel();
   layout.onclick=e=>{
     e.stopPropagation();
