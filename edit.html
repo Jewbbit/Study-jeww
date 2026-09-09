@@ -7574,8 +7574,7 @@ function thumbKeypadShouldShow(){
     &&(app.ui.bankMode||"quiz")==="quiz"
     &&!!quizSession
     &&activeQuizMode()==="choice"
-    &&!quizSession.answered
-    &&!quizSession.awaitingExplanation
+    &&!quizSession.historyOffset
     &&Array.isArray(quizSession.choices)
     &&quizSession.choices.length>0;
 }
