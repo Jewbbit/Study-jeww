@@ -6020,6 +6020,58 @@ function makeEmptyBankSheet(name,source="앱에서 생성"){
   const id=uid(),now=Date.now();
   return {id,source,name,legacyWrong:false,archived:false,versionGroupId:id,versionNo:1,versionHidden:false,versionCreatedAt:now,previousVersionId:"",items:[],updatedAt:now};
 }
+function bankExportRows(sheet){
+  return [["카테고리","문제","정답","메모"],...(sheet?.items||[]).map(item=>[
+    String(item.category||""),
+    String(item.question||""),
+    String(item.answer||""),
+    String(item.memo||"")
+  ])];
+}
+function safeExcelSheetName(name,used){
+  let base=String(name||"시트").replace(/[\\/:?*\[\]]/g," ").replace(/\s+/g," ").trim()||"시트";
+  base=base.slice(0,31);
+  let out=base,n=2;
+  while(used.has(out.toLowerCase())){
+    const suffix=` (${n++})`;
+    out=base.slice(0,31-suffix.length)+suffix;
+  }
+  used.add(out.toLowerCase());
+  return out;
+}
+function safeDownloadName(name){
+  return (String(name||"문제은행").replace(/[\\/:?*"<>|]/g,"_").trim()||"문제은행");
+}
+function exportBankWorkbook(sheets,fileName){
+  if(typeof XLSX==="undefined")return alert("엑셀 내보내기 기능을 불러오지 못했습니다.");
+  const list=(sheets||[]).filter(Boolean);
+  if(!list.length)return toast("내보낼 문제 시트가 없습니다");
+  try{
+    const wb=XLSX.utils.book_new(),used=new Set();
+    list.forEach(sheet=>{
+      const ws=XLSX.utils.aoa_to_sheet(bankExportRows(sheet));
+      ws["!cols"]=[{wch:22},{wch:58},{wch:36},{wch:48}];
+      XLSX.utils.book_append_sheet(wb,ws,safeExcelSheetName(sheet.name,used));
+    });
+    XLSX.writeFile(wb,`${safeDownloadName(fileName)}.xlsx`,{compression:true});
+    toast(list.length===1?`'${list[0].name}' 내보냄`:`문제은행 ${list.length}개 시트 내보냄`);
+  }catch(e){
+    console.error("bank export failed",e);
+    alert("문제은행을 엑셀로 내보내지 못했습니다.");
+  }
+}
+function exportCurrentBankSheet(){
+  const sheet=currentBankEditSheet()||activeBankSheets()[0];
+  if(!sheet)return toast("내보낼 문제 시트가 없습니다");
+  exportBankWorkbook([sheet],`문제은행_${sheet.name}`);
+}
+function exportAllBankSheets(){
+  const sheets=activeBankSheets();
+  if(!sheets.length)return toast("내보낼 문제 시트가 없습니다");
+  const d=new Date(),pad=n=>String(n).padStart(2,"0");
+  const stamp=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+  exportBankWorkbook(sheets,`문제은행_전체_${stamp}`);
+}
 let bankImportBusy=false;
 async function importBankFiles(files){
   if(bankImportBusy)return toast("가져오는 중입니다");
@@ -7153,8 +7205,10 @@ function renderBankToolbar(){
   const menu=document.createElement("div");menu.className="menu hidden";
   const imp=document.createElement("button");imp.textContent="엑셀 가져오기";imp.onclick=()=>document.getElementById("bankExcelFiles").click();
   const bulkUpdate=document.createElement("button");bulkUpdate.textContent="엑셀 일괄 업데이트";bulkUpdate.onclick=()=>{if(quizSession)return toast("현재 문제풀이를 종료/저장한 뒤 업데이트해 주세요");document.getElementById("bankBulkUpdateFiles").click()};
+  const exportCurrent=document.createElement("button");exportCurrent.textContent="현재 시트 내보내기";exportCurrent.onclick=exportCurrentBankSheet;
+  const exportAll=document.createElement("button");exportAll.textContent="전체 문제은행 내보내기";exportAll.onclick=exportAllBankSheets;
   const edit=document.createElement("button");edit.textContent="문제 편집";edit.onclick=()=>{app.ui.bankMode="edit";saveLocal();renderMode()};
-  menu.append(imp,bulkUpdate,edit);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();manage.append(presetBtn,more,menu);panel.append(manage);
+  menu.append(imp,bulkUpdate,exportCurrent,exportAll,edit);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();manage.append(presetBtn,more,menu);panel.append(manage);
 
   const start=document.createElement("button");start.className="primary quiz-start";start.textContent=available?"시작":"문제 없음";start.disabled=!available;
   start.onclick=()=>{
@@ -8102,6 +8156,11 @@ function renderBankEditor(){
   const bulkUpdateBtn=document.createElement("button");bulkUpdateBtn.textContent="엑셀 일괄 업데이트";
   bulkUpdateBtn.onclick=()=>{if(quizSession)return toast("현재 문제풀이를 종료/저장한 뒤 업데이트해 주세요");document.getElementById("bankBulkUpdateFiles").click()};
 
+  const exportCurrentBtn=document.createElement("button");exportCurrentBtn.textContent="현재 시트 내보내기";
+  exportCurrentBtn.onclick=exportCurrentBankSheet;
+  const exportAllBtn=document.createElement("button");exportAllBtn.textContent="전체 문제은행 내보내기";
+  exportAllBtn.onclick=exportAllBankSheets;
+
   const versionHistoryBtn=document.createElement("button");versionHistoryBtn.textContent="버전 기록";
   versionHistoryBtn.onclick=()=>openBankVersionHistory(currentBankEditSheet());
 
@@ -8233,7 +8292,7 @@ function renderBankEditor(){
 
   const archiveCurrent=document.createElement("button");archiveCurrent.textContent="시트 보관";archiveCurrent.onclick=archiveCurrentBankSheet;
   const restoreArchive=document.createElement("button");restoreArchive.textContent=`보관함 복원${archivedBankSheets().length?` (${archivedBankSheets().length})`:""}`;restoreArchive.onclick=restoreArchivedBankSheet;
-  menu.append(importBtn,bulkUpdateBtn,versionHistoryBtn,newSheet,rename,clearSameMemo,clearAllMemo,moveUp,moveDown,merge,archiveCurrent,restoreArchive,trashCurrent,restoreTrash,resetAll);
+  menu.append(importBtn,bulkUpdateBtn,exportCurrentBtn,exportAllBtn,versionHistoryBtn,newSheet,rename,clearSameMemo,clearAllMemo,moveUp,moveDown,merge,archiveCurrent,restoreArchive,trashCurrent,restoreTrash,resetAll);
   manageBtn.onclick=e=>{e.stopPropagation();toggleFloatingMenu(manageBtn,menu)};
   menu.onclick=e=>e.stopPropagation();manageWrap.append(manageBtn,menu);
   row.append(sel,add,bulk,manageWrap);
