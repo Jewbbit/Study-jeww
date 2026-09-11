@@ -3227,6 +3227,16 @@ body.mobile-mission-open{overflow:hidden}
   .song-jump-flash{animation:none!important}
 }
 </style>
+
+<style id="phone-performance-fix-style">
+@media(max-width:699px){
+  .mobile-mission-more{
+    display:block;width:100%;min-height:38px;margin:6px 0 10px;border:1px solid #e1e1e4;border-radius:7px;
+    background:#f7f7f8;color:#55565b;font-size:11px;font-weight:650
+  }
+  .mobile-mission-sheet,.question-card,.choice,.planner-task{box-shadow:none!important;filter:none!important}
+}
+</style>
 </head>
 <body>
 <header>
@@ -3570,6 +3580,7 @@ const OLD_KEY="study-min-v1";
 const KEY="study-jew-v4";
 const STUDY_DRAFT_KEY=KEY+"-study-drafts";
 const STUDY_EDIT_KEY=KEY+"-study-edit";
+const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";
 const uid=()=>crypto.randomUUID?.()||("id_"+Date.now()+"_"+Math.random().toString(36).slice(2));
 const studyRow=()=>({id:uid(),type:"item",category:"",correct:"",memo:"",color:"",user:"",flagged:false,flagCount:0,last:"",revealed:false});
 const sectionRow=()=>({id:uid(),type:"section",title:"",level:"sub",color:"",memorize:false,user:"",last:"",revealed:false});
@@ -3622,6 +3633,13 @@ try{
   const quickStudy=JSON.parse(localStorage.getItem(STUDY_EDIT_KEY)||"null");
   if(quickStudy?.study&&(quickStudy.updatedAt||0)>=(app.study.updatedAt||0))app.study=quickStudy.study;
 }catch(e){console.warn("study quick restore failed",e)}
+try{
+  const quickBankStats=JSON.parse(localStorage.getItem(BANK_STATS_QUICK_KEY)||"null");
+  if(quickBankStats?.stats&&(Number(quickBankStats.updatedAt)||0)>=(Number(app.bank?.statsUpdatedAt)||0)){
+    app.bank.stats=quickBankStats.stats;
+    app.bank.statsUpdatedAt=Number(quickBankStats.updatedAt)||0;
+  }
+}catch(e){console.warn("bank stats quick restore failed",e)}
 let cloudUser=null,studyUnsub=null,plannerRoundsUnsub=null,plannerChecksUnsub=null,plannerPathsUnsub=null,plannerManualUnsub=null,plannerLogsUnsub=null,bankIndexUnsub=null,bankStatsUnsub=null,cloudTimer=null;
 let applyingRemote=false;
 let quizSession=null;
@@ -4059,6 +4077,19 @@ function saveLocal(){
   localSaveTimer=setTimeout(saveLocalNow,500);
 }
 
+/* 문제 풀이 중에는 매 답마다 app.study 전체까지 직렬화하지 않는다.
+   통계만 별도 작은 캐시에 먼저 남겨 폰 WebView의 긴 멈춤을 줄인다. */
+let bankStatsQuickTimer=null;
+function saveBankStatsQuickNow(){
+  clearTimeout(bankStatsQuickTimer);bankStatsQuickTimer=null;
+  try{localStorage.setItem(BANK_STATS_QUICK_KEY,JSON.stringify({stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt||Date.now()}))}
+  catch(e){console.warn("bank stats quick save failed",e)}
+}
+function scheduleBankStatsQuickSave(){
+  clearTimeout(bankStatsQuickTimer);
+  bankStatsQuickTimer=setTimeout(saveBankStatsQuickNow,650);
+}
+
 let studyQuickTimer=null;
 function saveStudyQuickNow(){
   clearTimeout(studyQuickTimer);studyQuickTimer=null;
@@ -4108,13 +4139,14 @@ function flushTypingSave(){
   lastLifecycleFlushAt=now;
   if(studyDraftTimer)saveStudyDraftsNow();
   if(studyQuickTimer)saveStudyQuickNow();
+  if(bankStatsQuickTimer)saveBankStatsQuickNow();
   if(localSaveTimer)saveLocalNow();
 }
 window.addEventListener("pagehide",()=>{flushTypingSave();if(bankCacheSaveTimer)writeBankCacheNow()});
 window.addEventListener("beforeunload",flushTypingSave);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushTypingSave()});
 function markStudyCloud(){app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();saveStudyDraftsNow();scheduleStudyCloud()}
-function markBankStatsCloud(){app.bank.statsUpdatedAt=Date.now();saveLocal();scheduleBankStatsCloud()}
+function markBankStatsCloud(){app.bank.statsUpdatedAt=Date.now();scheduleBankStatsQuickSave();scheduleBankStatsCloud()}
 function sub(){return app.study.subjects.find(x=>x.id===app.study.subjectId)||app.study.subjects[0]}
 function sh(){return sub().sheets.find(x=>x.id===sub().currentId)||sub().sheets[0]}
 function norm(v){return (v||"").trim().replace(/\s/g,"").replace(/[·,]/g,"").toLowerCase()}
@@ -6020,6 +6052,58 @@ function makeEmptyBankSheet(name,source="앱에서 생성"){
   const id=uid(),now=Date.now();
   return {id,source,name,legacyWrong:false,archived:false,versionGroupId:id,versionNo:1,versionHidden:false,versionCreatedAt:now,previousVersionId:"",items:[],updatedAt:now};
 }
+function bankExportRows(sheet){
+  return [["카테고리","문제","정답","메모"],...(sheet?.items||[]).map(item=>[
+    String(item.category||""),
+    String(item.question||""),
+    String(item.answer||""),
+    String(item.memo||"")
+  ])];
+}
+function safeExcelSheetName(name,used){
+  let base=String(name||"시트").replace(/[\\/:?*\[\]]/g," ").replace(/\s+/g," ").trim()||"시트";
+  base=base.slice(0,31);
+  let out=base,n=2;
+  while(used.has(out.toLowerCase())){
+    const suffix=` (${n++})`;
+    out=base.slice(0,31-suffix.length)+suffix;
+  }
+  used.add(out.toLowerCase());
+  return out;
+}
+function safeDownloadName(name){
+  return (String(name||"문제은행").replace(/[\\/:?*"<>|]/g,"_").trim()||"문제은행");
+}
+function exportBankWorkbook(sheets,fileName){
+  if(typeof XLSX==="undefined")return alert("엑셀 내보내기 기능을 불러오지 못했습니다.");
+  const list=(sheets||[]).filter(Boolean);
+  if(!list.length)return toast("내보낼 문제 시트가 없습니다");
+  try{
+    const wb=XLSX.utils.book_new(),used=new Set();
+    list.forEach(sheet=>{
+      const ws=XLSX.utils.aoa_to_sheet(bankExportRows(sheet));
+      ws["!cols"]=[{wch:22},{wch:58},{wch:36},{wch:48}];
+      XLSX.utils.book_append_sheet(wb,ws,safeExcelSheetName(sheet.name,used));
+    });
+    XLSX.writeFile(wb,`${safeDownloadName(fileName)}.xlsx`,{compression:true});
+    toast(list.length===1?`'${list[0].name}' 내보냄`:`문제은행 ${list.length}개 시트 내보냄`);
+  }catch(e){
+    console.error("bank export failed",e);
+    alert("문제은행을 엑셀로 내보내지 못했습니다.");
+  }
+}
+function exportCurrentBankSheet(){
+  const sheet=currentBankEditSheet()||activeBankSheets()[0];
+  if(!sheet)return toast("내보낼 문제 시트가 없습니다");
+  exportBankWorkbook([sheet],`문제은행_${sheet.name}`);
+}
+function exportAllBankSheets(){
+  const sheets=activeBankSheets();
+  if(!sheets.length)return toast("내보낼 문제 시트가 없습니다");
+  const d=new Date(),pad=n=>String(n).padStart(2,"0");
+  const stamp=`${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}`;
+  exportBankWorkbook(sheets,`문제은행_전체_${stamp}`);
+}
 let bankImportBusy=false;
 async function importBankFiles(files){
   if(bankImportBusy)return toast("가져오는 중입니다");
@@ -7153,8 +7237,10 @@ function renderBankToolbar(){
   const menu=document.createElement("div");menu.className="menu hidden";
   const imp=document.createElement("button");imp.textContent="엑셀 가져오기";imp.onclick=()=>document.getElementById("bankExcelFiles").click();
   const bulkUpdate=document.createElement("button");bulkUpdate.textContent="엑셀 일괄 업데이트";bulkUpdate.onclick=()=>{if(quizSession)return toast("현재 문제풀이를 종료/저장한 뒤 업데이트해 주세요");document.getElementById("bankBulkUpdateFiles").click()};
+  const exportCurrent=document.createElement("button");exportCurrent.textContent="현재 시트 내보내기";exportCurrent.onclick=exportCurrentBankSheet;
+  const exportAll=document.createElement("button");exportAll.textContent="전체 문제은행 내보내기";exportAll.onclick=exportAllBankSheets;
   const edit=document.createElement("button");edit.textContent="문제 편집";edit.onclick=()=>{app.ui.bankMode="edit";saveLocal();renderMode()};
-  menu.append(imp,bulkUpdate,edit);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();manage.append(presetBtn,more,menu);panel.append(manage);
+  menu.append(imp,bulkUpdate,exportCurrent,exportAll,edit);more.onclick=e=>{e.stopPropagation();toggleFloatingMenu(more,menu)};menu.onclick=e=>e.stopPropagation();manage.append(presetBtn,more,menu);panel.append(manage);
 
   const start=document.createElement("button");start.className="primary quiz-start";start.textContent=available?"시작":"문제 없음";start.disabled=!available;
   start.onclick=()=>{
@@ -8102,6 +8188,11 @@ function renderBankEditor(){
   const bulkUpdateBtn=document.createElement("button");bulkUpdateBtn.textContent="엑셀 일괄 업데이트";
   bulkUpdateBtn.onclick=()=>{if(quizSession)return toast("현재 문제풀이를 종료/저장한 뒤 업데이트해 주세요");document.getElementById("bankBulkUpdateFiles").click()};
 
+  const exportCurrentBtn=document.createElement("button");exportCurrentBtn.textContent="현재 시트 내보내기";
+  exportCurrentBtn.onclick=exportCurrentBankSheet;
+  const exportAllBtn=document.createElement("button");exportAllBtn.textContent="전체 문제은행 내보내기";
+  exportAllBtn.onclick=exportAllBankSheets;
+
   const versionHistoryBtn=document.createElement("button");versionHistoryBtn.textContent="버전 기록";
   versionHistoryBtn.onclick=()=>openBankVersionHistory(currentBankEditSheet());
 
@@ -8233,7 +8324,7 @@ function renderBankEditor(){
 
   const archiveCurrent=document.createElement("button");archiveCurrent.textContent="시트 보관";archiveCurrent.onclick=archiveCurrentBankSheet;
   const restoreArchive=document.createElement("button");restoreArchive.textContent=`보관함 복원${archivedBankSheets().length?` (${archivedBankSheets().length})`:""}`;restoreArchive.onclick=restoreArchivedBankSheet;
-  menu.append(importBtn,bulkUpdateBtn,versionHistoryBtn,newSheet,rename,clearSameMemo,clearAllMemo,moveUp,moveDown,merge,archiveCurrent,restoreArchive,trashCurrent,restoreTrash,resetAll);
+  menu.append(importBtn,bulkUpdateBtn,exportCurrentBtn,exportAllBtn,versionHistoryBtn,newSheet,rename,clearSameMemo,clearAllMemo,moveUp,moveDown,merge,archiveCurrent,restoreArchive,trashCurrent,restoreTrash,resetAll);
   manageBtn.onclick=e=>{e.stopPropagation();toggleFloatingMenu(manageBtn,menu)};
   menu.onclick=e=>e.stopPropagation();manageWrap.append(manageBtn,menu);
   row.append(sel,add,bulk,manageWrap);
@@ -8664,7 +8755,13 @@ function plannerStore(){
   if(typeof p.calendarMonth!=="string")p.calendarMonth="";
   return p;
 }
-function plannerSaveLocal(){saveStudyQuickNow();saveLocal()}
+function plannerSaveLocal(){
+  /* planner/퀴즈에서 매우 자주 호출된다. app.study 전체를 매번 즉시 JSON.stringify 하면
+     모바일 WebView의 메인 스레드를 막을 수 있으므로 180ms 묶음 저장을 사용한다.
+     pagehide/visibilitychange의 flushTypingSave가 대기 중 저장을 즉시 마무리한다. */
+  saveStudyQuick();
+  saveLocal();
+}
 
 function plannerDateKey(d=new Date()){
   const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,"0"),day=String(d.getDate()).padStart(2,"0");
@@ -9288,8 +9385,9 @@ function reconcilePlannerDoneIntoAdventure({persist=true}={}){
 function plannerLog(kind,amount=1){
   const date=plannerToday(),p=plannerStore();
   if(!p.logs[date])p.logs[date]={memory:0,bank:0,typing:0};
-  p.logs[date][kind]=(Number(p.logs[date][kind])||0)+amount;plannerSaveLocal();
-  if(!cloudUser)return;
+  p.logs[date][kind]=(Number(p.logs[date][kind])||0)+amount;
+  // 문제 풀이마다 거대한 study JSON을 저장하지 않는다. 로그인 중이면 작은 Firestore increment가 권위 기록이다.
+  if(!cloudUser){plannerSaveLocal();return}
   plannerQueueWrite(setDoc(plannerLogDoc(cloudUser.uid,date),{
     [kind]:increment(amount),updatedAt:Date.now()
   },{merge:true}));
@@ -9554,10 +9652,12 @@ function plannerTaskRow(round,mission,{compact=false}={}){
   const run=(e,fn)=>{
     e.preventDefault();e.stopPropagation();
     const now=Date.now();
-    if(now<plannerMissionInteractionUntil||plannerMissionActionLocks.has(missionKey))return;
-    plannerMissionInteractionUntil=now+460;
+    /* 다른 미션까지 460ms 동안 막던 전역 잠금을 제거한다.
+       동일 미션의 중복 입력만 짧게 막고 DOM 이동 직후 합성 click은 별도 좌표 guard가 처리한다. */
+    if(plannerMissionActionLocks.has(missionKey))return;
+    plannerMissionInteractionUntil=Math.max(plannerMissionInteractionUntil,now+90);
     plannerMissionActionLocks.add(missionKey);
-    try{fn()}finally{setTimeout(()=>plannerMissionActionLocks.delete(missionKey),500)}
+    try{fn()}finally{setTimeout(()=>plannerMissionActionLocks.delete(missionKey),180)}
   };
   const bindAction=(button,fn)=>{
     let pointerId=null,startX=0,startY=0,armed=false;
@@ -9579,7 +9679,7 @@ function plannerTaskRow(round,mission,{compact=false}={}){
       const fire=armed&&(dx*dx+dy*dy<=144);
       pointerId=null;armed=false;
       if(!fire)return;
-      plannerSyntheticClickGuard={until:Date.now()+650,x:e.clientX,y:e.clientY};
+      plannerSyntheticClickGuard={until:Date.now()+280,x:e.clientX,y:e.clientY};
       run(e,fn);
     });
     button.addEventListener("click",e=>{
@@ -9970,6 +10070,7 @@ let widePlannerDate="";
 let widePlannerLastRenderKey="";
 let mobileMissionDate="";
 let mobileMissionMode="schedule";
+let mobileMissionOverdueLimit=24;
 function hasPermanentSidePanel(){return window.matchMedia("(min-width:700px) and (min-height:600px)").matches}
 function useCompactMissionPanel(){return !hasPermanentSidePanel()}
 function plannerDaySummary(date=plannerToday()){
@@ -10004,13 +10105,29 @@ function updatePlannerQuickButton(button=document.getElementById("plannerQuickBt
     button.setAttribute("aria-label",`하루 미션 ${x.done}/${x.total} 완료`);
   }
 }
+let plannerPanelSyncTimer=0;
+function plannerSyncAfterPanelOpen(){
+  if(!cloudUser)return;
+  clearTimeout(plannerPanelSyncTimer);
+  /* 패널을 누를 때마다 5개 컬렉션을 즉시 전수 동기화하면 저사양 문제가 아니라도
+     큰 데이터에서 UI가 멎어 보일 수 있다. 먼저 패널을 그린 뒤, 최근 동기화가
+     없었던 경우에만 조금 늦춰 서버 재확인을 한다. 미션/진도 완료는 realtime 구독 유지. */
+  const stale=!plannerRealtime.lastAt||Date.now()-plannerRealtime.lastAt>180000;
+  if(!stale||plannerRealtime.state==="syncing")return;
+  plannerPanelSyncTimer=setTimeout(()=>{
+    plannerPanelSyncTimer=0;
+    if(!cloudUser||document.visibilityState==="hidden")return;
+    plannerSyncNow({quiet:true});
+  },1200);
+}
 function openMobileMissionSheet(date=plannerToday()){
   mobileMissionMode="schedule";
+  mobileMissionOverdueLimit=24;
   mobileMissionDate=/^\d{4}-\d{2}-\d{2}$/.test(String(date||""))?String(date):plannerToday();
   renderMobileMissionSheet();
   document.getElementById("mobileMissionBackdrop")?.classList.remove("hidden");
   document.body.classList.add("mobile-mission-open");
-  if(cloudUser)plannerSyncNow({quiet:true});
+  plannerSyncAfterPanelOpen();
 }
 function openMobileProgressSheet(){
   mobileMissionMode="progress";
@@ -10020,7 +10137,7 @@ function openMobileProgressSheet(){
   renderMobileMissionSheet();
   document.getElementById("mobileMissionBackdrop")?.classList.remove("hidden");
   document.body.classList.add("mobile-mission-open");
-  if(cloudUser)plannerSyncNow({quiet:true});
+  plannerSyncAfterPanelOpen();
 }
 function closeMobileMissionSheet(){
   document.getElementById("mobileMissionBackdrop")?.classList.add("hidden");
@@ -10047,7 +10164,7 @@ function renderMobileMissionSheet(){
   document.getElementById("mobileMissionToday")?.toggleAttribute("disabled",date===plannerToday());
   updatePlannerQuickButton();
 }
-function shiftMobileMissionDate(days){mobileMissionDate=plannerAddDays(mobileMissionDate||plannerToday(),days);renderMobileMissionSheet()}
+function shiftMobileMissionDate(days){mobileMissionOverdueLimit=24;mobileMissionDate=plannerAddDays(mobileMissionDate||plannerToday(),days);renderMobileMissionSheet()}
 function widePlannerSelectedDate(){
   if(!/^\d{4}-\d{2}-\d{2}$/.test(widePlannerDate))widePlannerDate=plannerToday();
   return widePlannerDate;
@@ -10177,12 +10294,20 @@ function renderWidePlannerSchedule(list,count,date){
   if(overdue.length){
     const label=document.createElement("div");label.className="wide-planner-label";label.textContent=`밀린 미션 ${overdue.length}`;
     list.append(label);
-    overdue.forEach(([r,m])=>{
+    const mobileList=list.id==="mobileMissionList"&&useCompactMissionPanel();
+    const visibleOverdue=mobileList?overdue.slice(0,mobileMissionOverdueLimit):overdue;
+    visibleOverdue.forEach(([r,m])=>{
       const row=plannerTaskRow(r,m,{compact:true});
       const badge=document.createElement("small");badge.className="wide-planner-date";badge.textContent=m.date;
       row.querySelector(".planner-task-text")?.prepend(badge);
       list.append(row);
     });
+    if(mobileList&&visibleOverdue.length<overdue.length){
+      const more=document.createElement("button");more.type="button";more.className="mobile-mission-more";
+      more.textContent=`밀린 미션 더보기 +${Math.min(24,overdue.length-visibleOverdue.length)}`;
+      more.onclick=()=>{mobileMissionOverdueLimit+=24;renderMobileMissionSheet()};
+      list.append(more);
+    }
   }
   pending.forEach(([r,m])=>list.append(plannerTaskRow(r,m,{compact:true})));
   manualPending.forEach(item=>list.append(plannerManualRow(date,item,{compact:true})));
@@ -10609,10 +10734,13 @@ function scheduleStudyCloud(){
 let statsTimer=null;
 function scheduleBankStatsCloud(){
   if(!cloudUser||applyingRemote)return;
-  clearTimeout(statsTimer);statsTimer=setTimeout(async()=>{
+  clearTimeout(statsTimer);
+  // 폰/리더기에서는 연속 답변 사이의 대형 stats 문서 직렬화를 묶어서 처리한다.
+  const delay=window.matchMedia("(max-width:699px)").matches?1500:700;
+  statsTimer=setTimeout(async()=>{
     try{await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt||Date.now()});updateSync("✓",true)}
     catch(e){console.error(e);updateSync("!",false)}
-  },700);
+  },delay);
 }
 function bankIndexSheetMetadata(s){
   return {
@@ -10713,7 +10841,7 @@ onAuthStateChanged(auth,async user=>{
       if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){
         app.bank.stats=d.stats||{};
         if(d.adventure&&typeof d.adventure==="object")app.ui.quizAdventure=d.adventure;
-        app.bank.statsUpdatedAt=d.updatedAt||0;saveLocal();renderQuiz();
+        app.bank.statsUpdatedAt=d.updatedAt||0;saveBankStatsQuickNow();saveLocal();renderQuiz();
         if(app.study.mode==="planner")renderPlanner();
       }
     }
@@ -10725,11 +10853,12 @@ onAuthStateChanged(auth,async user=>{
     bankStatsUnsub=onSnapshot(statRef,snap=>{
       if(!snap.exists())return;
       const d=snap.data();
-      if((d.updatedAt||0)<(app.bank.statsUpdatedAt||0))return;
+      // 같은 기기에서 방금 보낸 stats snapshot(동일 timestamp)은 화면을 다시 그리지 않는다.
+      if((d.updatedAt||0)<=(app.bank.statsUpdatedAt||0))return;
       applyingRemote=true;
       app.bank.stats=d.stats||{};
       if(d.adventure&&typeof d.adventure==="object")app.ui.quizAdventure=d.adventure;
-      app.bank.statsUpdatedAt=d.updatedAt||Date.now();saveLocal();
+      app.bank.statsUpdatedAt=d.updatedAt||Date.now();saveBankStatsQuickNow();saveLocal();
       applyingRemote=false;
       reconcileExistingAdventureRoutes({persist:false});
       reconcilePlannerDoneIntoAdventure({persist:false});
