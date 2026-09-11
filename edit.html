@@ -4334,11 +4334,15 @@ function renderSubjects(){
   bindModeSwitchTap(appBackBtn,appInternalBack);
   global.append(appBackBtn);
 
-  const plannerBtn=document.createElement("button");plannerBtn.className="icon planner-btn";plannerBtn.id="plannerQuickBtn";plannerBtn.title="오늘의 뽀개기";plannerBtn.setAttribute("aria-label","오늘의 뽀개기");
+  const plannerBtn=document.createElement("button");plannerBtn.className="icon planner-btn";plannerBtn.id="plannerQuickBtn";plannerBtn.title="하루 미션";plannerBtn.setAttribute("aria-label","하루 미션");
   updatePlannerQuickButton(plannerBtn);
   bindModeSwitchTap(plannerBtn,()=>{
-    /* 상단 오늘 버튼은 원래 동작대로 뽀개기 전체 화면(오늘 미션 + 캘린더)으로 진입한다.
-       태블릿의 오른쪽 패널은 별도로 항상 고정되어 있으므로 별도 '전체' 버튼은 두지 않는다. */
+    /* 폰/리더기에서는 iPad 오른쪽 보조패널의 '일정'과 같은 하루 미션을
+       가벼운 바텀시트로 바로 연다. 넓은 화면에서는 기존 전체 플래너로 진입한다. */
+    if(useCompactMissionPanel()){
+      openMobileMissionSheet(plannerToday());
+      return;
+    }
     app.study.mode="planner";app.ui.workspace="memory";saveLocal();renderMode();
     if(cloudUser)plannerSyncNow({quiet:true});
   });
@@ -6951,7 +6955,7 @@ function finishAdventureQuiz(){
   if(!adv.review)plannerRecordPathProgress(adv);
   if(!adv.review&&adv.roundId&&adv.missionId){
     const round=plannerRoundById(adv.roundId),mission=round?.missions?.find(m=>m.id===adv.missionId);
-    if(round&&mission)plannerSetMissionState(round,mission,{done:true,completedDate:plannerToday()});
+    if(round&&mission&&!plannerMissionState(round,mission).done)plannerSetMissionState(round,mission,{done:true,completedDate:plannerToday()});
   }
   markAdventureCloud();renderQuiz();toast(adv.review?"복습 완료 ✓":"세트 완료 ✓");return true;
 }
@@ -8591,18 +8595,46 @@ function plannerScheduleDeferredFullRender(){
 function plannerQueueWrite(promise){
   plannerPendingWrites.add(promise);
   plannerSetRealtime("saving");
+  updateSync("…",true);
   promise.then(()=>{
     plannerPendingWrites.delete(promise);
-    if(!plannerPendingWrites.size)plannerSetRealtime("saved");
+    if(!plannerPendingWrites.size){plannerSetRealtime("saved");updateSync("✓",true)}
   }).catch(err=>{
     plannerPendingWrites.delete(promise);
     plannerSetRealtime("error",err?.code||"저장 실패");
+    updateSync("!",false);
   });
   return promise;
 }
 async function plannerWaitPendingWrites(){
   if(!plannerPendingWrites.size)return;
   await Promise.allSettled([...plannerPendingWrites]);
+}
+function plannerHasDirtyMissionState(){
+  return Object.values(plannerStore().missionState||{}).some(v=>!!v?.dirty);
+}
+async function plannerRetryDirtyMissionStates({wait=true}={}){
+  if(!cloudUser)return 0;
+  const p=plannerStore(),jobs=[];
+  for(const [key,state] of Object.entries(p.missionState||{})){
+    if(!state?.dirty)continue;
+    const cut=key.indexOf("::");if(cut<1)continue;
+    const roundId=key.slice(0,cut),missionId=key.slice(cut+2),stamp=Number(state.updatedAt)||Date.now();
+    const write=setDoc(plannerStateDoc(cloudUser.uid,roundId,missionId),{
+      roundId,missionId,
+      done:!!state.done,excluded:!!state.excluded,
+      completedDate:/^\d{4}-\d{2}-\d{2}$/.test(String(state.completedDate||""))?state.completedDate:"",
+      updatedAt:stamp
+    },{merge:true});
+    plannerQueueWrite(write);
+    write.then(()=>{
+      const cur=plannerStore().missionState[key];
+      if(cur?.dirty&&(Number(cur.updatedAt)||0)===stamp){delete cur.dirty;plannerSaveLocal()}
+    }).catch(()=>{});
+    jobs.push(write);
+  }
+  if(wait&&jobs.length)await Promise.allSettled(jobs);
+  return jobs.length;
 }
 
 function plannerFreshState(){
@@ -8885,17 +8917,20 @@ function plannerMissionState(round,mission){return plannerStore().missionState[p
 function plannerMissionExcluded(round,mission){return !!plannerMissionState(round,mission).excluded}
 function plannerMissionDone(round,mission){
   if(!round||!mission||plannerMissionExcluded(round,mission))return false;
+  const state=plannerMissionState(round,mission);
   if(mission.kind==="roundWrong"){
-    if(round.wrongReviewDone||plannerMissionState(round,mission).done)return true;
+    if(round.wrongReviewDone||state.done)return true;
     return plannerToday()>=(mission.date||round.reviewDate||round.end)&&!(round.wrongIds||[]).length;
   }
   if(mission.kind==="bankPath"){
-    // 회독 생성 시점의 누적 완료 횟수(pathBaseline)보다 이후 완료 횟수가 늘었는지로 판정한다.
-    // 이 방식은 기존 1회독 기록을 그대로 보존하면서 2회독도 다시 0→100으로 시작할 수 있다.
+    // 문제은행 세트 완료는 회독 미션 상태에도 별도로 저장한다.
+    // 따라서 다른 기기에서 누적 진도(pathProgress)가 늦게 도착하거나 누락되어도 완료 체크는 보존된다.
+    if(state.done)return true;
+    // 기존 누적 카운터 판정도 그대로 유지해 예전 기록과 호환한다.
     const count=Number(plannerStore().pathProgress[mission.pathKey]?.count)||0;
     return count>Number(mission.pathBaseline||0);
   }
-  return !!plannerMissionState(round,mission).done;
+  return !!state.done;
 }
 function plannerRoundProgress(round){
   const missions=(round?.missions||[]).filter(m=>!plannerMissionExcluded(round,m));
@@ -8950,6 +8985,8 @@ async function plannerSyncNow({quiet=false}={}){
   if(!cloudUser){if(!quiet)toast("로그인이 필요합니다");return false}
   plannerSetRealtime("syncing");
   try{
+    /* 앱이 닫히거나 백그라운드로 가기 전에 끝나지 못했던 체크를 먼저 재전송한다. */
+    await plannerRetryDirtyMissionStates({wait:true});
     /* 이 기기에서 막 보낸 체크/진도 저장이 있으면 먼저 서버 전송을 끝낸 뒤 내려받음 */
     await plannerWaitPendingWrites();
 
@@ -9205,8 +9242,13 @@ function plannerRecordPathProgress(adv){
   for(const round of p.rounds){
     for(const mission of (round.missions||[])){
       if(mission.kind!=="bankPath"||mission.pathKey!==pathKey||plannerMissionExcluded(round,mission))continue;
-      if(plannerMissionDone(round,mission)&&!plannerMissionState(round,mission).completedDate){
-        plannerSetMissionState(round,mission,{completedDate});
+      // 누적 카운터만 믿지 않고 '이 회독의 이 미션을 완료했다'는 체크도 독립적으로 저장한다.
+      // 폰에서 세트를 끝낸 직후 앱을 닫아 pathProgress 전송이 끊겨도 다음 접속 때 dirty 상태가 재전송된다.
+      if(plannerMissionDone(round,mission)){
+        const state=plannerMissionState(round,mission);
+        if(!state.done||!state.completedDate){
+          plannerSetMissionState(round,mission,{done:true,completedDate:state.completedDate||completedDate});
+        }
       }
     }
   }
@@ -9943,23 +9985,23 @@ function updatePlannerQuickButton(button=document.getElementById("plannerQuickBt
   button.classList.remove("mission-complete","mission-has-count");
   if(!useCompactMissionPanel()){
     button.textContent="오늘";
-    button.setAttribute("aria-label","오늘의 뽀개기");
+    button.setAttribute("aria-label","하루 미션");
     return;
   }
   const x=plannerDaySummary(plannerToday());
   if(!x.total){
     button.textContent="오늘";
-    button.setAttribute("aria-label","오늘 미션 없음");
+    button.setAttribute("aria-label","하루 미션 없음");
     return;
   }
   if(x.done>=x.total){
     button.textContent="✓";
     button.classList.add("mission-complete");
-    button.setAttribute("aria-label",`오늘 미션 완료 ${x.total}/${x.total}`);
+    button.setAttribute("aria-label",`하루 미션 완료 ${x.total}/${x.total}`);
   }else{
     button.textContent=`${x.done}/${x.total}`;
     button.classList.add("mission-has-count");
-    button.setAttribute("aria-label",`오늘 미션 ${x.done}/${x.total} 완료`);
+    button.setAttribute("aria-label",`하루 미션 ${x.done}/${x.total} 완료`);
   }
 }
 function openMobileMissionSheet(date=plannerToday()){
@@ -10545,7 +10587,14 @@ function studyDoc(u){return doc(db,"users",u,"study","state")}
 function bankIndexDoc(u){return doc(db,"users",u,"bank","index")}
 function bankSheetDoc(u,id){return doc(db,"users",u,"bankSheets",id)}
 function bankStatsDoc(u){return doc(db,"users",u,"quiz","stats")}
-function updateSync(text,signed=false){const b=document.getElementById("syncBtn");if(!b)return;b.textContent=text;b.classList.toggle("signed",signed)}
+function updateSync(text,signed=false){
+  const b=document.getElementById("syncBtn");if(!b)return;
+  b.textContent=text;b.classList.toggle("signed",signed);
+  if(text==="…")b.title="저장 중…";
+  else if(text==="✓")b.title=signed?"저장됨 · 자동 동기화":"동기화";
+  else if(text==="!")b.title="저장 실패 · 다시 연결되면 재시도";
+  else b.title=signed?"자동 동기화 중":"Google 로그인";
+}
 async function startLogin(){
   try{await signInWithPopup(auth,provider)}
   catch(e){console.error(e);toast(e.code==="auth/popup-blocked"?"팝업 차단 해제 후 다시 로그인":"로그인 실패")}
@@ -10699,12 +10748,28 @@ onAuthStateChanged(auth,async user=>{
 
 /* 새로고침/백그라운드 복귀 때 수동 동기화를 다시 누르지 않아도 최신 상태를 회복 */
 window.addEventListener("online",()=>{
-  if(cloudUser)plannerSyncNow({quiet:true});
+  if(!cloudUser)return;
+  plannerRetryDirtyMissionStates({wait:false});
+  plannerSyncNow({quiet:true});
+});
+window.addEventListener("offline",()=>{
+  if(cloudUser)plannerSetRealtime("offline");
+});
+window.addEventListener("pagehide",()=>{
+  // 완료 체크는 먼저 로컬에 남아 있으므로, 가능한 경우 마지막 서버 전송도 시도한다.
+  if(cloudUser&&plannerHasDirtyMissionState())plannerRetryDirtyMissionStates({wait:false});
 });
 document.addEventListener("visibilitychange",()=>{
-  if(document.visibilityState!=="visible"||!cloudUser)return;
+  if(!cloudUser)return;
+  if(document.visibilityState==="hidden"){
+    if(plannerHasDirtyMissionState())plannerRetryDirtyMissionStates({wait:false});
+    return;
+  }
+  // 폰을 다시 열었을 때 2분 타이머와 무관하게 미전송 완료 체크부터 즉시 재전송한다.
+  const dirty=plannerHasDirtyMissionState();
+  if(dirty)plannerRetryDirtyMissionStates({wait:false});
   const stale=!plannerRealtime.lastAt||Date.now()-plannerRealtime.lastAt>120000;
-  if(stale&&!plannerRoundFormInteractionActive())plannerSyncNow({quiet:true});
+  if((dirty||stale)&&!plannerRoundFormInteractionActive())plannerSyncNow({quiet:true});
 });
 
 /* 브라우저 history는 강제로 가로채지 않는다.
