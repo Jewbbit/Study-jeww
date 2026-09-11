@@ -3199,6 +3199,34 @@ body.mobile-mission-open{overflow:hidden}
   .wide-progress-row.current .wide-progress-track i{background:#4f7a61}
 }
 </style>
+
+<style id="mobile-progress-summary-style">
+/* 폰/리더기: 진도 버튼은 오른쪽 패널과 같은 요약을 가벼운 바텀시트로 보여준다. */
+.mobile-mission-list .wide-progress-round-head{
+  display:flex;align-items:center;gap:8px;padding:8px 2px 7px;border-bottom:1px solid #ececef
+}
+.mobile-mission-list .wide-progress-round-head strong{
+  flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.mobile-mission-list .wide-progress-round-head span{font-size:9.5px;color:#85868c;white-space:nowrap}
+.mobile-mission-list .wide-progress-row{
+  display:block;width:100%;min-height:54px;border:0!important;border-bottom:1px solid #efeff1!important;
+  background:#fff!important;padding:9px 2px!important;text-align:left!important;color:#35363b!important
+}
+.mobile-mission-list .wide-progress-row.current{background:#f6f8f6!important}
+.mobile-mission-list .wide-progress-row.done{opacity:.72}
+.mobile-mission-list .wide-progress-row-top{display:flex;align-items:center;gap:8px;min-width:0}
+.mobile-mission-list .wide-progress-row-top strong{flex:1;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mobile-mission-list .wide-progress-row-top b{font-size:10px;color:#66676d;white-space:nowrap}
+.mobile-mission-list .wide-progress-row-sub{display:block;margin-top:3px;font-size:9.5px;color:#85868c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mobile-mission-list .wide-progress-track{display:block;height:4px;margin-top:7px;background:#ececef;border-radius:999px;overflow:hidden}
+.mobile-mission-list .wide-progress-track i{display:block;height:100%;background:#777980;border-radius:999px}
+.mobile-mission-list .wide-progress-row.current .wide-progress-track i{background:#4f7a61}
+@media(max-width:699px), (monochrome){
+  header,.quiz-actions{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+  .song-jump-flash{animation:none!important}
+}
+</style>
 </head>
 <body>
 <header>
@@ -3332,10 +3360,10 @@ body.mobile-mission-open{overflow:hidden}
 <div id="mobileMissionBackdrop" class="mobile-mission-backdrop hidden" aria-hidden="false">
   <section class="mobile-mission-sheet" role="dialog" aria-modal="true" aria-label="하루 미션">
     <div class="mobile-mission-head">
-      <strong>하루 미션</strong><span id="mobileMissionCount"></span>
+      <strong id="mobileMissionTitle">하루 미션</strong><span id="mobileMissionCount"></span>
       <button id="mobileMissionClose" type="button" aria-label="닫기">×</button>
     </div>
-    <div class="mobile-mission-date-nav">
+    <div id="mobileMissionDateNav" class="mobile-mission-date-nav">
       <button id="mobileMissionPrev" type="button" aria-label="이전 날짜">‹</button>
       <strong id="mobileMissionDateLabel"></strong>
       <button id="mobileMissionNext" type="button" aria-label="다음 날짜">›</button>
@@ -4316,6 +4344,7 @@ function renderSubjects(){
   });
   const pathBtn=document.createElement("button");pathBtn.className="global-path-btn";pathBtn.textContent="진도";pathBtn.title="진도 학습";pathBtn.setAttribute("aria-label","진도 학습");
   bindModeSwitchTap(pathBtn,()=>{
+    if(useCompactMissionPanel()){openMobileProgressSheet();return}
     app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="path";
     adventureStore().activeSheetId="";
     quizLastComplete=null;
@@ -5008,7 +5037,7 @@ function setTypingPractice(on){
   app.ui.typingPractice=!!on;
   app.study.mode="study";app.ui.workspace="memory";
   resetTypingPracticeSessions();
-  saveLocal();renderMode();renderStudy();
+  saveLocal();renderMode();
 }
 function storeTypingResult(elapsed,hints=0){
   const key=typingPracticeKey();
@@ -5265,11 +5294,22 @@ function renderStudy(){
   }
   let rows=sh().rows.filter(r=>(r.type==="section"||r.type==="label")?(r.title||"").trim():(r.correct||r.category||r.memo));
 
-  let hiddenBySection=false;
+  // 대주제/소주제 접힘을 계층으로 추적한다. 구분 라벨은 구조를 끊지 않는다.
+  // 이전 구현은 새 소주제를 만날 때 대주제의 접힘 상태를 덮어써서,
+  // 대주제를 접어도 중간 라벨/소주제 뒤 내용이 다시 보일 수 있었다.
+  let collapsedMajor=false,collapsedSub=false;
   rows.forEach(r=>{
     if(r.type==="section"){
-      hiddenBySection=app.ui.typingPractice?false:!!app.ui.collapsedSections[r.id];
-      const head=document.createElement("div");head.className="section-study-head "+(r.level==="major"?"major":"sub")+(hiddenBySection?" collapsed":"");head.dataset.studyRowId=r.id;
+      const isMajor=r.level==="major";
+      if(isMajor){
+        collapsedMajor=app.ui.typingPractice?false:!!app.ui.collapsedSections[r.id];
+        collapsedSub=false;
+      }else{
+        collapsedSub=app.ui.typingPractice?false:!!app.ui.collapsedSections[r.id];
+        if(collapsedMajor)return;
+      }
+      const hiddenBySection=isMajor?collapsedMajor:collapsedSub;
+      const head=document.createElement("div");head.className="section-study-head "+(isMajor?"major":"sub")+(hiddenBySection?" collapsed":"");head.dataset.studyRowId=r.id;
       applyStudyColor(head,r.color,true);
       const content=document.createElement("div");content.className="section-title";
       if(sh().sectionMemorize){
@@ -5343,7 +5383,7 @@ function renderStudy(){
       if(songHint){songHint.classList.add("section-song-inline");content.append(songHint)}
       head.append(content,w);list.append(head);return;
     }
-    if(hiddenBySection)return;
+    if(collapsedMajor||collapsedSub)return;
 
     if(r.type==="label"){
       const label=document.createElement("div");label.className="study-label-row";label.dataset.studyRowId=r.id;
@@ -9609,16 +9649,17 @@ function renderPlanner(force=false){
       const missions=[];
       for(const r of p.rounds)for(const m of plannerMissionsForDate(r,date))missions.push([r,m]);
       const done=missions.filter(([r,m])=>plannerMissionDone(r,m)).length;
-      const manual=p.manual[date]||[];
+      const manual=p.manual[date]||[],manualDone=manual.filter(x=>x.done).length;
+      const totalCount=missions.length+manual.length,totalDone=done+manualDone;
       const b=document.createElement("button");b.type="button";b.className="planner-day";
       if(plannerMonthKey(date)!==p.calendarMonth)b.classList.add("other");
       if(date===today)b.classList.add("today");
       if(date===p.selectedDate)b.classList.add("selected");
-      if(missions.length&&done===missions.length)b.classList.add("done");
+      if(totalCount&&totalDone===totalCount)b.classList.add("done");
       const n=document.createElement("span");n.className="planner-day-num";n.textContent=String(plannerDate(date).getDate());
       const meta=document.createElement("span");meta.className="planner-day-meta";
-      const labels=[];if(missions.length)labels.push(`${done}/${missions.length}${done===missions.length?" ✓":""}`);if(manual.length)labels.push(`＋${manual.length}`);
-      meta.textContent=labels.join(" · ");b.append(n,meta);b.onclick=()=>plannerSelectDate(date);cal.append(b);
+      meta.textContent=totalCount?`${totalDone}/${totalCount}${totalDone===totalCount?" ✓":""}`:"";
+      b.append(n,meta);b.onclick=()=>plannerSelectDate(date);cal.append(b);
     });
     calWrap.append(cal);area.append(calWrap);
 
@@ -9886,6 +9927,7 @@ let widePlannerSideTab="today";
 let widePlannerDate="";
 let widePlannerLastRenderKey="";
 let mobileMissionDate="";
+let mobileMissionMode="schedule";
 function hasPermanentSidePanel(){return window.matchMedia("(min-width:700px) and (min-height:600px)").matches}
 function useCompactMissionPanel(){return !hasPermanentSidePanel()}
 function plannerDaySummary(date=plannerToday()){
@@ -9921,7 +9963,18 @@ function updatePlannerQuickButton(button=document.getElementById("plannerQuickBt
   }
 }
 function openMobileMissionSheet(date=plannerToday()){
+  mobileMissionMode="schedule";
   mobileMissionDate=/^\d{4}-\d{2}-\d{2}$/.test(String(date||""))?String(date):plannerToday();
+  renderMobileMissionSheet();
+  document.getElementById("mobileMissionBackdrop")?.classList.remove("hidden");
+  document.body.classList.add("mobile-mission-open");
+  if(cloudUser)plannerSyncNow({quiet:true});
+}
+function openMobileProgressSheet(){
+  mobileMissionMode="progress";
+  // 폰/리더기에서는 과거에 눌렀던 회독보다 '지금 하는 회독'을 우선한다.
+  const round=widePlannerProgressRound();
+  if(round)app.ui.activePlannerRoundId=round.id;
   renderMobileMissionSheet();
   document.getElementById("mobileMissionBackdrop")?.classList.remove("hidden");
   document.body.classList.add("mobile-mission-open");
@@ -9933,10 +9986,21 @@ function closeMobileMissionSheet(){
 }
 function renderMobileMissionSheet(){
   const wrap=document.getElementById("mobileMissionBackdrop"),list=document.getElementById("mobileMissionList"),count=document.getElementById("mobileMissionCount"),label=document.getElementById("mobileMissionDateLabel");
+  const title=document.getElementById("mobileMissionTitle"),nav=document.getElementById("mobileMissionDateNav");
   if(!wrap||!list||!count||!label)return;
+  list.innerHTML="";count.textContent="";
+  if(mobileMissionMode==="progress"){
+    if(title)title.textContent="진도";
+    nav?.classList.add("hidden");
+    label.textContent="";label.title="";
+    renderWidePlannerProgress(list,count);
+    updatePlannerQuickButton();
+    return;
+  }
+  if(title)title.textContent="하루 미션";
+  nav?.classList.remove("hidden");
   const date=mobileMissionDate||plannerToday(),d=plannerDate(date);
   label.textContent=`${d.getMonth()+1}/${d.getDate()}`;label.title=date;
-  list.innerHTML="";count.textContent="";
   renderWidePlannerSchedule(list,count,date);
   document.getElementById("mobileMissionToday")?.toggleAttribute("disabled",date===plannerToday());
   updatePlannerQuickButton();
@@ -9986,11 +10050,12 @@ function widePlannerProgressRound(){
   const current=[...p.rounds].filter(r=>r.start<=today&&today<=(r.reviewDate||r.end)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
   const unfinished=[...p.rounds].filter(r=>plannerRoundProgress(r).remaining>0).sort((a,b)=>String(b.start||"").localeCompare(String(a.start||""))||(b.createdAt||0)-(a.createdAt||0))[0];
   const latest=[...p.rounds].sort((a,b)=>String(b.start||"").localeCompare(String(a.start||""))||(b.createdAt||0)-(a.createdAt||0))[0];
-  return selected||current||unfinished||latest||null;
+  return useCompactMissionPanel()?(current||unfinished||selected||latest||null):(selected||current||unfinished||latest||null);
 }
 function widePlannerWarpProgress(round,sheetId,order="sequence"){
   const sheet=adventureSheet(sheetId);
   if(!round||!sheet)return toast("현재 회독의 진도 길을 찾지 못했습니다");
+  closeMobileMissionSheet();
   suspendQuizForWorkspaceNavigation();
   app.ui.activePlannerRoundId=round.id;
   setAdventureOrder(sheetId,order||"sequence");
@@ -10104,6 +10169,14 @@ function renderWidePlannerSide(){
   const eligible=widePlannerSideEligible();
   side.classList.toggle("eligible",eligible);
   document.body.classList.toggle("wide-planner-eligible",eligible);
+
+  /* 폰/리더기에서는 보이지 않는 오른쪽 패널 DOM을 매번 다시 만들지 않는다. */
+  if(!eligible){
+    side.classList.remove("collapsed");
+    document.body.classList.remove("wide-planner-collapsed");
+    toggle.hidden=true;
+    return;
+  }
 
   /* 보조패널은 태블릿 이상에서 항상 펼친 상태로 고정한다.
      기존 collapsed 값은 데이터 호환을 위해 남겨두되 UI에서는 사용하지 않는다. */
@@ -10230,8 +10303,10 @@ function renderMode(){
     document.getElementById("studyBtn").classList.toggle("active",mode==="study"&&!app.ui.typingPractice);
     document.getElementById("typingPracticeBtn")?.classList.toggle("active",mode==="study"&&!!app.ui.typingPractice);
     document.getElementById("editBtn").classList.toggle("active",mode==="edit");
-    if(mode==="songs")renderSongMap();
-    if(mode==="planner")renderPlanner();
+    if(mode==="study")renderStudy();
+    else if(mode==="edit")renderEdit();
+    else if(mode==="songs")renderSongMap();
+    else if(mode==="planner")renderPlanner();
   }else{
     document.getElementById("studyMenu")?.classList.add("hidden");
     document.getElementById("studyView").classList.add("hidden");document.getElementById("editView").classList.add("hidden");document.getElementById("songMapView").classList.add("hidden");document.getElementById("plannerView").classList.add("hidden");
@@ -10251,7 +10326,13 @@ function renderMode(){
   updateAppBackButton();
   syncThumbKeypad();
 }
-function render(){renderSubjects();renderSheets();updateMemorySummary();renderStudy();renderEdit();renderMode()}
+function render(){
+  renderSubjects();
+  renderSheets();
+  updateMemorySummary();
+  // 활성 화면만 그린다. 대형 암기판/편집표를 동시에 만들지 않아 저사양 리더기 메모리 사용을 줄인다.
+  renderMode();
+}
 
 
 /* local appearance settings */
@@ -10457,7 +10538,6 @@ async function openMemoryWorkspace(){
     await ensureStudyDataReady();
     updateSync((cloudUser||auth.currentUser)?"✓":"로그인",!!(cloudUser||auth.currentUser));
     renderMode();
-    renderStudy();
   }
 }
 
