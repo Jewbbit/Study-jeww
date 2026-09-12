@@ -10534,7 +10534,7 @@ function updateTypingFloatingBadge(){
 /* ===== 교육과정 원문 빈칸 타자 =====
    공식 초등학교 교육과정 합본을 압축 문자열로 넣고 교육과정 탭을 열 때만 해제한다.
    기본 빈칸은 1차 자동 후보이며, 사용자가 문단별로 삭제/수정/추가한 값만 study에 저장한다. */
-const CURRICULUM_DATA_URL="./curriculum.json?v=20260912-2";
+const CURRICULUM_DATA_URL="./curriculum.json?v=20260912-3";
 let curriculumData=null,curriculumLoadPromise=null,curriculumScopeCache=new Map();
 let curriculumPracticeSession=null,curriculumTimerHandle=0,curriculumCloudTimer=0,curriculumPendingFocus="";
 let curriculumLastSelection=null;
@@ -10593,11 +10593,28 @@ async function ensureCurriculumData(){
   if(curriculumData)return curriculumData;
   if(curriculumLoadPromise)return curriculumLoadPromise;
   curriculumLoadPromise=(async()=>{
-    const res=await fetch(CURRICULUM_DATA_URL,{cache:"force-cache"});
-    if(!res.ok)throw new Error(`curriculum data ${res.status}`);
-    const data=await res.json();
-    if(!data||!Array.isArray(data.items)||!Array.isArray(data.subjects))throw new Error("invalid curriculum data");
-    curriculumData=data;curriculumScopeCache.clear();migrateCurriculumGroupedState();return curriculumData;
+    // curriculum.json은 사용자가 나중에 올릴 수 있으므로 브라우저/PWA의 예전 404 캐시를 믿지 않는다.
+    // 1차는 버전 URL, 실패하면 완전한 cache-buster URL로 한 번 더 시도한다.
+    const urls=[CURRICULUM_DATA_URL,`./curriculum.json?cb=${Date.now()}`];
+    let lastErr=null;
+    for(const url of urls){
+      const controller=typeof AbortController!=="undefined"?new AbortController():null;
+      const timer=controller?setTimeout(()=>controller.abort(),12000):0;
+      try{
+        const res=await fetch(url,{cache:"no-store",signal:controller?.signal});
+        if(!res.ok)throw new Error(`HTTP ${res.status}`);
+        const raw=await res.text();
+        if(/^\s*</.test(raw))throw new Error("curriculum.json 대신 HTML 응답을 받음");
+        const data=JSON.parse(raw);
+        if(!data||!Array.isArray(data.items)||!Array.isArray(data.subjects))throw new Error("교육과정 데이터 형식 오류");
+        curriculumData=data;curriculumScopeCache.clear();migrateCurriculumGroupedState();return curriculumData;
+      }catch(err){
+        lastErr=err;
+      }finally{
+        if(timer)clearTimeout(timer);
+      }
+    }
+    throw lastErr||new Error("curriculum.json load failed");
   })().catch(err=>{curriculumLoadPromise=null;throw err});
   return curriculumLoadPromise;
 }
@@ -10814,7 +10831,16 @@ function renderCurriculumCurrent(){
 async function renderCurriculum(){
   const box=document.getElementById("curriculumPassage");
   if(!curriculumData){box.innerHTML='<div class="curriculum-loading">교육과정 원문을 불러오는 중…</div>';
-    try{await ensureCurriculumData()}catch(err){console.error(err);box.innerHTML='<div class="curriculum-loading">curriculum.json을 열지 못했습니다. edit.html과 같은 위치에 데이터 파일이 있는지 확인해 주세요.</div>';return}
+    try{await ensureCurriculumData()}catch(err){
+      console.error("curriculum load failed",err);
+      box.innerHTML='';
+      const wrap=document.createElement("div");wrap.className="curriculum-loading";
+      const msg=document.createElement("div");msg.textContent="교육과정 데이터를 열지 못했습니다. 기다리는 문제라기보다 파일 경로 또는 이전 캐시 문제일 가능성이 큽니다.";
+      const sub=document.createElement("div");sub.style.cssText="margin-top:7px;font-size:10px;color:#8a8b90";sub.textContent="curriculum.json이 edit.html과 같은 위치에 있는지 확인한 뒤 다시 시도하세요.";
+      const retry=document.createElement("button");retry.type="button";retry.textContent="다시 불러오기";retry.style.cssText="margin-top:10px;border:1px solid #d8d8dc;background:#fff;border-radius:7px;padding:8px 10px";
+      retry.onclick=()=>{curriculumLoadPromise=null;renderCurriculum()};
+      wrap.append(msg,sub,retry);box.append(wrap);return
+    }
     if((app.ui.workspace||"memory")!=="curriculum")return;
   }
   const sel=document.getElementById("curriculumSubject"),ui=curriculumUi(),subjects=["전체",...(curriculumData.subjects||[])];
