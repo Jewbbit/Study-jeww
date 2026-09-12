@@ -3280,7 +3280,15 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-edit-add{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:5px;margin-top:7px}
 .curriculum-edit-add input{min-width:0;height:34px;border:1px solid #d8d8dc;border-radius:6px;padding:5px 8px;font-size:12px;background:#fff}
 .curriculum-edit-add button,.curriculum-edit-actions button{border:1px solid #dedee1;background:#fff;border-radius:6px;padding:6px 8px;font-size:10.5px;color:#55565b}
-.curriculum-edit-actions{display:flex;justify-content:flex-end;gap:5px;margin-top:8px}
+.curriculum-edit-actions{display:flex;justify-content:flex-end;gap:5px;margin-top:8px;flex-wrap:wrap}
+.curriculum-page-actions{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0;padding-top:8px;border-top:1px solid #e6e6e8}
+.curriculum-page-actions button{border:1px solid #d9d9dd;background:#fff;border-radius:6px;padding:7px 9px;font-size:10.5px;color:#4f5055}
+.curriculum-page-actions button:disabled{opacity:.38}
+.curriculum-source-editor{margin-top:8px;padding-top:8px;border-top:1px solid #e6e6e8}
+.curriculum-source-editor textarea{width:100%;min-height:230px;box-sizing:border-box;border:1px solid #d8d8dc;border-radius:7px;background:#fff;padding:10px;font:inherit;font-size:12px;line-height:1.65;resize:vertical;white-space:pre-wrap}
+.curriculum-source-editor-actions{display:flex;justify-content:flex-end;gap:5px;margin-top:6px;flex-wrap:wrap}
+.curriculum-source-editor-actions button{border:1px solid #d9d9dd;background:#fff;border-radius:6px;padding:7px 9px;font-size:10.5px;color:#4f5055}
+.curriculum-edit-help{font-size:9.5px;color:#85868c;line-height:1.5;margin-top:5px}
 .curriculum-loading{padding:36px 12px;text-align:center;color:#77787e;font-size:12px}
 @media(max-width:640px){
   #curriculumModebar{gap:4px;margin-bottom:2px!important}
@@ -3318,6 +3326,9 @@ body.mobile-mission-open{overflow:hidden}
   .curriculum-selection-row{grid-template-columns:1fr}
   .curriculum-selection-row button{width:100%;min-height:40px;font-size:12px}
   .curriculum-edit-panel{bottom:4px}
+  .curriculum-page-actions{display:grid;grid-template-columns:1fr 1fr}
+  .curriculum-page-actions button{min-height:40px;font-size:11px}
+  .curriculum-source-editor textarea{min-height:260px;font-size:16px}
 }
 @media(monochrome){.curriculum-edit-mark{background:#fff!important;border-bottom:2px solid #111!important}}
 </style>
@@ -10535,9 +10546,9 @@ function updateTypingFloatingBadge(){
    공식 초등학교 교육과정 합본을 압축 문자열로 넣고 교육과정 탭을 열 때만 해제한다.
    기본 빈칸은 1차 자동 후보이며, 사용자가 문단별로 삭제/수정/추가한 값만 study에 저장한다. */
 const CURRICULUM_DATA_URL="./curriculum.json?v=20260912-3";
-let curriculumData=null,curriculumLoadPromise=null,curriculumScopeCache=new Map();
+let curriculumData=null,curriculumLoadPromise=null,curriculumScopeCache=new Map(),curriculumDerivedItemsCache=null;
 let curriculumPracticeSession=null,curriculumTimerHandle=0,curriculumCloudTimer=0,curriculumPendingFocus="";
-let curriculumLastSelection=null;
+let curriculumLastSelection=null,curriculumSourceEditing=false;
 
 function curriculumUi(){
   if(!app.ui.curriculum||typeof app.ui.curriculum!=="object")app.ui.curriculum={subject:"전체",mode:"copy",edit:false};
@@ -10551,6 +10562,7 @@ function curriculumStore(){
   if(!st.positions||typeof st.positions!=="object")st.positions={};
   if(!st.blankOverrides||typeof st.blankOverrides!=="object")st.blankOverrides={};
   if(!st.records||typeof st.records!=="object")st.records={};
+  if(!Array.isArray(st.pageOps))st.pageOps=[];
   return st;
 }
 function migrateCurriculumGroupedState(){
@@ -10607,7 +10619,7 @@ async function ensureCurriculumData(){
         if(/^\s*</.test(raw))throw new Error("curriculum.json 대신 HTML 응답을 받음");
         const data=JSON.parse(raw);
         if(!data||!Array.isArray(data.items)||!Array.isArray(data.subjects))throw new Error("교육과정 데이터 형식 오류");
-        curriculumData=data;curriculumScopeCache.clear();migrateCurriculumGroupedState();return curriculumData;
+        curriculumData=data;curriculumScopeCache.clear();curriculumDerivedItemsCache=null;migrateCurriculumGroupedState();return curriculumData;
       }catch(err){
         lastErr=err;
       }finally{
@@ -10620,11 +10632,41 @@ async function ensureCurriculumData(){
 }
 function curriculumScopeName(){return curriculumUi().subject||"전체"}
 function curriculumScopeKey(){return `${curriculumScopeName()}::${curriculumUi().mode}`}
+function invalidateCurriculumDerived(){curriculumDerivedItemsCache=null;curriculumScopeCache.clear()}
+function curriculumDerivedItems(){
+  if(!curriculumData)return [];
+  if(curriculumDerivedItemsCache)return curriculumDerivedItemsCache;
+  const pages=(curriculumData.items||[]).map(x=>({...x}));
+  for(const op of curriculumStore().pageOps||[]){
+    if(!op||!op.type)continue;
+    if(op.type==="edit"){
+      const i=pages.findIndex(x=>String(x.i)===String(op.id));
+      if(i>=0&&typeof op.text==="string"&&op.text.trim())pages[i]={...pages[i],t:op.text,userEdited:true};
+      continue;
+    }
+    if(op.type==="split"){
+      const i=pages.findIndex(x=>String(x.i)===String(op.id));if(i<0)continue;
+      const src=pages[i],cut=Number(op.offset);
+      if(!Number.isInteger(cut)||cut<=0||cut>=src.t.length||!op.leftId||!op.rightId)continue;
+      const left={...src,i:op.leftId,t:src.t.slice(0,cut),legacy:[],customPage:true};
+      const right={...src,i:op.rightId,t:src.t.slice(cut),legacy:[],customPage:true};
+      pages.splice(i,1,left,right);continue;
+    }
+    if(op.type==="merge"){
+      const i=pages.findIndex(x=>String(x.i)===String(op.leftId));if(i<0||i+1>=pages.length)continue;
+      const left=pages[i],right=pages[i+1];
+      if(String(right.i)!==String(op.rightId)||left.s!==right.s||!op.newId)continue;
+      const sep=typeof op.sep==="string"?op.sep:"\n\n";
+      pages.splice(i,2,{...left,i:op.newId,t:left.t+sep+right.t,p0:left.p0||right.p0,p1:right.p1||left.p1,legacy:[],customPage:true,userEdited:!!(left.userEdited||right.userEdited)});
+    }
+  }
+  curriculumDerivedItemsCache=pages;return pages;
+}
 function curriculumItems(){
   if(!curriculumData)return [];
   const scope=curriculumScopeName();
   if(curriculumScopeCache.has(scope))return curriculumScopeCache.get(scope);
-  const arr=scope==="전체"?curriculumData.items:curriculumData.items.filter(x=>x.s===scope);
+  const all=curriculumDerivedItems(),arr=scope==="전체"?all:all.filter(x=>x.s===scope);
   curriculumScopeCache.set(scope,arr);return arr;
 }
 function curriculumCurrentIndex(){
@@ -10654,6 +10696,63 @@ function setCurriculumSpans(item,spans){
 function clearCurriculumSpans(item){
   curriculumStore().blankOverrides[String(item.i)]=[];
   saveLocal();scheduleCurriculumCloud(900);
+}
+function setCurriculumBlankKey(id,spans){
+  const st=curriculumStore();
+  if(!Array.isArray(spans)||!spans.length)delete st.blankOverrides[String(id)];
+  else st.blankOverrides[String(id)]=spans.map(x=>[Number(x[0]),Number(x[1])]);
+}
+function appendCurriculumPageOp(op){curriculumStore().pageOps.push({...op,at:Date.now()});invalidateCurriculumDerived()}
+function setCurriculumPositionToItem(id){
+  const items=curriculumItems(),i=items.findIndex(x=>String(x.i)===String(id));
+  if(i>=0)curriculumStore().positions[curriculumScopeName()]=i;
+}
+function remapCurriculumSpans(oldText,newText,spans){
+  const out=[];
+  for(const sp of spans||[]){
+    const ans=oldText.slice(sp[0],sp[1]);if(!ans)continue;
+    if(newText.slice(sp[0],sp[0]+ans.length)===ans){out.push([sp[0],sp[0]+ans.length]);continue}
+    const hits=[];let at=0;while((at=newText.indexOf(ans,at))>=0){hits.push(at);at+=Math.max(1,ans.length)}
+    if(!hits.length)continue;
+    const best=hits.reduce((a,b)=>Math.abs(b-sp[0])<Math.abs(a-sp[0])?b:a,hits[0]);out.push([best,best+ans.length]);
+  }
+  return validCurriculumSpans({t:newText},out);
+}
+function saveCurriculumSourceEdit(item,newText){
+  newText=String(newText??"").replace(/\r\n?/g,"\n");
+  if(!newText.trim())return toast("원문을 비워 둘 수 없습니다");
+  if(newText===item.t){curriculumSourceEditing=false;renderCurriculumCurrent();return}
+  // 이 편집기는 주로 PDF 추출 과정에서 생긴 잘못된 줄바꿈/공백을 손보는 용도다.
+  // 공백을 제외한 글자 자체가 달라질 때만 한 번 더 확인해 공식 원문 오타를 실수로 만들지 않게 한다.
+  const compact=x=>String(x||"").replace(/\s+/g,"");
+  if(compact(newText)!==compact(item.t)){
+    if(!confirm("줄바꿈·띄어쓰기 외에 원문 글자도 바뀌었습니다. 내용 자체를 수정한 것이 맞으면 계속하세요."))return;
+  }
+  const oldSpans=curriculumSpans(item),mapped=remapCurriculumSpans(item.t,newText,oldSpans);
+  appendCurriculumPageOp({type:"edit",id:String(item.i),text:newText});
+  setCurriculumBlankKey(item.i,mapped);curriculumSourceEditing=false;curriculumLastSelection=null;resetCurriculumSession(false);
+  saveLocal();scheduleCurriculumCloud(700);renderCurriculumCurrent();
+  if(mapped.length<oldSpans.length)toast(`원문 저장 · 빈칸 ${oldSpans.length-mapped.length}개는 위치가 달라져 해제됨`);else toast("원문을 저장했습니다");
+}
+function splitCurriculumAtSelection(){
+  const item=curriculumCurrentItem(),sel=curriculumLastSelection;if(!item||!sel||sel.itemId!==String(item.i))return toast("끊을 위치의 글자를 먼저 선택하세요");
+  const cut=Number(sel.span?.[0]);if(!Number.isInteger(cut)||cut<=0||cut>=item.t.length)return toast("이 위치에서는 끊을 수 없습니다");
+  const spans=curriculumSpans(item);if(spans.some(sp=>sp[0]<cut&&cut<sp[1]))return toast("빈칸 한가운데에서는 끊을 수 없습니다");
+  const leftId=`cp_${uid()}`,rightId=`cp_${uid()}`;
+  const leftSpans=spans.filter(sp=>sp[1]<=cut),rightSpans=spans.filter(sp=>sp[0]>=cut).map(sp=>[sp[0]-cut,sp[1]-cut]);
+  delete curriculumStore().blankOverrides[String(item.i)];setCurriculumBlankKey(leftId,leftSpans);setCurriculumBlankKey(rightId,rightSpans);
+  appendCurriculumPageOp({type:"split",id:String(item.i),offset:cut,leftId,rightId});
+  curriculumLastSelection=null;curriculumSourceEditing=false;resetCurriculumSession(false);setCurriculumPositionToItem(leftId);saveLocal();scheduleCurriculumCloud(700);renderCurriculumCurrent();toast("선택한 부분 앞에서 장을 나눴습니다");
+}
+function mergeCurriculumPage(direction){
+  const items=curriculumItems(),idx=curriculumCurrentIndex();if(!items.length)return;
+  const leftIdx=direction<0?idx-1:idx,rightIdx=leftIdx+1;if(leftIdx<0||rightIdx>=items.length)return toast(direction<0?"앞 장이 없습니다":"뒤 장이 없습니다");
+  const left=items[leftIdx],right=items[rightIdx];if(left.s!==right.s)return toast("다른 과목과는 합칠 수 없습니다");
+  const sep=(/\s$/.test(left.t)||/^\s/.test(right.t))?"":"\n\n",newId=`cp_${uid()}`;
+  const leftSpans=curriculumSpans(left),shift=left.t.length+sep.length,rightSpans=curriculumSpans(right).map(sp=>[sp[0]+shift,sp[1]+shift]);
+  delete curriculumStore().blankOverrides[String(left.i)];delete curriculumStore().blankOverrides[String(right.i)];setCurriculumBlankKey(newId,[...leftSpans,...rightSpans]);
+  appendCurriculumPageOp({type:"merge",leftId:String(left.i),rightId:String(right.i),newId,sep});
+  curriculumLastSelection=null;curriculumSourceEditing=false;resetCurriculumSession(false);setCurriculumPositionToItem(newId);saveLocal();scheduleCurriculumCloud(700);renderCurriculumCurrent();toast("두 장을 합쳤습니다");
 }
 function scheduleCurriculumCloud(delay=3200){
   clearTimeout(curriculumCloudTimer);curriculumCloudTimer=setTimeout(()=>{curriculumCloudTimer=0;markStudyCloud()},delay);
@@ -10717,6 +10816,7 @@ function focusCurriculumInput(which="first"){
   const box=document.getElementById("curriculumPassage");if(box)box.focus();return false;
 }
 function curriculumStep(delta,focus="first"){
+  curriculumSourceEditing=false;
   const items=curriculumItems();if(!items.length)return;
   const idx=curriculumCurrentIndex(),next=idx+delta;
   if(next<0){toast("첫 원문입니다");return}
@@ -10765,9 +10865,9 @@ function captureCurriculumSelection(item){
   curriculumLastSelection={itemId:String(item.i),span,text:item.t.slice(span[0],span[1])};updateCurriculumSelectionUi();
 }
 function updateCurriculumSelectionUi(){
-  const label=document.getElementById("curriculumSelectionLabel"),btn=document.getElementById("curriculumSelectionAdd");if(!label||!btn)return;
+  const label=document.getElementById("curriculumSelectionLabel"),btn=document.getElementById("curriculumSelectionAdd"),split=document.getElementById("curriculumSplitBtn");if(!label||!btn)return;
   const s=curriculumLastSelection,item=curriculumCurrentItem(),ok=!!s&&String(item?.i)===s.itemId;
-  label.textContent=ok?`선택: ${s.text}`:"원문에서 가릴 부분을 드래그하세요";btn.disabled=!ok;
+  label.textContent=ok?`선택: ${s.text}`:"원문에서 가릴 부분 또는 끊을 위치를 드래그하세요";btn.disabled=!ok;if(split)split.disabled=!ok;
 }
 function addCurrentCurriculumSelection(){
   const item=curriculumCurrentItem(),s=curriculumLastSelection;if(!item||!s||s.itemId!==String(item.i))return toast("원문에서 먼저 가릴 부분을 선택하세요");
@@ -10802,18 +10902,35 @@ function renderCurriculumEditPassage(item){
 function renderCurriculumPassage(item){if(curriculumUi().edit)renderCurriculumEditPassage(item);else renderCurriculumPracticePassage(item)}
 function renderCurriculumEdit(item){
   const panel=document.getElementById("curriculumEditPanel"),edit=!!curriculumUi().edit;panel.classList.toggle("hidden",!edit);panel.innerHTML="";if(!edit)return;
-  const spans=curriculumSpans(item),head=document.createElement("div");head.className="curriculum-edit-head";
-  head.innerHTML=`<strong>내 빈칸 ${spans.length}개</strong><span>문장 단위가 아니라 연속 원문에서 직접 선택</span>`;panel.append(head);
+  const spans=curriculumSpans(item),items=curriculumItems(),idx=curriculumCurrentIndex(),head=document.createElement("div");head.className="curriculum-edit-head";
+  head.innerHTML=`<strong>내 빈칸 ${spans.length}개</strong><span>빈칸·장 구분·원문을 직접 편집</span>`;panel.append(head);
   const selectRow=document.createElement("div");selectRow.className="curriculum-selection-row";
-  const label=document.createElement("div");label.id="curriculumSelectionLabel";label.className="curriculum-selection-label";label.textContent="원문에서 가릴 부분을 드래그하세요";
+  const label=document.createElement("div");label.id="curriculumSelectionLabel";label.className="curriculum-selection-label";label.textContent="원문에서 가릴 부분 또는 끊을 위치를 드래그하세요";
   const add=document.createElement("button");add.id="curriculumSelectionAdd";add.type="button";add.textContent="선택 → 빈칸";add.disabled=true;add.onclick=addCurrentCurriculumSelection;selectRow.append(label,add);panel.append(selectRow);
   if(spans.length){
     const chips=document.createElement("div");chips.className="curriculum-blank-chips";
     spans.forEach((span,idx)=>{const chip=document.createElement("span");chip.className="curriculum-blank-chip";const txt=document.createElement("span");txt.textContent=curriculumAnswer(item,span);const del=document.createElement("button");del.type="button";del.textContent="×";del.setAttribute("aria-label","빈칸 삭제");del.onclick=()=>{setCurriculumSpans(item,spans.filter((_,i)=>i!==idx));curriculumLastSelection=null;renderCurriculumCurrent()};chip.append(txt,del);chips.append(chip)});panel.append(chips);
   }
+  const pageActions=document.createElement("div");pageActions.className="curriculum-page-actions";
+  const split=document.createElement("button");split.type="button";split.id="curriculumSplitBtn";split.textContent="선택 앞에서 끊기";split.disabled=!(curriculumLastSelection&&curriculumLastSelection.itemId===String(item.i));split.onclick=splitCurriculumAtSelection;
+  const mergePrev=document.createElement("button");mergePrev.type="button";mergePrev.textContent="앞 장과 합치기";mergePrev.disabled=idx<=0||items[idx-1]?.s!==item.s;mergePrev.onclick=()=>mergeCurriculumPage(-1);
+  const mergeNext=document.createElement("button");mergeNext.type="button";mergeNext.textContent="뒤 장과 합치기";mergeNext.disabled=idx>=items.length-1||items[idx+1]?.s!==item.s;mergeNext.onclick=()=>mergeCurriculumPage(1);
+  const editSource=document.createElement("button");editSource.type="button";editSource.textContent=curriculumSourceEditing?"원문 정리 닫기":"원문 정리";editSource.title="잘못 들어간 엔터·공백을 붙이거나 필요한 줄바꿈을 직접 넣습니다";editSource.onclick=()=>{curriculumSourceEditing=!curriculumSourceEditing;renderCurriculumCurrent()};
+  pageActions.append(split,mergePrev,mergeNext,editSource);panel.append(pageActions);
+  const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="장 나누기/합치기와 원문 정리는 내 학습용 설정으로만 저장됩니다. ‘원문 정리’에서 잘못 들어간 엔터를 지우거나 필요한 줄바꿈·띄어쓰기를 직접 고칠 수 있고, curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
+  if(curriculumSourceEditing){
+    const wrap=document.createElement("div");wrap.className="curriculum-source-editor";
+    const ta=document.createElement("textarea");ta.value=item.t;ta.setAttribute("aria-label","현재 교육과정 원문 편집");
+    const acts=document.createElement("div");acts.className="curriculum-source-editor-actions";
+    const cancel=document.createElement("button");cancel.type="button";cancel.textContent="취소";cancel.onclick=()=>{curriculumSourceEditing=false;renderCurriculumCurrent()};
+    const note=document.createElement("div");note.className="curriculum-edit-help";note.textContent="엔터/공백은 자유롭게 정리하세요. 글자 내용까지 달라지면 저장 전에 한 번 확인합니다.";
+    const save=document.createElement("button");save.type="button";save.textContent="정리 저장";save.onclick=()=>saveCurriculumSourceEdit(item,ta.value);
+    acts.append(cancel,save);wrap.append(ta,note,acts);panel.append(wrap);
+  }
   const actions=document.createElement("div");actions.className="curriculum-edit-actions";
-  const clear=document.createElement("button");clear.type="button";clear.textContent="이 묶음 빈칸 모두 지우기";clear.disabled=!spans.length;clear.onclick=()=>{if(!confirm("현재 원문 묶음의 빈칸을 모두 지울까요?"))return;clearCurriculumSpans(item);curriculumLastSelection=null;renderCurriculumCurrent()};
-  const done=document.createElement("button");done.type="button";done.textContent="연습으로";done.onclick=()=>{curriculumUi().edit=false;curriculumLastSelection=null;saveLocal();renderCurriculumCurrent()};actions.append(clear,done);panel.append(actions);updateCurriculumSelectionUi();
+  const clear=document.createElement("button");clear.type="button";clear.textContent="이 장 빈칸 모두 지우기";clear.disabled=!spans.length;clear.onclick=()=>{if(!confirm("현재 장의 빈칸을 모두 지울까요?"))return;clearCurriculumSpans(item);curriculumLastSelection=null;renderCurriculumCurrent()};
+  const done=document.createElement("button");done.type="button";done.textContent="연습으로";done.onclick=()=>{curriculumUi().edit=false;curriculumSourceEditing=false;curriculumLastSelection=null;saveLocal();renderCurriculumCurrent()};actions.append(clear,done);panel.append(actions);updateCurriculumSelectionUi();
+  const splitBtn=document.getElementById("curriculumSplitBtn");if(splitBtn)splitBtn.disabled=!(curriculumLastSelection&&curriculumLastSelection.itemId===String(item.i));
 }
 function renderCurriculumCurrent(){
   if(!curriculumData)return;const items=curriculumItems(),item=curriculumCurrentItem();
@@ -10821,8 +10938,8 @@ function renderCurriculumCurrent(){
   if(!item){title.textContent="교육과정";meta.textContent="표시할 원문이 없습니다";document.getElementById("curriculumPassage").textContent="";return}
   title.textContent=item.s;
   const p0=Number(item.p0)||0,p1=Number(item.p1)||p0,page=p0?(p1>p0?`PDF p.${p0}–${p1}`:`PDF p.${p0}`):"연속 원문";
-  meta.textContent=`${page} · 원문 묶음 ${curriculumCurrentIndex()+1}/${items.length}`;
-  sourceNote.textContent=curriculumUi().edit?"원문에서 원하는 글자 범위를 직접 선택하세요. 조사·어미까지 선택 범위 그대로 빈칸이 됩니다.":"문장마다 끊지 않고 원문을 연속된 문단 묶음으로 보여줍니다. 빈칸은 사용자가 만든 것만 표시됩니다.";
+  meta.textContent=`${page} · 장 ${curriculumCurrentIndex()+1}/${items.length}${item.userEdited?" · 수정본":""}`;
+  sourceNote.textContent=curriculumUi().edit?"드래그한 범위를 빈칸으로 만들거나 그 위치에서 장을 나눌 수 있습니다. 원문 자체도 내 학습용으로 수정할 수 있습니다.":"장 구분과 빈칸은 사용자가 직접 만든 설정을 사용합니다.";
   renderCurriculumPassage(item);renderCurriculumEdit(item);updateCurriculumStatus();
   document.getElementById("curriculumPrev").disabled=curriculumCurrentIndex()<=0;document.getElementById("curriculumNext").disabled=curriculumCurrentIndex()>=items.length-1;
   const editBtn=document.getElementById("curriculumBlankEditBtn");if(editBtn)editBtn.textContent=curriculumUi().edit?"연습으로":"빈칸 만들기";
@@ -11082,7 +11199,9 @@ function mergeCloudStudy(remote){
   incoming.subjectId=incoming.subjects?.some(s=>s.id===localSubjectId)?localSubjectId:incoming.subjects?.[0]?.id;
   incoming.mode=localMode;
   incoming.planner=localPlanner;
-  app.study=incoming;cleanup();saveLocal();
+  app.study=incoming;cleanup();
+  if(typeof invalidateCurriculumDerived==="function")invalidateCurriculumDerived();
+  saveLocal();
 }
 function studyContentCount(study=app.study){
   let n=0;
@@ -11411,10 +11530,10 @@ bindModeSwitchTap(document.getElementById("bankSpace"),()=>{
   saveLocal();renderMode();
 });
 bindModeSwitchTap(document.getElementById("curriculumSpace"),()=>{openCurriculumWorkspace()});
-document.getElementById("curriculumSubject")?.addEventListener("change",e=>{curriculumUi().subject=e.target.value||"전체";resetCurriculumSession(false);saveLocal();renderCurriculum()});
+document.getElementById("curriculumSubject")?.addEventListener("change",e=>{curriculumUi().subject=e.target.value||"전체";curriculumSourceEditing=false;curriculumLastSelection=null;resetCurriculumSession(false);saveLocal();renderCurriculum()});
 bindModeSwitchTap(document.getElementById("curriculumCopyMode"),()=>setCurriculumMode("copy"),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumRecallMode"),()=>setCurriculumMode("recall"),{release:false});
-bindModeSwitchTap(document.getElementById("curriculumBlankEditBtn"),()=>{curriculumUi().edit=!curriculumUi().edit;saveLocal();renderCurriculumCurrent()},{release:false});
+bindModeSwitchTap(document.getElementById("curriculumBlankEditBtn"),()=>{curriculumUi().edit=!curriculumUi().edit;if(!curriculumUi().edit)curriculumSourceEditing=false;curriculumLastSelection=null;saveLocal();renderCurriculumCurrent()},{release:false});
 bindModeSwitchTap(document.getElementById("curriculumResetBtn"),()=>{if(!confirm("현재 범위를 처음부터 다시 시작할까요? 빈칸 편집 내용은 유지됩니다."))return;resetCurriculumSession(true);renderCurriculum()},{release:false});
 document.getElementById("curriculumPrev")?.addEventListener("click",()=>curriculumStep(-1,"last"));
 document.getElementById("curriculumNext")?.addEventListener("click",()=>curriculumStep(1,"first"));
