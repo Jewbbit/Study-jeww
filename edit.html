@@ -3405,6 +3405,24 @@ body.mobile-mission-open{overflow:hidden}
 }
 @media(monochrome){.curriculum-context,.curriculum-outline-panel{background:#fff!important;box-shadow:none!important;border:1px solid #111!important}.curriculum-context-actions button.active{background:#111!important;color:#fff!important}}
 
+/* 오른쪽 보조 패널의 교육과정 목차 */
+.wide-curriculum-head{position:sticky;top:0;z-index:2;background:#fff;padding:7px 2px 6px;border-bottom:1px solid #ececef}
+.wide-curriculum-head strong{display:block;font-size:11.5px;color:#38393e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wide-curriculum-head span{display:block;margin-top:2px;font-size:9px;color:#8c8d92;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.wide-curriculum-row{display:block;width:100%;border:0;border-bottom:1px solid #f1f1f3;background:#fff;text-align:left;padding:7px 6px 7px calc(6px + var(--outline-indent,0px));color:#45464b;font-size:10.5px;line-height:1.42}
+.wide-curriculum-row:last-child{border-bottom:0}.wide-curriculum-row.current{background:#f2f2f4;font-weight:750;color:#25262a}
+.wide-curriculum-row .ol-sub{display:block;margin-top:2px;font-size:8.5px;color:#9a9ba0;font-weight:500}
+.wide-curriculum-open{display:block;width:100%;margin-top:8px;border:1px solid #dcdce0;background:#fff;border-radius:7px;padding:8px;font-size:10.5px;color:#55565b}
+.curriculum-outline-filter{display:flex;gap:3px;align-items:center;overflow-x:auto;scrollbar-width:none;padding:6px 2px;border-bottom:1px solid #ececef;background:#fff}
+.curriculum-outline-filter::-webkit-scrollbar{display:none}
+.curriculum-outline-filter button{flex:0 0 auto;border:1px solid #dedee1;background:#fff;border-radius:999px;padding:5px 8px;font-size:9.5px;color:#696a70;white-space:nowrap}
+.curriculum-outline-filter button.active{background:#303136;color:#fff;border-color:#303136;font-weight:750}
+.curriculum-outline-panel>.curriculum-outline-filter{position:sticky;top:35px;z-index:2;margin:0 -2px 2px;padding-left:4px;padding-right:4px}
+.wide-curriculum-head .curriculum-outline-filter{margin-top:6px;padding:5px 0 0;border-bottom:0}
+.wide-curriculum-head .curriculum-outline-filter button{padding:4px 7px;font-size:9px}
+@media(monochrome){.curriculum-outline-filter button.active{background:#111!important;color:#fff!important;border-color:#111!important}}
+@media(monochrome){.wide-curriculum-row.current{background:#fff!important;outline:2px solid #111;outline-offset:-2px}.wide-curriculum-row{border-bottom:1px solid #bbb!important}}
+
 </style>
 
 </head>
@@ -3562,7 +3580,7 @@ body.mobile-mission-open{overflow:hidden}
         <button id="widePlannerTodayTab" type="button" role="tab">일정</button>
         <button id="widePlannerSongTab" type="button" role="tab">노래</button>
         <button id="widePlannerProgressTab" type="button" role="tab">진도</button>
-        <button id="widePlannerBlankTab" class="wide-planner-blank-tab" type="button" role="tab" aria-label="빈 탭" title="빈 탭">&nbsp;</button>
+        <button id="widePlannerCurriculumTab" type="button" role="tab" aria-label="교육과정 목차" title="교육과정 목차">교육과정</button>
       </div>
       <span id="widePlannerCount"></span>
     </div>
@@ -10480,6 +10498,57 @@ function renderWidePlannerProgress(list,count){
     list.append(row);
   });
 }
+function renderWidePlannerCurriculum(list,count){
+  if(!curriculumData){
+    count.textContent="";
+    const empty=document.createElement("div");empty.className="wide-planner-empty";
+    empty.textContent="교육과정 원문을 아직 불러오지 않았습니다.";list.append(empty);
+    const open=document.createElement("button");open.type="button";open.className="wide-curriculum-open";open.textContent="교육과정 열기";
+    open.onclick=()=>openCurriculumWorkspace();list.append(open);
+    return;
+  }
+  const item=curriculumCurrentItem();
+  let subject=item?.s||curriculumUi().subject||"";
+  if(subject==="전체")subject=(curriculumData.subjects||[])[0]||"";
+  const entries=curriculumVisibleOutlineEntries(subject);
+  count.textContent=entries.length?`${entries.length}개`:"";
+  list.dataset.curriculumSubject=subject;list.dataset.curriculumOutlineRevision=String(curriculumOutlineRevision);list.dataset.curriculumOutlineDepth=String(curriculumOutlineDepth());
+  const head=document.createElement("div");head.className="wide-curriculum-head";
+  const strong=document.createElement("strong");strong.textContent=subject?`${subject} 목차`:"교육과정 목차";
+  const meta=document.createElement("span");meta.className="wide-curriculum-context";
+  const info=item?curriculumContextInfo(item):null;
+  meta.textContent=info?.trail?.length?(info.trail.slice(-3).map(x=>x.label).join("  ›  ")):"대주제부터 세부 목차까지 골라서 볼 수 있습니다";
+  head.append(strong,meta,curriculumOutlineFilterBar("wide"));list.append(head);
+  if(!entries.length){
+    const empty=document.createElement("div");empty.className="wide-planner-empty";empty.textContent="선택한 깊이에서 표시할 목차가 없습니다.";list.append(empty);return;
+  }
+  const active=curriculumActiveOutlineEntry(item,entries);let currentRow=null;
+  for(const entry of entries){
+    const on=!!active&&entry.key===active.key;
+    const row=document.createElement("button");row.type="button";row.className="wide-curriculum-row"+(on?" current":"");row.dataset.outlineKey=entry.key;
+    row.style.setProperty("--outline-indent",`${Math.max(0,entry.rank-1)*11}px`);
+    const text=document.createElement("span");text.textContent=entry.label;
+    const meta=document.createElement("span");meta.className="ol-sub";meta.textContent=curriculumOutlineRankLabel(entry.rank);
+    row.append(text,meta);row.onclick=()=>jumpToCurriculumOutlineEntry(entry);list.append(row);
+    if(on)currentRow=row;
+  }
+  if(currentRow)requestAnimationFrame(()=>currentRow.scrollIntoView({block:"center"}));
+}
+
+function updateWidePlannerCurriculumCurrent({scroll=true}={}){
+  if(widePlannerSideTab!=="curriculum"||!widePlannerSideEligible()||!curriculumData)return;
+  const list=document.getElementById("widePlannerList"),item=curriculumCurrentItem();if(!list||!item)return;
+  const subject=item.s||curriculumUi().subject||"";
+  if(list.dataset.curriculumSubject!==subject||list.dataset.curriculumOutlineRevision!==String(curriculumOutlineRevision)||list.dataset.curriculumOutlineDepth!==String(curriculumOutlineDepth())){
+    renderWidePlannerSide();return;
+  }
+  const entries=curriculumVisibleOutlineEntries(subject),active=curriculumActiveOutlineEntry(item,entries);let current=null;
+  list.querySelectorAll(".wide-curriculum-row").forEach(row=>{const on=!!active&&row.dataset.outlineKey===active.key;row.classList.toggle("current",on);if(on&&!current)current=row});
+  const meta=list.querySelector(".wide-curriculum-context"),info=curriculumContextInfo(item);
+  if(meta)meta.textContent=info?.trail?.length?(info.trail.slice(-3).map(x=>x.label).join("  ›  ")):"대주제부터 세부 목차까지 골라서 볼 수 있습니다";
+  if(scroll&&current)requestAnimationFrame(()=>current.scrollIntoView({block:"center"}));
+}
+
 function renderWidePlannerSchedule(list,count,date){
   const p=plannerStore(),today=plannerToday(),pending=[],done=[];
   for(const round of p.rounds){
@@ -10541,10 +10610,10 @@ function renderWidePlannerSide(){
   const side=document.getElementById("widePlannerSide"),list=document.getElementById("widePlannerList");
   const count=document.getElementById("widePlannerCount"),toggle=document.getElementById("widePlannerToggle");
   const todayTab=document.getElementById("widePlannerTodayTab"),songTab=document.getElementById("widePlannerSongTab");
-  const progressTab=document.getElementById("widePlannerProgressTab"),blankTab=document.getElementById("widePlannerBlankTab");
+  const progressTab=document.getElementById("widePlannerProgressTab"),curriculumTab=document.getElementById("widePlannerCurriculumTab");
   const dateNav=document.getElementById("widePlannerDateNav"),dateLabel=document.getElementById("widePlannerDateLabel");
   const datePicker=document.getElementById("widePlannerDatePicker"),todayButton=document.getElementById("widePlannerTodayButton");
-  if(!side||!list||!count||!toggle||!todayTab||!songTab||!progressTab||!blankTab||!dateNav||!dateLabel||!datePicker||!todayButton)return;
+  if(!side||!list||!count||!toggle||!todayTab||!songTab||!progressTab||!curriculumTab||!dateNav||!dateLabel||!datePicker||!todayButton)return;
 
   const eligible=widePlannerSideEligible();
   side.classList.toggle("eligible",eligible);
@@ -10567,15 +10636,16 @@ function renderWidePlannerSide(){
   todayTab.classList.toggle("active",widePlannerSideTab==="today");
   songTab.classList.toggle("active",widePlannerSideTab==="songs");
   progressTab.classList.toggle("active",widePlannerSideTab==="progress");
-  blankTab.classList.toggle("active",widePlannerSideTab==="blank");
+  curriculumTab.classList.toggle("active",widePlannerSideTab==="curriculum");
   todayTab.setAttribute("aria-selected",widePlannerSideTab==="today"?"true":"false");
   songTab.setAttribute("aria-selected",widePlannerSideTab==="songs"?"true":"false");
   progressTab.setAttribute("aria-selected",widePlannerSideTab==="progress"?"true":"false");
-  blankTab.setAttribute("aria-selected",widePlannerSideTab==="blank"?"true":"false");
+  curriculumTab.setAttribute("aria-selected",widePlannerSideTab==="curriculum"?"true":"false");
 
   const selectedDate=widePlannerSelectedDate(),today=plannerToday();
   const progressRound=widePlannerSideTab==="progress"?widePlannerProgressRound():null;
-  const renderKey=widePlannerSideTab==="today"?`today:${selectedDate}`:widePlannerSideTab==="progress"?`progress:${progressRound?.id||"none"}`:widePlannerSideTab;
+  const curriculumKey=widePlannerSideTab==="curriculum"?`curriculum:${curriculumCurrentItem()?.s||curriculumUi().subject||"none"}:${curriculumOutlineRevision}:${curriculumOutlineDepth()}`:"";
+  const renderKey=widePlannerSideTab==="today"?`today:${selectedDate}`:widePlannerSideTab==="progress"?`progress:${progressRound?.id||"none"}`:widePlannerSideTab==="curriculum"?curriculumKey:widePlannerSideTab;
   const keepScroll=renderKey===widePlannerLastRenderKey;
   const previousScrollTop=keepScroll?list.scrollTop:0;
   dateNav.classList.toggle("hidden",widePlannerSideTab!=="today");
@@ -10592,7 +10662,7 @@ function renderWidePlannerSide(){
   if(!eligible)return;
   if(widePlannerSideTab==="songs")renderWidePlannerSongs(list,count);
   else if(widePlannerSideTab==="progress")renderWidePlannerProgress(list,count);
-  else if(widePlannerSideTab==="blank"){count.textContent="";}
+  else if(widePlannerSideTab==="curriculum")renderWidePlannerCurriculum(list,count);
   else renderWidePlannerSchedule(list,count,selectedDate);
   if(keepScroll)requestAnimationFrame(()=>{
     const max=Math.max(0,list.scrollHeight-list.clientHeight);
@@ -10605,8 +10675,11 @@ function toggleWidePlannerSide(){
   renderWidePlannerSide();
 }
 function setWidePlannerSideTab(tab){
-  widePlannerSideTab=["today","songs","progress","blank"].includes(tab)?tab:"today";
+  widePlannerSideTab=["today","songs","progress","curriculum"].includes(tab)?tab:"today";
   renderWidePlannerSide();
+  if(widePlannerSideTab==="curriculum"&&!curriculumData&&!curriculumLoadPromise){
+    ensureCurriculumData().then(()=>{if(widePlannerSideTab==="curriculum")renderWidePlannerSide()}).catch(()=>{});
+  }
 }
 
 /* 타자연습 중 화면을 내려도 보이는 실시간 타수 */
@@ -10635,17 +10708,18 @@ function updateTypingFloatingBadge(){
 /* ===== 교육과정 원문 빈칸 타자 =====
    공식 HWP에서 추출한 curriculum.json을 교육과정 탭을 열 때만 불러온다.
    원문 데이터와 개인 빈칸/쪽 편집/삭제 기록은 분리한다. */
-const CURRICULUM_DATA_URL="./curriculum.json?v=20260912-hwp1";
+const CURRICULUM_DATA_URL="./curriculum.json?v=20260912-hwp-outline1";
 let curriculumData=null,curriculumLoadPromise=null,curriculumScopeCache=new Map(),curriculumDerivedItemsCache=null;
 let curriculumPracticeSession=null,curriculumTimerHandle=0,curriculumCloudTimer=0,curriculumPendingFocus="";
 let curriculumLastSelection=null,curriculumSourceEditing=false;
 let curriculumPenStroke=null,curriculumPenFrame=0,curriculumBlankTap=null;
-let curriculumBookmarkPanelOpen=false,curriculumOutlinePanelOpen=false,curriculumOutlineCache=null;
+let curriculumBookmarkPanelOpen=false,curriculumOutlinePanelOpen=false,curriculumOutlineCache=null,curriculumOutlineRevision=0;
 
 function curriculumUi(){
-  if(!app.ui.curriculum||typeof app.ui.curriculum!=="object")app.ui.curriculum={subject:"전체",mode:"copy",edit:false};
+  if(!app.ui.curriculum||typeof app.ui.curriculum!=="object")app.ui.curriculum={subject:"전체",mode:"copy",edit:false,outlineDepth:3};
   if(!["copy","recall"].includes(app.ui.curriculum.mode))app.ui.curriculum.mode="copy";
   if(typeof app.ui.curriculum.subject!=="string")app.ui.curriculum.subject="전체";
+  if(![1,2,3,5].includes(Number(app.ui.curriculum.outlineDepth)))app.ui.curriculum.outlineDepth=3;
   return app.ui.curriculum;
 }
 function curriculumStore(){
@@ -10726,7 +10800,7 @@ async function ensureCurriculumData(){
 }
 function curriculumScopeName(){return curriculumUi().subject||"전체"}
 function curriculumScopeKey(){return `${curriculumScopeName()}::${curriculumUi().mode}`}
-function invalidateCurriculumDerived(){curriculumDerivedItemsCache=null;curriculumScopeCache.clear();curriculumOutlineCache=null}
+function invalidateCurriculumDerived(){curriculumDerivedItemsCache=null;curriculumScopeCache.clear();curriculumOutlineCache=null;curriculumOutlineRevision++}
 function curriculumDerivedItems(){
   if(!curriculumData)return [];
   if(curriculumDerivedItemsCache)return curriculumDerivedItemsCache;
@@ -11148,7 +11222,7 @@ function renderCurriculumEdit(item){
   const deletePage=document.createElement("button");deletePage.type="button";deletePage.className="curriculum-page-delete";deletePage.textContent="이 쪽 삭제";deletePage.disabled=items.length<=1;deletePage.onclick=()=>deleteCurriculumPage(item);
   const restorePage=document.createElement("button");restorePage.type="button";const deletedCount=curriculumStore().deletedPages?.length||0;restorePage.textContent=deletedCount?`삭제한 쪽 복구 (${deletedCount})`:"삭제한 쪽 복구";restorePage.disabled=!deletedCount;restorePage.onclick=restoreLastCurriculumPage;
   pageActions.append(split,mergePrev,mergeNext,editSource,deletePage,restorePage);panel.append(pageActions);
-  const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="빈칸·쪽 나누기/합치기·원문 정리·쪽 삭제·책갈피는 내 학습용 설정으로만 저장됩니다. 상단에는 HWP 제목 번호를 따라 현재 대주제·항·소주제가 계속 표시되고, 목차에서 바로 이동할 수 있습니다. 펜으로 기존 빈칸에 겹쳐 그으면 범위가 이어지고, 빈칸 표시를 두 번 누르면 바로 삭제할 수 있습니다. curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
+  const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="빈칸·쪽 나누기/합치기·원문 정리·쪽 삭제·책갈피는 내 학습용 설정으로만 저장됩니다. 상단에는 HWP 제목 구조를 따라 현재 대주제·중주제·소주제가 계속 표시되고, 목차에서는 대주제/중주제/소주제/전체 깊이를 골라 바로 이동할 수 있습니다. 펜으로 기존 빈칸에 겹쳐 그으면 범위가 이어지고, 빈칸 표시를 두 번 누르면 바로 삭제할 수 있습니다. curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
   if(curriculumSourceEditing){
     const wrap=document.createElement("div");wrap.className="curriculum-source-editor";
     const ta=document.createElement("textarea");ta.value=item.t;ta.setAttribute("aria-label","현재 교육과정 원문 편집");
@@ -11169,77 +11243,125 @@ function curriculumHeadingRank(line){
   if(/^(교육과정의 성격|교육과정 설계의 개요)$/.test(line))return 1;
   if(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]+\.\s+\S/.test(line))return 1;
   if(/^\d+\.\s+\S/.test(line))return 2;
-  if(/^[가-하]\.\s+\S/.test(line))return 3;
-  if(/^\(\d+\)\s+\S/.test(line))return 4;
-  if(/^\([가-하]\)\s+\S/.test(line))return 5;
+  if(/^\[초등학교\s*\d+\s*[~∼-]\s*\d+학년\]$/.test(line))return 3;
+  let m=line.match(/^[가-하]\.\s+(.+)$/);
+  if(m){const x=m[1].trim();return x.length<=34&&!/[.!?。]$/.test(x)?3:0}
+  m=line.match(/^(?:\(\d+\)|\d+\))\s+(.+)$/);
+  if(m){const x=m[1].trim();return x.length<=42&&!/[.!?。]$/.test(x)?4:0}
+  m=line.match(/^(?:\([가-하]\)|[가-하]\))\s+(.+)$/);
+  if(m){const x=m[1].trim();return x.length<=44&&!/[.!?。]$/.test(x)?5:0}
   return 0;
+}
+function curriculumOutlineRankLabel(rank){return Number(rank)===1?"대주제":Number(rank)===2?"중주제":Number(rank)===3?"소주제":Number(rank)===4?"세부":"하위"}
+function curriculumOutlineDepth(){const n=Number(curriculumUi().outlineDepth);return [1,2,3,5].includes(n)?n:3}
+function curriculumOutlineDepthLabel(depth=curriculumOutlineDepth()){return Number(depth)===1?"대주제":Number(depth)===2?"중주제":Number(depth)===3?"소주제":"전체"}
+function setCurriculumOutlineDepth(depth){
+  depth=Number(depth);if(![1,2,3,5].includes(depth)||curriculumOutlineDepth()===depth)return;
+  curriculumUi().outlineDepth=depth;widePlannerLastRenderKey="";saveLocal();renderCurriculumOutlinePanel();renderWidePlannerSide();renderCurriculumContext();
+}
+function curriculumOutlineFilterBar(kind="panel"){
+  const wrap=document.createElement("div");wrap.className="curriculum-outline-filter "+(kind==="wide"?"wide-outline-filter":"panel-outline-filter");wrap.setAttribute("aria-label","목차 표시 깊이");
+  [[1,"대주제"],[2,"중주제"],[3,"소주제"],[5,"전체"]].forEach(([depth,label])=>{const b=document.createElement("button");b.type="button";b.textContent=label;b.classList.toggle("active",curriculumOutlineDepth()===depth);b.onclick=e=>{e.stopPropagation();setCurriculumOutlineDepth(depth)};wrap.append(b)});
+  return wrap;
 }
 function curriculumApplyHeadingState(state,rank,label){
   for(const k of Object.keys(state))if(Number(k)>=rank)delete state[k];
   state[rank]=String(label||"").trim();
 }
-function curriculumStateLabels(state){
-  return Object.keys(state).map(Number).sort((a,b)=>a-b).map(k=>state[k]).filter(Boolean).slice(-3);
+function curriculumStateTrail(state){return Object.keys(state).map(Number).sort((a,b)=>a-b).map(rank=>({rank,label:state[rank]})).filter(x=>x.label)}
+function curriculumOutlineEntryKey(entry){return `${entry.subject||entry.s||""}::${entry.itemId||""}::${Number(entry.offset)||0}::${Number(entry.rank)||0}::${entry.label||""}`}
+function curriculumPushOutlineEntry(entries,state,raw,itemIndex){
+  const rank=Number(raw.rank)||0,label=String(raw.label||"").trim();if(!rank||!label)return null;
+  curriculumApplyHeadingState(state,rank,label);
+  const entry={itemId:String(raw.itemId||""),subject:String(raw.subject||raw.s||""),rank,label,offset:Number(raw.offset)||0,itemIndex,trail:curriculumStateTrail(state)};
+  entry.key=curriculumOutlineEntryKey(entry);entries.push(entry);return entry;
 }
 function curriculumOutlineModel(){
   if(curriculumOutlineCache)return curriculumOutlineCache;
   const byId=new Map(),entries=[],state={};let lastSubject="";
-  for(const item of curriculumDerivedItems()){
-    if(item.s!==lastSubject){for(const k of Object.keys(state))delete state[k];lastSubject=item.s}
-    const raw=String(item.t||"").replace(/\r\n?/g,"\n");
-    const lines=raw.split(/\n+/).map(x=>x.trim()).filter(Boolean);
-    let leading=true,startLabels=null;
-    for(const line of lines){
-      let rank=curriculumHeadingRank(line);
-      if(rank===3&&!Object.keys(state).some(k=>Number(k)<=2))rank=0;
-      if(leading){
-        if(rank){curriculumApplyHeadingState(state,rank,line);entries.push({itemId:String(item.i),subject:item.s,rank,label:line});continue}
-        leading=false;startLabels=curriculumStateLabels(state);
+  const derived=curriculumDerivedItems(),st=curriculumStore();
+  const canUsePack=Array.isArray(curriculumData?.outline)&&curriculumData.outline.length&&!st.pageOps.length&&!st.deletedPages.length;
+  if(canUsePack){
+    const grouped=new Map();
+    for(const o of curriculumData.outline){const id=String(o?.itemId||"");if(!id)continue;if(!grouped.has(id))grouped.set(id,[]);grouped.get(id).push(o)}
+    grouped.forEach(arr=>arr.sort((a,b)=>(Number(a.offset)||0)-(Number(b.offset)||0)||(Number(a.rank)||0)-(Number(b.rank)||0)));
+    derived.forEach((item,itemIndex)=>{
+      if(item.s!==lastSubject){for(const k of Object.keys(state))delete state[k];lastSubject=item.s}
+      const local=(grouped.get(String(item.i))||[]).filter(x=>String(x.s||x.subject||item.s)===String(item.s));
+      local.filter(x=>!!x.leading).forEach(x=>curriculumPushOutlineEntry(entries,state,{...x,subject:item.s},itemIndex));
+      const trail=curriculumStateTrail(state);byId.set(String(item.i),{subject:item.s,trail,labels:trail.map(x=>x.label),itemIndex});
+      local.filter(x=>!x.leading).forEach(x=>curriculumPushOutlineEntry(entries,state,{...x,subject:item.s},itemIndex));
+    });
+  }else{
+    derived.forEach((item,itemIndex)=>{
+      if(item.s!==lastSubject){for(const k of Object.keys(state))delete state[k];lastSubject=item.s}
+      const raw=String(item.t||"").replace(/\r\n?/g,"\n");let leading=true,startTrail=null;
+      for(const m of raw.matchAll(/[^\n]+/g)){
+        const line=String(m[0]||"").trim();if(!line)continue;
+        let rank=curriculumHeadingRank(line);
+        if(rank>=3&&!Object.keys(state).some(k=>Number(k)<=2))rank=0;
+        if(leading){
+          if(rank){curriculumPushOutlineEntry(entries,state,{itemId:String(item.i),subject:item.s,rank,label:line,offset:m.index||0},itemIndex);continue}
+          leading=false;startTrail=curriculumStateTrail(state);
+        }
+        if(rank)curriculumPushOutlineEntry(entries,state,{itemId:String(item.i),subject:item.s,rank,label:line,offset:m.index||0},itemIndex);
       }
-      if(rank){curriculumApplyHeadingState(state,rank,line);entries.push({itemId:String(item.i),subject:item.s,rank,label:line})}
-    }
-    if(startLabels===null)startLabels=curriculumStateLabels(state);
-    byId.set(String(item.i),{subject:item.s,labels:startLabels});
+      if(startTrail===null)startTrail=curriculumStateTrail(state);
+      byId.set(String(item.i),{subject:item.s,trail:startTrail,labels:startTrail.map(x=>x.label),itemIndex});
+    });
   }
   curriculumOutlineCache={byId,entries};return curriculumOutlineCache;
 }
 function curriculumContextInfo(item){
-  if(!item)return {subject:"",labels:[]};
-  return curriculumOutlineModel().byId.get(String(item.i))||{subject:item.s||"",labels:[]};
+  if(!item)return {subject:"",labels:[],trail:[]};
+  return curriculumOutlineModel().byId.get(String(item.i))||{subject:item.s||"",labels:[],trail:[]};
+}
+function curriculumVisibleOutlineEntries(subject){const depth=curriculumOutlineDepth();return curriculumOutlineModel().entries.filter(x=>x.subject===subject&&Number(x.rank)<=depth)}
+function curriculumTrailIsPrefix(a,b){if(!Array.isArray(a)||!Array.isArray(b)||a.length>b.length)return false;for(let i=0;i<a.length;i++)if(Number(a[i].rank)!==Number(b[i].rank)||String(a[i].label)!==String(b[i].label))return false;return true}
+function curriculumActiveOutlineEntry(item,entries){
+  if(!item||!Array.isArray(entries)||!entries.length)return null;
+  const info=curriculumContextInfo(item),trail=info.trail||[],itemIndex=Number(info.itemIndex);let best=null;
+  for(const e of entries){if(Number.isFinite(itemIndex)&&Number(e.itemIndex)>itemIndex)continue;if(!curriculumTrailIsPrefix(e.trail||[],trail))continue;if(!best||Number(e.rank)>Number(best.rank)||(Number(e.rank)===Number(best.rank)&&Number(e.itemIndex)>=Number(best.itemIndex)))best=e}
+  return best;
 }
 function renderCurriculumContext(){
   const item=curriculumCurrentItem(),box=document.getElementById("curriculumContextPath"),btn=document.getElementById("curriculumOutlineBtn");if(!box)return;
   box.innerHTML="";
   if(!item){box.textContent="구간 정보 없음";return}
   const info=curriculumContextInfo(item),sub=document.createElement("span");sub.className="curriculum-context-subject";sub.textContent=item.s||"교육과정";box.append(sub);
-  const labels=(info.labels||[]).slice(-3),names=["대주제","항","소주제"];
-  if(!labels.length){const empty=document.createElement("span");empty.className="curriculum-context-crumb";empty.textContent="현재 구간";box.append(empty)}
-  labels.forEach((label,i)=>{
+  const trail=(info.trail||[]).slice(-3);
+  if(!trail.length){const empty=document.createElement("span");empty.className="curriculum-context-crumb";empty.textContent="현재 구간";box.append(empty)}
+  trail.forEach(part=>{
     const sep=document.createElement("span");sep.className="curriculum-context-sep";sep.textContent="›";box.append(sep);
     const crumb=document.createElement("span");crumb.className="curriculum-context-crumb";
-    const tag=document.createElement("b");tag.textContent=names[i]||"구간";const text=document.createElement("span");text.textContent=label;crumb.append(tag,text);box.append(crumb);
+    const tag=document.createElement("b");tag.textContent=curriculumOutlineRankLabel(part.rank);const text=document.createElement("span");text.textContent=part.label;crumb.append(tag,text);box.append(crumb);
   });
-  if(btn)btn.classList.toggle("active",curriculumOutlinePanelOpen);
+  if(btn){btn.classList.toggle("active",curriculumOutlinePanelOpen||widePlannerSideTab==="curriculum");btn.title=`목차 · 현재 ${curriculumOutlineDepthLabel()}까지 표시`}
 }
 function jumpToCurriculumOutlineEntry(entry){
   if(!entry)return;const targetSubject=entry.subject||curriculumScopeName(),ui=curriculumUi();
-  if(ui.subject!=="전체"&&ui.subject!==targetSubject){ui.subject=targetSubject;document.getElementById("curriculumSubject").value=targetSubject}
+  if(ui.subject!=="전체"&&ui.subject!==targetSubject){ui.subject=targetSubject;const subjectSel=document.getElementById("curriculumSubject");if(subjectSel)subjectSel.value=targetSubject}
   const items=curriculumItems(),idx=items.findIndex(x=>String(x.i)===String(entry.itemId));
   if(idx<0){ui.subject=targetSubject;const scoped=curriculumItems(),j=scoped.findIndex(x=>String(x.i)===String(entry.itemId));if(j>=0)curriculumStore().positions[curriculumScopeName()]=j}
   else curriculumStore().positions[curriculumScopeName()]=idx;
-  curriculumOutlinePanelOpen=false;curriculumBookmarkPanelOpen=false;curriculumLastSelection=null;curriculumSourceEditing=false;resetCurriculumSession(false);saveLocal();renderCurriculum();
+  curriculumOutlinePanelOpen=false;curriculumBookmarkPanelOpen=false;curriculumLastSelection=null;curriculumSourceEditing=false;resetCurriculumSession(false);
+  const alreadyCurriculum=(app.ui.workspace||"memory")==="curriculum";app.ui.workspace="curriculum";widePlannerSideTab="curriculum";saveLocal();
+  if(alreadyCurriculum)renderCurriculum();else renderMode();
 }
 function renderCurriculumOutlinePanel(){
   const panel=document.getElementById("curriculumOutlinePanel");if(!panel)return;
   panel.classList.toggle("hidden",!curriculumOutlinePanelOpen);if(!curriculumOutlinePanelOpen){panel.innerHTML="";return}
   panel.innerHTML="";const item=curriculumCurrentItem(),subject=item?.s||curriculumScopeName();
-  const head=document.createElement("div");head.className="curriculum-outline-head";const title=document.createElement("strong");title.textContent=`${subject} 목차`;const close=document.createElement("button");close.type="button";close.textContent="×";close.onclick=()=>{curriculumOutlinePanelOpen=false;renderCurriculumOutlinePanel();renderCurriculumContext()};head.append(title,close);panel.append(head);
-  const currentId=String(item?.i||""),list=curriculumOutlineModel().entries.filter(x=>x.subject===subject);
-  if(!list.length){const empty=document.createElement("div");empty.className="curriculum-outline-empty";empty.textContent="이 범위에서 제목 구조를 찾지 못했습니다.";panel.append(empty);return}
-  for(const entry of list){const row=document.createElement("button");row.type="button";row.className="curriculum-outline-row"+(entry.itemId===currentId?" current":"");row.style.setProperty("--outline-indent",`${Math.max(0,entry.rank-1)*12}px`);row.textContent=entry.label;const meta=document.createElement("span");meta.className="ol-sub";meta.textContent=entry.rank===1?"대주제":entry.rank===2?"항":entry.rank===3?"소주제":entry.rank===4?"세부 항목":"세부 소항목";row.append(meta);row.onclick=()=>jumpToCurriculumOutlineEntry(entry);panel.append(row)}
-  const cur=[...panel.querySelectorAll(".curriculum-outline-row.current")][0];if(cur)requestAnimationFrame(()=>cur.scrollIntoView({block:"center"}));
+  const head=document.createElement("div");head.className="curriculum-outline-head";const title=document.createElement("strong");title.textContent=`${subject} 목차`;const close=document.createElement("button");close.type="button";close.textContent="×";close.onclick=()=>{curriculumOutlinePanelOpen=false;renderCurriculumOutlinePanel();renderCurriculumContext()};head.append(title,close);panel.append(head,curriculumOutlineFilterBar("panel"));
+  const list=curriculumVisibleOutlineEntries(subject),active=curriculumActiveOutlineEntry(item,list);
+  if(!list.length){const empty=document.createElement("div");empty.className="curriculum-outline-empty";empty.textContent="선택한 깊이에서 표시할 목차가 없습니다.";panel.append(empty);return}
+  for(const entry of list){const on=!!active&&entry.key===active.key;const row=document.createElement("button");row.type="button";row.className="curriculum-outline-row"+(on?" current":"");row.style.setProperty("--outline-indent",`${Math.max(0,entry.rank-1)*12}px`);row.textContent=entry.label;const meta=document.createElement("span");meta.className="ol-sub";meta.textContent=curriculumOutlineRankLabel(entry.rank);row.append(meta);row.onclick=()=>jumpToCurriculumOutlineEntry(entry);panel.append(row)}
+  const cur=panel.querySelector(".curriculum-outline-row.current");if(cur)requestAnimationFrame(()=>cur.scrollIntoView({block:"center"}));
 }
 function toggleCurriculumOutlinePanel(){
+  if(widePlannerSideEligible()){
+    curriculumOutlinePanelOpen=false;curriculumBookmarkPanelOpen=false;widePlannerSideTab="curriculum";renderCurriculumOutlinePanel();renderCurriculumBookmarkPanel();renderWidePlannerSide();renderCurriculumContext();return;
+  }
   curriculumOutlinePanelOpen=!curriculumOutlinePanelOpen;if(curriculumOutlinePanelOpen)curriculumBookmarkPanelOpen=false;renderCurriculumOutlinePanel();renderCurriculumBookmarkPanel();renderCurriculumContext();
 }
 
@@ -11296,6 +11418,7 @@ function renderCurriculumCurrent(){
   meta.textContent=`${page} · 장 ${curriculumCurrentIndex()+1}/${items.length}${item.userEdited?" · 수정본":""}`;
   sourceNote.textContent=curriculumUi().edit?"Apple Pencil은 줄이 바뀌어도 형광펜처럼 이어 그을 수 있습니다. 기존 빈칸과 겹치면 자동으로 이어지고, 표시된 빈칸을 두 번 톡톡 누르면 삭제됩니다.":"HWP 원문을 바탕으로 하며, 빈칸·쪽 구성·책갈피는 사용자가 직접 만든 설정을 사용합니다.";
   renderCurriculumPassage(item);renderCurriculumEdit(item);updateCurriculumStatus();updateCurriculumFloatingTools();updateCurriculumBookmarkUi();renderCurriculumContext();renderCurriculumOutlinePanel();renderCurriculumBookmarkPanel();
+  if(widePlannerSideTab==="curriculum"&&widePlannerSideEligible())updateWidePlannerCurriculumCurrent();
   document.getElementById("curriculumPrev").disabled=curriculumCurrentIndex()<=0;document.getElementById("curriculumNext").disabled=curriculumCurrentIndex()>=items.length-1;
   const editBtn=document.getElementById("curriculumBlankEditBtn");if(editBtn)editBtn.textContent=curriculumUi().edit?"연습으로":"빈칸 만들기";
   if(curriculumPendingFocus&&!curriculumUi().edit){const f=curriculumPendingFocus;curriculumPendingFocus="";requestAnimationFrame(()=>focusCurriculumInput(f))}
@@ -11322,7 +11445,7 @@ async function renderCurriculum(){
   document.getElementById("curriculumBlankEditBtn").classList.toggle("active",!!ui.edit);renderCurriculumCurrent();
 }
 function setCurriculumMode(mode){if(!["copy","recall"].includes(mode)||curriculumUi().mode===mode)return;curriculumUi().mode=mode;resetCurriculumSession(false);saveLocal();renderCurriculum()}
-function openCurriculumWorkspace(){suspendQuizForWorkspaceNavigation();app.ui.workspace="curriculum";curriculumUi();curriculumStore();saveLocal();renderMode();}
+function openCurriculumWorkspace(){suspendQuizForWorkspaceNavigation();app.ui.workspace="curriculum";widePlannerSideTab="curriculum";curriculumUi();curriculumStore();saveLocal();renderMode();}
 
 
 /* mode */
@@ -11354,8 +11477,11 @@ function updateAppBackButton(){
   const show=!!quizSession || ws==="bank" || ws==="curriculum" || ["songs","planner","edit"].includes(app.study.mode);
   b.classList.toggle("hidden",!show);
 }
+let widePlannerLastWorkspace="";
 function renderMode(){
   const ws=app.ui.workspace||"memory";
+  if(ws==="curriculum"&&widePlannerLastWorkspace!=="curriculum")widePlannerSideTab="curriculum";
+  widePlannerLastWorkspace=ws;
   const memory=ws==="memory",bank=ws==="bank",curriculum=ws==="curriculum";
   if(!curriculum)stopCurriculumTicker();
   const progressHub=bank&&app.ui.bankMode==="quiz"&&app.ui.quizHomeMode==="path";
@@ -11839,7 +11965,7 @@ document.getElementById("widePlannerToggle")?.addEventListener("click",toggleWid
 document.getElementById("widePlannerTodayTab")?.addEventListener("click",()=>setWidePlannerSideTab("today"));
 document.getElementById("widePlannerSongTab")?.addEventListener("click",()=>setWidePlannerSideTab("songs"));
 document.getElementById("widePlannerProgressTab")?.addEventListener("click",()=>setWidePlannerSideTab("progress"));
-document.getElementById("widePlannerBlankTab")?.addEventListener("click",()=>setWidePlannerSideTab("blank"));
+document.getElementById("widePlannerCurriculumTab")?.addEventListener("click",()=>setWidePlannerSideTab("curriculum"));
 document.getElementById("widePlannerPrevDate")?.addEventListener("click",()=>widePlannerShiftDate(-1));
 document.getElementById("widePlannerNextDate")?.addEventListener("click",()=>widePlannerShiftDate(1));
 document.getElementById("widePlannerTodayButton")?.addEventListener("click",()=>widePlannerSetDate(plannerToday()));
