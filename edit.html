@@ -3066,6 +3066,19 @@ body.mobile-mission-open{overflow:hidden}
 .planner-manual.done .planner-manual-link{text-decoration:line-through;color:#999}
 .planner-quick-add-modal{width:min(430px,100%)}
 .planner-quick-add-date{font-size:10px;color:#85868c;margin:-5px 4px 8px}
+.planner-reschedule-modal{width:min(420px,100%)}
+.planner-reschedule-note{font-size:11px;color:#6f7076;line-height:1.5;margin:-3px 3px 10px}
+.planner-reschedule-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 10px}
+.planner-reschedule-field{display:flex;flex-direction:column;gap:4px;font-size:10px;color:#77787e}
+.planner-reschedule-field.full{grid-column:1/-1}
+.planner-reschedule-field select,.planner-reschedule-field input{width:100%;border:1px solid #dedee2;background:#fff;border-radius:8px;padding:9px 10px;font-size:12px;color:#303136;box-sizing:border-box}
+.planner-reschedule-summary{margin:7px 2px 10px;padding:8px 9px;border-radius:8px;background:#f7f7f8;font-size:10.5px;color:#5f6065;line-height:1.5}
+.planner-reschedule-actions{display:flex;gap:6px;justify-content:flex-end}
+.planner-reschedule-actions button{border:1px solid #dedee2;background:#fff;border-radius:8px;padding:8px 11px;font-size:11px}
+.planner-reschedule-actions .primary{background:#2f3034;color:#fff;border-color:#2f3034}
+#widePlannerReschedule{font-size:9.5px!important;padding:4px 7px!important;white-space:nowrap}
+@media(max-width:700px){.planner-reschedule-grid{grid-template-columns:1fr}.planner-reschedule-field.full{grid-column:auto}}
+
 .planner-quick-add-list{display:grid;gap:5px;max-height:min(58dvh,480px);overflow:auto}
 .planner-quick-add-list button{
   display:block;width:100%;border:1px solid #e7e7ea;background:#fff;border-radius:9px;
@@ -3655,6 +3668,7 @@ body.mobile-mission-open{overflow:hidden}
       <button id="widePlannerDateLabel" type="button" aria-label="날짜 선택"></button>
       <button id="widePlannerNextDate" type="button" aria-label="다음 날짜">›</button>
       <button id="widePlannerTodayButton" type="button">Today</button>
+      <button id="widePlannerReschedule" type="button" aria-label="현재 회독 남은 일정 옮기기" title="현재 회독 남은 일정 옮기기">미루기</button>
       <button id="widePlannerAdd" type="button" aria-label="이 날짜에 즉석 미션 추가" title="즉석 미션 추가">＋</button>
       <input id="widePlannerDatePicker" type="date" aria-label="날짜 선택">
     </div>
@@ -9521,6 +9535,114 @@ function plannerAddRound(){
   plannerSaveLocal();renderPlanner(true);updatePlannerQuickButton();
   plannerSaveRound(round);
 }
+
+function plannerPendingRoundMissions(round){
+  return (round?.missions||[]).filter(m=>m.kind!=="roundWrong"&&!plannerMissionExcluded(round,m)&&!plannerMissionDone(round,m));
+}
+function plannerRescheduleDefaultRoundId(preferred=""){
+  const p=plannerStore(),today=plannerToday();
+  const candidates=p.rounds.filter(r=>plannerPendingRoundMissions(r).length);
+  if(!candidates.length)return "";
+  if(preferred&&candidates.some(r=>r.id===preferred))return preferred;
+  if(app.ui.activePlannerRoundId&&candidates.some(r=>r.id===app.ui.activePlannerRoundId))return app.ui.activePlannerRoundId;
+  const current=[...candidates].filter(r=>r.start<=today&&today<=(r.reviewDate||r.end)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+  if(current)return current.id;
+  return [...candidates].sort((a,b)=>String(b.start||"").localeCompare(String(a.start||""))||(b.createdAt||0)-(a.createdAt||0))[0]?.id||"";
+}
+function plannerDaySpan(a,b){
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(String(a||""))||!/^\d{4}-\d{2}-\d{2}$/.test(String(b||"")))return 0;
+  return Math.round((plannerDate(b)-plannerDate(a))/86400000);
+}
+function plannerRescheduleDefaults(round){
+  const today=plannerToday(),pending=plannerPendingRoundMissions(round);
+  const newStart=round.start>today?round.start:plannerAddDays(today,1);
+  let newEnd;
+  if(round.end>=today){
+    const shift=Math.max(0,plannerDaySpan(today,newStart));
+    newEnd=plannerAddDays(round.end,shift);
+  }else{
+    const ordinary=(round.missions||[]).filter(m=>m.kind!=="roundWrong"&&!plannerMissionExcluded(round,m));
+    const oldDays=Math.max(1,plannerDaySpan(round.start,round.end)+1);
+    const perDay=Math.max(1,Math.ceil(ordinary.length/oldDays));
+    const need=Math.max(1,Math.ceil(pending.length/perDay));
+    newEnd=plannerAddDays(newStart,need-1);
+  }
+  if(newEnd<newStart)newEnd=newStart;
+  return {newStart,newEnd};
+}
+function plannerApplyPendingReschedule(round,newStart,newEnd){
+  if(!round)return false;
+  const pending=plannerPendingRoundMissions(round);
+  if(!pending.length)return false;
+  const dates=plannerDates(newStart,newEnd);if(!dates.length)return false;
+  const loads=dates.map(()=>0),counts=dates.map(()=>0);
+  const ordered=[...pending].sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))||String(a.id||"").localeCompare(String(b.id||"")));
+  for(const mission of ordered){
+    let best=0,bestScore=Infinity;
+    for(let i=0;i<dates.length;i++){
+      const score=loads[i]+counts[i]*0.45;
+      if(score<bestScore-1e-9){bestScore=score;best=i}
+    }
+    mission.date=dates[best];
+    loads[best]+=Number(mission.weight)||1;counts[best]++;
+  }
+  const ordinary=(round.missions||[]).filter(m=>m.kind!=="roundWrong"&&!plannerMissionExcluded(round,m));
+  const anyDone=ordinary.some(m=>plannerMissionDone(round,m));
+  if(!anyDone)round.start=newStart;
+  round.end=newEnd;
+  round.reviewDate=plannerAddDays(newEnd,1);
+  const wrong=(round.missions||[]).find(m=>m.kind==="roundWrong");
+  if(wrong&&!plannerMissionDone(round,wrong))wrong.date=round.reviewDate;
+  round.missions.sort((a,b)=>String(a.date||"").localeCompare(String(b.date||""))||String(a.id||"").localeCompare(String(b.id||"")));
+  round.rescheduledAt=Date.now();
+  const p=plannerStore();p.selectedDate=newStart;p.calendarMonth=plannerMonthKey(newStart);
+  plannerSaveLocal();plannerSaveRound(round);plannerScheduleUiRender();
+  if(app.study.mode==="planner")renderPlanner(true);
+  renderWidePlannerSide();updatePlannerQuickButton();
+  return true;
+}
+function closePlannerRescheduleModal(){document.getElementById("plannerRescheduleModal")?.remove()}
+function openPlannerRescheduleModal(preferredRoundId=""){
+  closePlannerRescheduleModal();
+  const rounds=plannerStore().rounds.filter(r=>plannerPendingRoundMissions(r).length);
+  if(!rounds.length)return toast("옮길 미완료 회독 미션이 없습니다");
+  const back=document.createElement("div");back.className="modal-backdrop";back.id="plannerRescheduleModal";
+  const modal=document.createElement("div");modal.className="modal planner-reschedule-modal";modal.setAttribute("role","dialog");modal.setAttribute("aria-modal","true");
+  const title=document.createElement("div");title.className="modal-title";title.textContent="남은 회독 일정 옮기기";
+  const note=document.createElement("div");note.className="planner-reschedule-note";note.textContent="완료한 미션은 그대로 두고, 아직 안 한 미션만 새 기간에 골고루 다시 배치합니다. 밀린 미션도 새 날짜로 이동합니다.";
+  const grid=document.createElement("div");grid.className="planner-reschedule-grid";
+  const roundField=document.createElement("label");roundField.className="planner-reschedule-field full";roundField.append(document.createTextNode("회독"));
+  const sel=document.createElement("select");
+  rounds.forEach(r=>{const o=document.createElement("option");o.value=r.id;o.textContent=`${r.name} · ${plannerPendingRoundMissions(r).length}개 남음`;sel.append(o)});
+  sel.value=plannerRescheduleDefaultRoundId(preferredRoundId)||rounds[0].id;roundField.append(sel);
+  const startField=document.createElement("label");startField.className="planner-reschedule-field";startField.append(document.createTextNode("새 시작일"));
+  const start=document.createElement("input");start.type="date";startField.append(start);
+  const endField=document.createElement("label");endField.className="planner-reschedule-field";endField.append(document.createTextNode("새 종료일"));
+  const end=document.createElement("input");end.type="date";endField.append(end);
+  const summary=document.createElement("div");summary.className="planner-reschedule-summary";
+  const fill=()=>{
+    const r=plannerRoundById(sel.value)||rounds[0],d=plannerRescheduleDefaults(r);start.value=d.newStart;end.value=d.newEnd;
+    summary.textContent=`${plannerPendingRoundMissions(r).length}개 미완료 미션을 ${d.newStart} ~ ${d.newEnd}에 다시 나눕니다. 오답 데이는 ${plannerAddDays(d.newEnd,1)}로 이동합니다.`;
+  };
+  const refreshSummary=()=>{
+    const r=plannerRoundById(sel.value)||rounds[0];
+    summary.textContent=`${plannerPendingRoundMissions(r).length}개 미완료 미션을 ${start.value||"?"} ~ ${end.value||"?"}에 다시 나눕니다. 완료한 미션은 움직이지 않습니다.${end.value?` 오답 데이는 ${plannerAddDays(end.value,1)}입니다.`:""}`;
+  };
+  sel.onchange=fill;start.onchange=refreshSummary;end.onchange=refreshSummary;
+  grid.append(roundField,startField,endField);
+  const actions=document.createElement("div");actions.className="planner-reschedule-actions";
+  const cancel=document.createElement("button");cancel.type="button";cancel.textContent="취소";cancel.onclick=closePlannerRescheduleModal;
+  const apply=document.createElement("button");apply.type="button";apply.className="primary";apply.textContent="남은 일정 옮기기";apply.onclick=()=>{
+    const r=plannerRoundById(sel.value);if(!r)return;
+    const a=start.value,b=end.value;if(!a||!b||b<a)return toast("새 시작일과 종료일을 확인해 주세요");
+    const n=plannerPendingRoundMissions(r).length;
+    if(!confirm(`${r.name}의 미완료 ${n}개를\n${a} ~ ${b}로 다시 배치할까요?\n\n완료한 미션은 그대로 남습니다.`))return;
+    if(plannerApplyPendingReschedule(r,a,b)){closePlannerRescheduleModal();toast(`남은 ${n}개 일정을 새 날짜로 옮겼습니다`)}
+  };
+  actions.append(cancel,apply);modal.append(title,note,grid,summary,actions);back.append(modal);document.body.append(back);fill();
+  back.addEventListener("pointerdown",e=>{if(e.target===back)closePlannerRescheduleModal()});
+}
+
 function plannerRenameRound(id){
   const r=plannerRoundById(id);if(!r)return;
   const name=prompt("회독 이름",r.name);if(name==null||!name.trim())return;
@@ -10108,8 +10230,9 @@ function renderPlanner(force=false){
     const dt=document.createElement("strong");dt.textContent=selected===today?`오늘 · ${selected}`:selected;
     const quick=document.createElement("div");quick.className="planner-v7-date-actions";
     const tomorrow=document.createElement("button");tomorrow.type="button";tomorrow.textContent="내일";tomorrow.onclick=()=>plannerSelectDate(plannerAddDays(today,1));
+    const reschedule=document.createElement("button");reschedule.type="button";reschedule.textContent="남은 일정 옮기기";reschedule.onclick=()=>openPlannerRescheduleModal(app.ui.activePlannerRoundId||"");
     const add=document.createElement("button");add.type="button";add.textContent="＋ 추가";add.onclick=()=>plannerQuickAdd(selected);
-    quick.append(tomorrow,add);dh.append(dt,quick);detail.append(dh);
+    quick.append(tomorrow,reschedule,add);dh.append(dt,quick);detail.append(dh);
 
     let selectedCount=0,selectedDone=0;
     const pendingRows=[],doneRows=[];
@@ -10173,9 +10296,10 @@ function renderPlanner(force=false){
       main.append(a,b);
       const actions=document.createElement("div");actions.className="planner-round-actions";
       const view=document.createElement("button");view.textContent=app.ui.activePlannerRoundId===r.id?"진도✓":"진도";view.onclick=()=>{app.ui.activePlannerRoundId=r.id;app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="path";adventureStore().activeSheetId="";saveLocal();renderMode()};
+      const move=document.createElement("button");move.textContent="일정";move.onclick=()=>openPlannerRescheduleModal(r.id);
       const rename=document.createElement("button");rename.textContent="이름";rename.onclick=()=>plannerRenameRound(r.id);
       const del=document.createElement("button");del.textContent="삭제";del.onclick=()=>plannerDeleteRound(r.id);
-      actions.append(view,rename,del);row.append(main,actions);rounds.append(row);
+      actions.append(view,move,rename,del);row.append(main,actions);rounds.append(row);
       const ex=plannerExcludedBlock(r);if(ex)rounds.append(ex);
     });
 
@@ -12185,6 +12309,7 @@ document.getElementById("widePlannerCurriculumTab")?.addEventListener("click",()
 document.getElementById("widePlannerPrevDate")?.addEventListener("click",()=>widePlannerShiftDate(-1));
 document.getElementById("widePlannerNextDate")?.addEventListener("click",()=>widePlannerShiftDate(1));
 document.getElementById("widePlannerTodayButton")?.addEventListener("click",()=>widePlannerSetDate(plannerToday()));
+document.getElementById("widePlannerReschedule")?.addEventListener("click",()=>openPlannerRescheduleModal(app.ui.activePlannerRoundId||""));
 document.getElementById("widePlannerAdd")?.addEventListener("click",()=>plannerQuickAdd(widePlannerSelectedDate()));
 document.getElementById("widePlannerDatePicker")?.addEventListener("change",e=>widePlannerSetDate(e.target.value));
 document.getElementById("widePlannerDateLabel")?.addEventListener("click",()=>{
