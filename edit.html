@@ -3457,7 +3457,7 @@ body.mobile-mission-open{overflow:hidden}
         <div class="settings-font-name" id="fontName">기본 글꼴</div>
         <label id="fontChoose" class="font-choose-label" for="fontFile">폰트 파일 선택</label>
       </div>
-      <div class="settings-help">이 기기에만 저장됨 · ttf / otf / woff / woff2</div>
+      <div class="settings-help">이 기기에만 저장됨 · ttf / otf / woff / woff2 · 최대 64MB</div>
       <button class="settings-text-btn" id="fontReset">기본 글꼴로</button>
       <input class="font-file-input" id="fontFile" type="file" accept=".ttf,.otf,.woff,.woff2,font/ttf,font/otf,font/woff,font/woff2">
     </div>
@@ -11145,7 +11145,7 @@ document.getElementById("fontFile").onchange=async e=>{
   const file=e.target.files?.[0];e.target.value="";if(!file)return;
   const ext=(file.name.split(".").pop()||"").toLowerCase();
   if(!["ttf","otf","woff","woff2"].includes(ext))return toast("ttf / otf / woff / woff2 파일만 가능");
-  if(file.size>15*1024*1024)return toast("폰트 파일이 너무 큽니다");
+  if(file.size>64*1024*1024)return toast("폰트 파일은 64MB 이하만 가능합니다");
   const ok=await installLocalFont(file);
   if(!ok)return toast("이 폰트를 불러오지 못했습니다");
   try{
