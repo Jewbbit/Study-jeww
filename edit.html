@@ -10993,31 +10993,85 @@ async function ensureCurriculumData(){
 function curriculumScopeName(){return curriculumUi().subject||"전체"}
 function curriculumScopeKey(){return `${curriculumScopeName()}::${curriculumUi().mode}`}
 function invalidateCurriculumDerived(){curriculumDerivedItemsCache=null;curriculumScopeCache.clear();curriculumOutlineCache=null;curriculumOutlineRevision++}
+function curriculumCloneTableMeta(meta,delta=0){
+  if(!meta||typeof meta!=="object")return null;
+  const shift=n=>Number.isInteger(Number(n))?Number(n)+delta:n;
+  const out={...meta};
+  if(Number.isInteger(Number(meta.a)))out.a=shift(meta.a);
+  if(Number.isInteger(Number(meta.b)))out.b=shift(meta.b);
+  if(Array.isArray(meta.rows))out.rows=meta.rows.map(row=>(row||[]).map(cell=>{
+    if(!cell)return cell;const c={...cell};
+    if(Number.isInteger(Number(cell.a)))c.a=shift(cell.a);
+    if(Number.isInteger(Number(cell.b)))c.b=shift(cell.b);
+    return c;
+  }));
+  return out;
+}
+function curriculumShiftTables(tables,delta=0){return (Array.isArray(tables)?tables:[]).map(t=>curriculumCloneTableMeta(t,delta)).filter(Boolean)}
+function curriculumWhitespaceTableRemap(oldText,newText,tables){
+  oldText=String(oldText||"");newText=String(newText||"");
+  const compact=x=>x.replace(/\s+/g,"");
+  if(compact(oldText)!==compact(newText))return [];
+  const oldChars=[],newChars=[];
+  for(let i=0;i<oldText.length;i++)if(!/\s/.test(oldText[i]))oldChars.push(i);
+  for(let i=0;i<newText.length;i++)if(!/\s/.test(newText[i]))newChars.push(i);
+  const lowerBound=(arr,x)=>{let lo=0,hi=arr.length;while(lo<hi){const m=(lo+hi)>>1;if(arr[m]<x)lo=m+1;else hi=m}return lo};
+  const mapStart=off=>{off=Math.max(0,Math.min(oldText.length,Number(off)||0));const k=lowerBound(oldChars,off);return k<newChars.length?newChars[k]:newText.length};
+  const mapEnd=off=>{off=Math.max(0,Math.min(oldText.length,Number(off)||0));const k=lowerBound(oldChars,off);return k>0?Math.min(newText.length,newChars[Math.min(k-1,newChars.length-1)]+1):0};
+  const remapOne=meta=>{
+    const out={...meta};
+    if(Number.isInteger(Number(meta.a)))out.a=mapStart(meta.a);
+    if(Number.isInteger(Number(meta.b)))out.b=Math.max(out.a??0,mapEnd(meta.b));
+    if(Array.isArray(meta.rows))out.rows=meta.rows.map(row=>(row||[]).map(cell=>{
+      if(!cell)return cell;const c={...cell};
+      if(Number.isInteger(Number(cell.a)))c.a=mapStart(cell.a);
+      if(Number.isInteger(Number(cell.b)))c.b=Math.max(c.a??0,mapEnd(cell.b));
+      return c;
+    }));
+    return out;
+  };
+  return (Array.isArray(tables)?tables:[]).map(remapOne);
+}
+function curriculumPartitionTables(tables,cut){
+  const left=[],right=[],crossing=[];
+  for(const raw of Array.isArray(tables)?tables:[]){
+    const a=Number(raw?.a),b=Number(raw?.b);if(!Number.isInteger(a)||!Number.isInteger(b)||b<=a)continue;
+    if(b<=cut)left.push(curriculumCloneTableMeta(raw,0));
+    else if(a>=cut)right.push(curriculumCloneTableMeta(raw,-cut));
+    else crossing.push(raw);
+  }
+  return {left,right,crossing};
+}
 function curriculumDerivedItems(){
   if(!curriculumData)return [];
   if(curriculumDerivedItemsCache)return curriculumDerivedItemsCache;
-  const pages=(curriculumData.items||[]).map(x=>({...x}));
+  const pages=(curriculumData.items||[]).map(x=>({...x,tables:curriculumShiftTables(x.tables,0)}));
   for(const op of curriculumStore().pageOps||[]){
     if(!op||!op.type)continue;
     if(op.type==="edit"){
       const i=pages.findIndex(x=>String(x.i)===String(op.id));
-      if(i>=0&&typeof op.text==="string"&&op.text.trim())pages[i]={...pages[i],t:op.text,userEdited:true};
+      if(i>=0&&typeof op.text==="string"&&op.text.trim()){
+        const src=pages[i],tables=curriculumWhitespaceTableRemap(src.t,op.text,src.tables);
+        pages[i]={...src,t:op.text,tables,userEdited:true};
+      }
       continue;
     }
     if(op.type==="split"){
       const i=pages.findIndex(x=>String(x.i)===String(op.id));if(i<0)continue;
       const src=pages[i],cut=Number(op.offset);
       if(!Number.isInteger(cut)||cut<=0||cut>=src.t.length||!op.leftId||!op.rightId)continue;
-      const left={...src,i:op.leftId,t:src.t.slice(0,cut),legacy:[],tables:[],customPage:true};
-      const right={...src,i:op.rightId,t:src.t.slice(cut),legacy:[],tables:[],customPage:true};
+      const parts=curriculumPartitionTables(src.tables,cut);
+      const left={...src,i:op.leftId,t:src.t.slice(0,cut),legacy:[],tables:parts.left,customPage:true};
+      const right={...src,i:op.rightId,t:src.t.slice(cut),legacy:[],tables:parts.right,customPage:true};
       pages.splice(i,1,left,right);continue;
     }
     if(op.type==="merge"){
       const i=pages.findIndex(x=>String(x.i)===String(op.leftId));if(i<0||i+1>=pages.length)continue;
       const left=pages[i],right=pages[i+1];
       if(String(right.i)!==String(op.rightId)||left.s!==right.s||!op.newId)continue;
-      const sep=typeof op.sep==="string"?op.sep:"\n\n";
-      pages.splice(i,2,{...left,i:op.newId,t:left.t+sep+right.t,p0:left.p0||right.p0,p1:right.p1||left.p1,legacy:[],tables:[],customPage:true,userEdited:!!(left.userEdited||right.userEdited)});
+      const sep=typeof op.sep==="string"?op.sep:"\n\n",shift=left.t.length+sep.length;
+      const tables=[...curriculumShiftTables(left.tables,0),...curriculumShiftTables(right.tables,shift)];
+      pages.splice(i,2,{...left,i:op.newId,t:left.t+sep+right.t,p0:left.p0||right.p0,p1:right.p1||left.p1,legacy:[],tables,customPage:true,userEdited:!!(left.userEdited||right.userEdited)});
     }
   }
   const deleted=new Set((curriculumStore().deletedPages||[]).map(String));
@@ -11107,6 +11161,7 @@ function splitCurriculumAtSelection(){
   const item=curriculumCurrentItem(),sel=curriculumLastSelection;if(!item||!sel||sel.itemId!==String(item.i))return toast("끊을 위치의 글자를 먼저 선택하세요");
   const cut=Number(sel.span?.[0]);if(!Number.isInteger(cut)||cut<=0||cut>=item.t.length)return toast("이 위치에서는 끊을 수 없습니다");
   const spans=curriculumSpans(item);if(spans.some(sp=>sp[0]<cut&&cut<sp[1]))return toast("빈칸 한가운데에서는 끊을 수 없습니다");
+  if(curriculumTables(item).some(t=>Number(t.a)<cut&&cut<Number(t.b)))return toast("표 한가운데에서는 쪽을 나눌 수 없습니다. 표 앞이나 뒤에서 끊어 주세요.");
   const leftId=`cp_${uid()}`,rightId=`cp_${uid()}`;
   const leftSpans=spans.filter(sp=>sp[1]<=cut),rightSpans=spans.filter(sp=>sp[0]>=cut).map(sp=>[sp[0]-cut,sp[1]-cut]);
   delete curriculumStore().blankOverrides[String(item.i)];setCurriculumBlankKey(leftId,leftSpans);setCurriculumBlankKey(rightId,rightSpans);
@@ -11355,7 +11410,7 @@ function updateCurriculumFloatingTools(){
   if(hint)hint.textContent=edit?"Pencil로 긋기":"연습";
 }
 function curriculumTables(item){
-  if(item?.customPage||item?.userEdited||!Array.isArray(item?.tables))return [];
+  if(!Array.isArray(item?.tables))return [];
   return item.tables.filter(t=>Number.isInteger(Number(t?.a))&&Number.isInteger(Number(t?.b))&&Number(t.b)>Number(t.a)).slice().sort((a,b)=>Number(a.a)-Number(b.a));
 }
 function curriculumSourceSegment(start,end,className=""){
