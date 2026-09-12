@@ -3376,6 +3376,35 @@ body.mobile-mission-open{overflow:hidden}
   .curriculum-float-tools button.active{background:#111!important;color:#fff!important}
   .curriculum-passage.editing.pen-highlighting::selection,.curriculum-passage.editing.pen-highlighting *::selection{background:#bbb!important;color:#111!important}
 }
+/* 교육과정 책자 구간: 현재 대주제/항/소주제를 계속 보여 주고 목차로 이동 */
+.curriculum-context{
+  position:sticky;top:48px;z-index:24;margin:0 0 6px;padding:7px 8px;border:1px solid #e0e0e3;border-radius:9px;background:rgba(255,255,255,.97);
+  display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 8px;align-items:center
+}
+.curriculum-context-path{min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden;white-space:nowrap}
+.curriculum-context-subject{flex:0 0 auto;font-size:9.5px;font-weight:750;color:#66676c;padding:3px 6px;border-radius:999px;background:#f1f1f3}
+.curriculum-context-crumb{min-width:0;display:flex;align-items:center;gap:4px;font-size:10.5px;color:#55565b;overflow:hidden;text-overflow:ellipsis}
+.curriculum-context-crumb b{font-size:8.5px;color:#9a9ba0;font-weight:700;flex:0 0 auto}
+.curriculum-context-crumb span{overflow:hidden;text-overflow:ellipsis}
+.curriculum-context-sep{color:#b1b2b6;font-size:10px;flex:0 0 auto}
+.curriculum-context-actions{display:flex;gap:4px;align-items:center}
+.curriculum-context-actions button{border:1px solid #dcdce0;background:#fff;border-radius:7px;padding:6px 8px;font-size:10.5px;color:#55565b;white-space:nowrap}
+.curriculum-context-actions button.active{background:#25262a;color:#fff;border-color:#25262a}
+.curriculum-outline-panel{position:fixed;right:12px;top:94px;z-index:92;width:min(410px,calc(100vw - 24px));max-height:min(72vh,680px);overflow:auto;border:1px solid #d8d8dc;border-radius:10px;background:#fff;box-shadow:0 8px 26px rgba(0,0,0,.14);padding:8px}
+.curriculum-outline-panel.hidden{display:none!important}
+.curriculum-outline-head{position:sticky;top:-8px;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 3px 8px;background:#fff;border-bottom:1px solid #ececef}
+.curriculum-outline-head strong{font-size:12px}.curriculum-outline-head button{border:0;background:transparent;font-size:16px;color:#777}
+.curriculum-outline-row{display:block;width:100%;border:0;border-bottom:1px solid #f1f1f3;background:transparent;text-align:left;padding:7px 7px 7px calc(7px + var(--outline-indent,0px));color:#3f4045;font-size:10.5px;line-height:1.45}
+.curriculum-outline-row:last-child{border-bottom:0}.curriculum-outline-row.current{background:#f4f4f6;font-weight:750}.curriculum-outline-row .ol-sub{display:block;margin-top:2px;font-size:8.5px;color:#9a9ba0}
+.curriculum-outline-empty{padding:18px 8px;text-align:center;font-size:10.5px;color:#88898e}
+@media(max-width:699px){
+  .curriculum-context{top:47px;padding:6px 7px;grid-template-columns:minmax(0,1fr) auto}
+  .curriculum-context-path{gap:3px}.curriculum-context-crumb{font-size:9.8px}.curriculum-context-crumb b{display:none}.curriculum-context-subject{font-size:9px;padding:2px 5px}
+  .curriculum-context-actions button{min-height:34px;padding:5px 7px;font-size:10px}
+  .curriculum-outline-panel{right:max(8px,env(safe-area-inset-right));top:88px;width:min(380px,calc(100vw - 16px));max-height:72vh}
+}
+@media(monochrome){.curriculum-context,.curriculum-outline-panel{background:#fff!important;box-shadow:none!important;border:1px solid #111!important}.curriculum-context-actions button.active{background:#111!important;color:#fff!important}}
+
 </style>
 
 </head>
@@ -3476,6 +3505,14 @@ body.mobile-mission-open{overflow:hidden}
       </div>
       <button id="curriculumNext" type="button" aria-label="다음 원문">›</button>
     </div>
+
+    <div id="curriculumContext" class="curriculum-context">
+      <div id="curriculumContextPath" class="curriculum-context-path" aria-label="현재 교육과정 구간"></div>
+      <div class="curriculum-context-actions">
+        <button id="curriculumOutlineBtn" type="button">목차</button>
+      </div>
+    </div>
+    <div id="curriculumOutlinePanel" class="curriculum-outline-panel hidden" aria-label="교육과정 목차"></div>
     <div class="curriculum-status"><strong id="curriculumTimer">첫 글자부터 시작</strong><span id="curriculumProgress"></span></div>
     <div id="curriculumFloatTools" class="curriculum-float-tools" aria-label="교육과정 빠른 도구">
       <span id="curriculumFloatHint" class="curriculum-float-hint">연습</span>
@@ -10603,7 +10640,7 @@ let curriculumData=null,curriculumLoadPromise=null,curriculumScopeCache=new Map(
 let curriculumPracticeSession=null,curriculumTimerHandle=0,curriculumCloudTimer=0,curriculumPendingFocus="";
 let curriculumLastSelection=null,curriculumSourceEditing=false;
 let curriculumPenStroke=null,curriculumPenFrame=0,curriculumBlankTap=null;
-let curriculumBookmarkPanelOpen=false;
+let curriculumBookmarkPanelOpen=false,curriculumOutlinePanelOpen=false,curriculumOutlineCache=null;
 
 function curriculumUi(){
   if(!app.ui.curriculum||typeof app.ui.curriculum!=="object")app.ui.curriculum={subject:"전체",mode:"copy",edit:false};
@@ -10689,7 +10726,7 @@ async function ensureCurriculumData(){
 }
 function curriculumScopeName(){return curriculumUi().subject||"전체"}
 function curriculumScopeKey(){return `${curriculumScopeName()}::${curriculumUi().mode}`}
-function invalidateCurriculumDerived(){curriculumDerivedItemsCache=null;curriculumScopeCache.clear()}
+function invalidateCurriculumDerived(){curriculumDerivedItemsCache=null;curriculumScopeCache.clear();curriculumOutlineCache=null}
 function curriculumDerivedItems(){
   if(!curriculumData)return [];
   if(curriculumDerivedItemsCache)return curriculumDerivedItemsCache;
@@ -11111,7 +11148,7 @@ function renderCurriculumEdit(item){
   const deletePage=document.createElement("button");deletePage.type="button";deletePage.className="curriculum-page-delete";deletePage.textContent="이 쪽 삭제";deletePage.disabled=items.length<=1;deletePage.onclick=()=>deleteCurriculumPage(item);
   const restorePage=document.createElement("button");restorePage.type="button";const deletedCount=curriculumStore().deletedPages?.length||0;restorePage.textContent=deletedCount?`삭제한 쪽 복구 (${deletedCount})`:"삭제한 쪽 복구";restorePage.disabled=!deletedCount;restorePage.onclick=restoreLastCurriculumPage;
   pageActions.append(split,mergePrev,mergeNext,editSource,deletePage,restorePage);panel.append(pageActions);
-  const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="빈칸·쪽 나누기/합치기·원문 정리·쪽 삭제·책갈피는 내 학습용 설정으로만 저장됩니다. 펜으로 기존 빈칸에 겹쳐 그으면 범위가 이어지고, 빈칸 표시를 두 번 누르면 바로 삭제할 수 있습니다. curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
+  const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="빈칸·쪽 나누기/합치기·원문 정리·쪽 삭제·책갈피는 내 학습용 설정으로만 저장됩니다. 상단에는 HWP 제목 번호를 따라 현재 대주제·항·소주제가 계속 표시되고, 목차에서 바로 이동할 수 있습니다. 펜으로 기존 빈칸에 겹쳐 그으면 범위가 이어지고, 빈칸 표시를 두 번 누르면 바로 삭제할 수 있습니다. curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
   if(curriculumSourceEditing){
     const wrap=document.createElement("div");wrap.className="curriculum-source-editor";
     const ta=document.createElement("textarea");ta.value=item.t;ta.setAttribute("aria-label","현재 교육과정 원문 편집");
@@ -11126,6 +11163,86 @@ function renderCurriculumEdit(item){
   const done=document.createElement("button");done.type="button";done.textContent="연습으로";done.onclick=()=>setCurriculumEditMode(false);actions.append(clear,done);panel.append(actions);updateCurriculumSelectionUi();
   const splitBtn=document.getElementById("curriculumSplitBtn");if(splitBtn)splitBtn.disabled=!(curriculumLastSelection&&curriculumLastSelection.itemId===String(item.i));
 }
+
+function curriculumHeadingRank(line){
+  line=String(line||"").trim();if(!line)return 0;
+  if(/^(교육과정의 성격|교육과정 설계의 개요)$/.test(line))return 1;
+  if(/^[ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ]+\.\s+\S/.test(line))return 1;
+  if(/^\d+\.\s+\S/.test(line))return 2;
+  if(/^[가-하]\.\s+\S/.test(line))return 3;
+  if(/^\(\d+\)\s+\S/.test(line))return 4;
+  if(/^\([가-하]\)\s+\S/.test(line))return 5;
+  return 0;
+}
+function curriculumApplyHeadingState(state,rank,label){
+  for(const k of Object.keys(state))if(Number(k)>=rank)delete state[k];
+  state[rank]=String(label||"").trim();
+}
+function curriculumStateLabels(state){
+  return Object.keys(state).map(Number).sort((a,b)=>a-b).map(k=>state[k]).filter(Boolean).slice(-3);
+}
+function curriculumOutlineModel(){
+  if(curriculumOutlineCache)return curriculumOutlineCache;
+  const byId=new Map(),entries=[],state={};let lastSubject="";
+  for(const item of curriculumDerivedItems()){
+    if(item.s!==lastSubject){for(const k of Object.keys(state))delete state[k];lastSubject=item.s}
+    const raw=String(item.t||"").replace(/\r\n?/g,"\n");
+    const lines=raw.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+    let leading=true,startLabels=null;
+    for(const line of lines){
+      let rank=curriculumHeadingRank(line);
+      if(rank===3&&!Object.keys(state).some(k=>Number(k)<=2))rank=0;
+      if(leading){
+        if(rank){curriculumApplyHeadingState(state,rank,line);entries.push({itemId:String(item.i),subject:item.s,rank,label:line});continue}
+        leading=false;startLabels=curriculumStateLabels(state);
+      }
+      if(rank){curriculumApplyHeadingState(state,rank,line);entries.push({itemId:String(item.i),subject:item.s,rank,label:line})}
+    }
+    if(startLabels===null)startLabels=curriculumStateLabels(state);
+    byId.set(String(item.i),{subject:item.s,labels:startLabels});
+  }
+  curriculumOutlineCache={byId,entries};return curriculumOutlineCache;
+}
+function curriculumContextInfo(item){
+  if(!item)return {subject:"",labels:[]};
+  return curriculumOutlineModel().byId.get(String(item.i))||{subject:item.s||"",labels:[]};
+}
+function renderCurriculumContext(){
+  const item=curriculumCurrentItem(),box=document.getElementById("curriculumContextPath"),btn=document.getElementById("curriculumOutlineBtn");if(!box)return;
+  box.innerHTML="";
+  if(!item){box.textContent="구간 정보 없음";return}
+  const info=curriculumContextInfo(item),sub=document.createElement("span");sub.className="curriculum-context-subject";sub.textContent=item.s||"교육과정";box.append(sub);
+  const labels=(info.labels||[]).slice(-3),names=["대주제","항","소주제"];
+  if(!labels.length){const empty=document.createElement("span");empty.className="curriculum-context-crumb";empty.textContent="현재 구간";box.append(empty)}
+  labels.forEach((label,i)=>{
+    const sep=document.createElement("span");sep.className="curriculum-context-sep";sep.textContent="›";box.append(sep);
+    const crumb=document.createElement("span");crumb.className="curriculum-context-crumb";
+    const tag=document.createElement("b");tag.textContent=names[i]||"구간";const text=document.createElement("span");text.textContent=label;crumb.append(tag,text);box.append(crumb);
+  });
+  if(btn)btn.classList.toggle("active",curriculumOutlinePanelOpen);
+}
+function jumpToCurriculumOutlineEntry(entry){
+  if(!entry)return;const targetSubject=entry.subject||curriculumScopeName(),ui=curriculumUi();
+  if(ui.subject!=="전체"&&ui.subject!==targetSubject){ui.subject=targetSubject;document.getElementById("curriculumSubject").value=targetSubject}
+  const items=curriculumItems(),idx=items.findIndex(x=>String(x.i)===String(entry.itemId));
+  if(idx<0){ui.subject=targetSubject;const scoped=curriculumItems(),j=scoped.findIndex(x=>String(x.i)===String(entry.itemId));if(j>=0)curriculumStore().positions[curriculumScopeName()]=j}
+  else curriculumStore().positions[curriculumScopeName()]=idx;
+  curriculumOutlinePanelOpen=false;curriculumBookmarkPanelOpen=false;curriculumLastSelection=null;curriculumSourceEditing=false;resetCurriculumSession(false);saveLocal();renderCurriculum();
+}
+function renderCurriculumOutlinePanel(){
+  const panel=document.getElementById("curriculumOutlinePanel");if(!panel)return;
+  panel.classList.toggle("hidden",!curriculumOutlinePanelOpen);if(!curriculumOutlinePanelOpen){panel.innerHTML="";return}
+  panel.innerHTML="";const item=curriculumCurrentItem(),subject=item?.s||curriculumScopeName();
+  const head=document.createElement("div");head.className="curriculum-outline-head";const title=document.createElement("strong");title.textContent=`${subject} 목차`;const close=document.createElement("button");close.type="button";close.textContent="×";close.onclick=()=>{curriculumOutlinePanelOpen=false;renderCurriculumOutlinePanel();renderCurriculumContext()};head.append(title,close);panel.append(head);
+  const currentId=String(item?.i||""),list=curriculumOutlineModel().entries.filter(x=>x.subject===subject);
+  if(!list.length){const empty=document.createElement("div");empty.className="curriculum-outline-empty";empty.textContent="이 범위에서 제목 구조를 찾지 못했습니다.";panel.append(empty);return}
+  for(const entry of list){const row=document.createElement("button");row.type="button";row.className="curriculum-outline-row"+(entry.itemId===currentId?" current":"");row.style.setProperty("--outline-indent",`${Math.max(0,entry.rank-1)*12}px`);row.textContent=entry.label;const meta=document.createElement("span");meta.className="ol-sub";meta.textContent=entry.rank===1?"대주제":entry.rank===2?"항":entry.rank===3?"소주제":entry.rank===4?"세부 항목":"세부 소항목";row.append(meta);row.onclick=()=>jumpToCurriculumOutlineEntry(entry);panel.append(row)}
+  const cur=[...panel.querySelectorAll(".curriculum-outline-row.current")][0];if(cur)requestAnimationFrame(()=>cur.scrollIntoView({block:"center"}));
+}
+function toggleCurriculumOutlinePanel(){
+  curriculumOutlinePanelOpen=!curriculumOutlinePanelOpen;if(curriculumOutlinePanelOpen)curriculumBookmarkPanelOpen=false;renderCurriculumOutlinePanel();renderCurriculumBookmarkPanel();renderCurriculumContext();
+}
+
 function curriculumBookmarkAutoLabel(item){
   const lines=String(item?.t||"").split(/\n+/).map(x=>x.trim()).filter(Boolean);
   let label=lines.find(x=>x.length>=2&&x.length<=48)||lines[0]||item?.s||"책갈피";
@@ -11169,7 +11286,7 @@ function updateCurriculumBookmarkUi(){
   if(btn){btn.classList.toggle("active",active);btn.textContent=active?"🔖✓":"🔖";btn.title=active?"현재 쪽 책갈피 빼기":"현재 쪽 책갈피 추가"}
   if(listBtn)listBtn.textContent=count?`책갈피 ${count}`:"책갈피";
 }
-function toggleCurriculumBookmarkPanel(){curriculumBookmarkPanelOpen=!curriculumBookmarkPanelOpen;renderCurriculumBookmarkPanel()}
+function toggleCurriculumBookmarkPanel(){curriculumBookmarkPanelOpen=!curriculumBookmarkPanelOpen;if(curriculumBookmarkPanelOpen)curriculumOutlinePanelOpen=false;renderCurriculumBookmarkPanel();renderCurriculumOutlinePanel();renderCurriculumContext()}
 function renderCurriculumCurrent(){
   if(!curriculumData)return;const items=curriculumItems(),item=curriculumCurrentItem();
   const title=document.getElementById("curriculumTitle"),meta=document.getElementById("curriculumMeta"),sourceNote=document.getElementById("curriculumSourceNote");
@@ -11178,7 +11295,7 @@ function renderCurriculumCurrent(){
   const page="HWP 원문";
   meta.textContent=`${page} · 장 ${curriculumCurrentIndex()+1}/${items.length}${item.userEdited?" · 수정본":""}`;
   sourceNote.textContent=curriculumUi().edit?"Apple Pencil은 줄이 바뀌어도 형광펜처럼 이어 그을 수 있습니다. 기존 빈칸과 겹치면 자동으로 이어지고, 표시된 빈칸을 두 번 톡톡 누르면 삭제됩니다.":"HWP 원문을 바탕으로 하며, 빈칸·쪽 구성·책갈피는 사용자가 직접 만든 설정을 사용합니다.";
-  renderCurriculumPassage(item);renderCurriculumEdit(item);updateCurriculumStatus();updateCurriculumFloatingTools();updateCurriculumBookmarkUi();renderCurriculumBookmarkPanel();
+  renderCurriculumPassage(item);renderCurriculumEdit(item);updateCurriculumStatus();updateCurriculumFloatingTools();updateCurriculumBookmarkUi();renderCurriculumContext();renderCurriculumOutlinePanel();renderCurriculumBookmarkPanel();
   document.getElementById("curriculumPrev").disabled=curriculumCurrentIndex()<=0;document.getElementById("curriculumNext").disabled=curriculumCurrentIndex()>=items.length-1;
   const editBtn=document.getElementById("curriculumBlankEditBtn");if(editBtn)editBtn.textContent=curriculumUi().edit?"연습으로":"빈칸 만들기";
   if(curriculumPendingFocus&&!curriculumUi().edit){const f=curriculumPendingFocus;curriculumPendingFocus="";requestAnimationFrame(()=>focusCurriculumInput(f))}
@@ -11776,10 +11893,11 @@ bindModeSwitchTap(document.getElementById("curriculumFloatEditBtn"),()=>setCurri
 bindModeSwitchTap(document.getElementById("curriculumFloatSourceBtn"),()=>toggleCurriculumSourceEditor(),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumBookmarkBtn"),()=>toggleCurrentCurriculumBookmark(),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumBookmarkListBtn"),()=>toggleCurriculumBookmarkPanel(),{release:false});
+bindModeSwitchTap(document.getElementById("curriculumOutlineBtn"),()=>toggleCurriculumOutlinePanel(),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumResetBtn"),()=>{if(!confirm("현재 범위를 처음부터 다시 시작할까요? 빈칸 편집 내용은 유지됩니다."))return;resetCurriculumSession(true);renderCurriculum()},{release:false});
 document.getElementById("curriculumPrev")?.addEventListener("click",()=>curriculumStep(-1,"last"));
 document.getElementById("curriculumNext")?.addEventListener("click",()=>curriculumStep(1,"first"));
-document.addEventListener("pointerdown",e=>{if(!curriculumBookmarkPanelOpen)return;const p=document.getElementById("curriculumBookmarkPanel"),b=document.getElementById("curriculumBookmarkListBtn");if(p?.contains(e.target)||b?.contains(e.target))return;curriculumBookmarkPanelOpen=false;renderCurriculumBookmarkPanel()},true);
+document.addEventListener("pointerdown",e=>{if(!curriculumBookmarkPanelOpen&&!curriculumOutlinePanelOpen)return;const bp=document.getElementById("curriculumBookmarkPanel"),bb=document.getElementById("curriculumBookmarkListBtn"),op=document.getElementById("curriculumOutlinePanel"),ob=document.getElementById("curriculumOutlineBtn");if(bp?.contains(e.target)||bb?.contains(e.target)||op?.contains(e.target)||ob?.contains(e.target))return;if(curriculumBookmarkPanelOpen){curriculumBookmarkPanelOpen=false;renderCurriculumBookmarkPanel()}if(curriculumOutlinePanelOpen){curriculumOutlinePanelOpen=false;renderCurriculumOutlinePanel();renderCurriculumContext()}},true);
 bindModeSwitchTap(document.getElementById("studyBtn"),()=>{
   app.ui.typingPractice=false;resetTypingPracticeSessions();
   app.study.mode="study";
