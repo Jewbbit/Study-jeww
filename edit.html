@@ -3331,6 +3331,31 @@ body.mobile-mission-open{overflow:hidden}
   .curriculum-source-editor textarea{min-height:260px;font-size:16px}
 }
 @media(monochrome){.curriculum-edit-mark{background:#fff!important;border-bottom:2px solid #111!important}}
+
+/* Apple Pencil 형광펜 + 스크롤 중에도 바로 전환할 수 있는 책자형 도구 */
+.curriculum-passage.editing.pen-highlighting::selection,
+.curriculum-passage.editing.pen-highlighting *::selection{background:#f0df78;color:inherit}
+.curriculum-passage.editing.pen-highlighting{cursor:crosshair}
+.curriculum-float-tools{
+  position:fixed;right:max(14px,env(safe-area-inset-right));bottom:max(14px,env(safe-area-inset-bottom));z-index:75;
+  display:flex;align-items:center;gap:5px;padding:5px;border:1px solid #d9d9dd;border-radius:10px;background:rgba(255,255,255,.96)
+}
+.curriculum-float-tools button{
+  min-height:38px;border:1px solid #dedee1;background:#fff;border-radius:7px;padding:7px 10px;font-size:11px;color:#44454a;white-space:nowrap
+}
+.curriculum-float-tools button.active{background:#25262a;color:#fff;border-color:#25262a;font-weight:700}
+.curriculum-float-tools .curriculum-float-source.hidden{display:none!important}
+.curriculum-float-hint{font-size:9.5px;color:#74757b;padding:0 4px;white-space:nowrap}
+@media(max-width:640px){
+  .curriculum-float-tools{right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));padding:4px;gap:3px}
+  .curriculum-float-tools button{min-height:40px;padding:7px 9px;font-size:11px}
+  .curriculum-float-hint{display:none}
+}
+@media(monochrome){
+  .curriculum-float-tools{background:#fff!important;border:1px solid #111!important}
+  .curriculum-float-tools button.active{background:#111!important;color:#fff!important}
+  .curriculum-passage.editing.pen-highlighting::selection,.curriculum-passage.editing.pen-highlighting *::selection{background:#bbb!important;color:#111!important}
+}
 </style>
 
 </head>
@@ -3432,6 +3457,11 @@ body.mobile-mission-open{overflow:hidden}
       <button id="curriculumNext" type="button" aria-label="다음 원문">›</button>
     </div>
     <div class="curriculum-status"><strong id="curriculumTimer">첫 글자부터 시작</strong><span id="curriculumProgress"></span></div>
+    <div id="curriculumFloatTools" class="curriculum-float-tools" aria-label="교육과정 빠른 도구">
+      <span id="curriculumFloatHint" class="curriculum-float-hint">연습</span>
+      <button id="curriculumFloatEditBtn" type="button">✎ 빈칸</button>
+      <button id="curriculumFloatSourceBtn" class="curriculum-float-source hidden" type="button">원문 정리</button>
+    </div>
     <div id="curriculumPassage" class="curriculum-passage" tabindex="0"></div>
     <div id="curriculumSourceNote" class="curriculum-source-note"></div>
     <div id="curriculumEditPanel" class="curriculum-edit-panel hidden"></div>
@@ -10549,6 +10579,7 @@ const CURRICULUM_DATA_URL="./curriculum.json?v=20260912-3";
 let curriculumData=null,curriculumLoadPromise=null,curriculumScopeCache=new Map(),curriculumDerivedItemsCache=null;
 let curriculumPracticeSession=null,curriculumTimerHandle=0,curriculumCloudTimer=0,curriculumPendingFocus="";
 let curriculumLastSelection=null,curriculumSourceEditing=false;
+let curriculumPenStroke=null,curriculumPenFrame=0;
 
 function curriculumUi(){
   if(!app.ui.curriculum||typeof app.ui.curriculum!=="object")app.ui.curriculum={subject:"전체",mode:"copy",edit:false};
@@ -10842,6 +10873,77 @@ function bindCurriculumInputNavigation(input,item,span,answer){
     else if(e.key==="ArrowRight"&&start===len&&end===len){e.preventDefault();curriculumMoveFromInput(input,1)}
   });
 }
+function curriculumDomPointFromOffset(root,offset){
+  offset=Math.max(0,Number(offset)||0);
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);let node,last=null,left=offset;
+  while((node=walker.nextNode())){last=node;const len=node.nodeValue?.length||0;if(left<=len)return {node,offset:left};left-=len}
+  return last?{node:last,offset:last.nodeValue?.length||0}:{node:root,offset:0};
+}
+function curriculumPointOffset(root,x,y,item){
+  try{
+    let node=null,offset=0;
+    if(typeof document.caretPositionFromPoint==="function"){
+      const p=document.caretPositionFromPoint(x,y);if(p){node=p.offsetNode;offset=p.offset}
+    }else if(typeof document.caretRangeFromPoint==="function"){
+      const r=document.caretRangeFromPoint(x,y);if(r){node=r.startContainer;offset=r.startOffset}
+    }
+    if(!node||!(node===root||root.contains(node)))return null;
+    const r=document.createRange();r.selectNodeContents(root);r.setEnd(node,offset);
+    return Math.max(0,Math.min(item.t.length,r.toString().length));
+  }catch{return null}
+}
+function curriculumTrimSpan(item,a,b){
+  a=Math.max(0,Math.min(item.t.length,Number(a)||0));b=Math.max(0,Math.min(item.t.length,Number(b)||0));if(a>b)[a,b]=[b,a];
+  while(a<b&&/\s/.test(item.t[a]||""))a++;while(b>a&&/\s/.test(item.t[b-1]||""))b--;
+  return b>a?[a,b]:null;
+}
+function curriculumShowPenSelection(root,a,b){
+  if(a===null||b===null)return;const span=a<=b?[a,b]:[b,a];
+  try{const p1=curriculumDomPointFromOffset(root,span[0]),p2=curriculumDomPointFromOffset(root,span[1]),r=document.createRange();r.setStart(p1.node,p1.offset);r.setEnd(p2.node,p2.offset);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r)}catch{}
+}
+function curriculumFinishPenStroke(item,root,e,cancel=false){
+  const st=curriculumPenStroke;if(!st||st.itemId!==String(item.i)||(e&&st.pointerId!==e.pointerId))return;
+  if(curriculumPenFrame){cancelAnimationFrame(curriculumPenFrame);curriculumPenFrame=0}
+  curriculumPenStroke=null;root.classList.remove("pen-highlighting");
+  try{if(e&&root.hasPointerCapture?.(e.pointerId))root.releasePointerCapture(e.pointerId)}catch{}
+  if(cancel||!st.moved){try{window.getSelection()?.removeAllRanges()}catch{};return}
+  const span=curriculumTrimSpan(item,st.start,st.end);if(!span){try{window.getSelection()?.removeAllRanges()}catch{};return}
+  curriculumLastSelection={itemId:String(item.i),span,text:item.t.slice(span[0],span[1])};
+  const existing=curriculumSpans(item);
+  if(existing.some(x=>!(span[1]<=x[0]||span[0]>=x[1]))){updateCurriculumSelectionUi();toast("기존 빈칸과 겹칩니다");return}
+  setCurriculumSpans(item,[...existing,span]);curriculumLastSelection=null;try{window.getSelection()?.removeAllRanges()}catch{};renderCurriculumCurrent();toast("펜으로 빈칸을 만들었습니다");
+}
+function bindCurriculumPencilHighlighter(root,item){
+  root.addEventListener("pointerdown",e=>{
+    if(e.pointerType!=="pen"||!curriculumUi().edit||curriculumSourceEditing)return;
+    const at=curriculumPointOffset(root,e.clientX,e.clientY,item);if(at===null)return;
+    e.preventDefault();e.stopPropagation();try{root.setPointerCapture(e.pointerId)}catch{}
+    curriculumPenStroke={pointerId:e.pointerId,itemId:String(item.i),start:at,end:at,startX:e.clientX,startY:e.clientY,moved:false};root.classList.add("pen-highlighting");
+    try{window.getSelection()?.removeAllRanges()}catch{}
+  },{passive:false});
+  root.addEventListener("pointermove",e=>{
+    const st=curriculumPenStroke;if(e.pointerType!=="pen"||!st||st.pointerId!==e.pointerId||st.itemId!==String(item.i))return;
+    e.preventDefault();const at=curriculumPointOffset(root,e.clientX,e.clientY,item);if(at===null)return;st.end=at;
+    if(Math.hypot(e.clientX-st.startX,e.clientY-st.startY)>5)st.moved=true;
+    if(!curriculumPenFrame)curriculumPenFrame=requestAnimationFrame(()=>{curriculumPenFrame=0;const cur=curriculumPenStroke;if(cur&&cur.itemId===String(item.i))curriculumShowPenSelection(root,cur.start,cur.end)});
+  },{passive:false});
+  root.addEventListener("pointerup",e=>{const st=curriculumPenStroke;if(e.pointerType!=="pen"||!st||st.pointerId!==e.pointerId)return;e.preventDefault();const at=curriculumPointOffset(root,e.clientX,e.clientY,item);if(at!==null)st.end=at;curriculumFinishPenStroke(item,root,e,false)},{passive:false});
+  root.addEventListener("pointercancel",e=>curriculumFinishPenStroke(item,root,e,true));
+}
+function setCurriculumEditMode(on){
+  const ui=curriculumUi();ui.edit=!!on;if(!ui.edit)curriculumSourceEditing=false;curriculumLastSelection=null;curriculumPenStroke=null;saveLocal();renderCurriculumCurrent();
+}
+function toggleCurriculumSourceEditor(){
+  if(!curriculumUi().edit)setCurriculumEditMode(true);
+  curriculumSourceEditing=!curriculumSourceEditing;renderCurriculumCurrent();
+  if(curriculumSourceEditing)requestAnimationFrame(()=>document.querySelector(".curriculum-source-editor textarea")?.scrollIntoView({block:"center",behavior:"smooth"}));
+}
+function updateCurriculumFloatingTools(){
+  const edit=!!curriculumUi().edit,editBtn=document.getElementById("curriculumFloatEditBtn"),sourceBtn=document.getElementById("curriculumFloatSourceBtn"),hint=document.getElementById("curriculumFloatHint");
+  if(editBtn){editBtn.classList.toggle("active",edit);editBtn.textContent=edit?"✓ 연습":"✎ 빈칸";editBtn.setAttribute("aria-pressed",edit?"true":"false")}
+  if(sourceBtn){sourceBtn.classList.toggle("hidden",!edit);sourceBtn.classList.toggle("active",edit&&curriculumSourceEditing);sourceBtn.textContent=curriculumSourceEditing?"정리 닫기":"원문 정리"}
+  if(hint)hint.textContent=edit?"Pencil로 긋기":"연습";
+}
 function curriculumHighlightedSource(item,spans){
   const frag=document.createDocumentFragment();let pos=0;
   spans.forEach((span,idx)=>{if(span[0]>pos)frag.append(document.createTextNode(item.t.slice(pos,span[0])));const m=document.createElement("mark");m.className="curriculum-edit-mark";m.dataset.blankIndex=String(idx);m.textContent=item.t.slice(span[0],span[1]);frag.append(m);pos=span[1]});
@@ -10897,7 +10999,8 @@ function renderCurriculumPracticePassage(item){
 function renderCurriculumEditPassage(item){
   const box=document.getElementById("curriculumPassage");box.innerHTML="";box.classList.add("editing");box.dataset.itemId=String(item.i);box.onkeydown=null;
   box.append(curriculumHighlightedSource(item,curriculumSpans(item)));
-  const capture=()=>setTimeout(()=>captureCurriculumSelection(item),20);box.onpointerup=capture;box.ontouchend=capture;
+  bindCurriculumPencilHighlighter(box,item);
+  const capture=e=>{if(e?.pointerType==="pen")return;setTimeout(()=>captureCurriculumSelection(item),20)};box.onpointerup=capture;box.ontouchend=capture;
 }
 function renderCurriculumPassage(item){if(curriculumUi().edit)renderCurriculumEditPassage(item);else renderCurriculumPracticePassage(item)}
 function renderCurriculumEdit(item){
@@ -10915,7 +11018,7 @@ function renderCurriculumEdit(item){
   const split=document.createElement("button");split.type="button";split.id="curriculumSplitBtn";split.textContent="선택 앞에서 끊기";split.disabled=!(curriculumLastSelection&&curriculumLastSelection.itemId===String(item.i));split.onclick=splitCurriculumAtSelection;
   const mergePrev=document.createElement("button");mergePrev.type="button";mergePrev.textContent="앞 장과 합치기";mergePrev.disabled=idx<=0||items[idx-1]?.s!==item.s;mergePrev.onclick=()=>mergeCurriculumPage(-1);
   const mergeNext=document.createElement("button");mergeNext.type="button";mergeNext.textContent="뒤 장과 합치기";mergeNext.disabled=idx>=items.length-1||items[idx+1]?.s!==item.s;mergeNext.onclick=()=>mergeCurriculumPage(1);
-  const editSource=document.createElement("button");editSource.type="button";editSource.textContent=curriculumSourceEditing?"원문 정리 닫기":"원문 정리";editSource.title="잘못 들어간 엔터·공백을 붙이거나 필요한 줄바꿈을 직접 넣습니다";editSource.onclick=()=>{curriculumSourceEditing=!curriculumSourceEditing;renderCurriculumCurrent()};
+  const editSource=document.createElement("button");editSource.type="button";editSource.textContent=curriculumSourceEditing?"원문 정리 닫기":"원문 정리";editSource.title="잘못 들어간 엔터·공백을 붙이거나 필요한 줄바꿈을 직접 넣습니다";editSource.onclick=toggleCurriculumSourceEditor;
   pageActions.append(split,mergePrev,mergeNext,editSource);panel.append(pageActions);
   const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="장 나누기/합치기와 원문 정리는 내 학습용 설정으로만 저장됩니다. ‘원문 정리’에서 잘못 들어간 엔터를 지우거나 필요한 줄바꿈·띄어쓰기를 직접 고칠 수 있고, curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
   if(curriculumSourceEditing){
@@ -10929,7 +11032,7 @@ function renderCurriculumEdit(item){
   }
   const actions=document.createElement("div");actions.className="curriculum-edit-actions";
   const clear=document.createElement("button");clear.type="button";clear.textContent="이 장 빈칸 모두 지우기";clear.disabled=!spans.length;clear.onclick=()=>{if(!confirm("현재 장의 빈칸을 모두 지울까요?"))return;clearCurriculumSpans(item);curriculumLastSelection=null;renderCurriculumCurrent()};
-  const done=document.createElement("button");done.type="button";done.textContent="연습으로";done.onclick=()=>{curriculumUi().edit=false;curriculumSourceEditing=false;curriculumLastSelection=null;saveLocal();renderCurriculumCurrent()};actions.append(clear,done);panel.append(actions);updateCurriculumSelectionUi();
+  const done=document.createElement("button");done.type="button";done.textContent="연습으로";done.onclick=()=>setCurriculumEditMode(false);actions.append(clear,done);panel.append(actions);updateCurriculumSelectionUi();
   const splitBtn=document.getElementById("curriculumSplitBtn");if(splitBtn)splitBtn.disabled=!(curriculumLastSelection&&curriculumLastSelection.itemId===String(item.i));
 }
 function renderCurriculumCurrent(){
@@ -10939,8 +11042,8 @@ function renderCurriculumCurrent(){
   title.textContent=item.s;
   const p0=Number(item.p0)||0,p1=Number(item.p1)||p0,page=p0?(p1>p0?`PDF p.${p0}–${p1}`:`PDF p.${p0}`):"연속 원문";
   meta.textContent=`${page} · 장 ${curriculumCurrentIndex()+1}/${items.length}${item.userEdited?" · 수정본":""}`;
-  sourceNote.textContent=curriculumUi().edit?"드래그한 범위를 빈칸으로 만들거나 그 위치에서 장을 나눌 수 있습니다. 원문 자체도 내 학습용으로 수정할 수 있습니다.":"장 구분과 빈칸은 사용자가 직접 만든 설정을 사용합니다.";
-  renderCurriculumPassage(item);renderCurriculumEdit(item);updateCurriculumStatus();
+  sourceNote.textContent=curriculumUi().edit?"Apple Pencil은 형광펜처럼 원문 위를 그으면 떼는 즉시 빈칸이 됩니다. 손가락·마우스는 기존처럼 드래그 후 ‘선택 → 빈칸’을 쓰면 됩니다.":"장 구분과 빈칸은 사용자가 직접 만든 설정을 사용합니다.";
+  renderCurriculumPassage(item);renderCurriculumEdit(item);updateCurriculumStatus();updateCurriculumFloatingTools();
   document.getElementById("curriculumPrev").disabled=curriculumCurrentIndex()<=0;document.getElementById("curriculumNext").disabled=curriculumCurrentIndex()>=items.length-1;
   const editBtn=document.getElementById("curriculumBlankEditBtn");if(editBtn)editBtn.textContent=curriculumUi().edit?"연습으로":"빈칸 만들기";
   if(curriculumPendingFocus&&!curriculumUi().edit){const f=curriculumPendingFocus;curriculumPendingFocus="";requestAnimationFrame(()=>focusCurriculumInput(f))}
@@ -11533,7 +11636,9 @@ bindModeSwitchTap(document.getElementById("curriculumSpace"),()=>{openCurriculum
 document.getElementById("curriculumSubject")?.addEventListener("change",e=>{curriculumUi().subject=e.target.value||"전체";curriculumSourceEditing=false;curriculumLastSelection=null;resetCurriculumSession(false);saveLocal();renderCurriculum()});
 bindModeSwitchTap(document.getElementById("curriculumCopyMode"),()=>setCurriculumMode("copy"),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumRecallMode"),()=>setCurriculumMode("recall"),{release:false});
-bindModeSwitchTap(document.getElementById("curriculumBlankEditBtn"),()=>{curriculumUi().edit=!curriculumUi().edit;if(!curriculumUi().edit)curriculumSourceEditing=false;curriculumLastSelection=null;saveLocal();renderCurriculumCurrent()},{release:false});
+bindModeSwitchTap(document.getElementById("curriculumBlankEditBtn"),()=>setCurriculumEditMode(!curriculumUi().edit),{release:false});
+bindModeSwitchTap(document.getElementById("curriculumFloatEditBtn"),()=>setCurriculumEditMode(!curriculumUi().edit),{release:false});
+bindModeSwitchTap(document.getElementById("curriculumFloatSourceBtn"),()=>toggleCurriculumSourceEditor(),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumResetBtn"),()=>{if(!confirm("현재 범위를 처음부터 다시 시작할까요? 빈칸 편집 내용은 유지됩니다."))return;resetCurriculumSession(true);renderCurriculum()},{release:false});
 document.getElementById("curriculumPrev")?.addEventListener("click",()=>curriculumStep(-1,"last"));
 document.getElementById("curriculumNext")?.addEventListener("click",()=>curriculumStep(1,"first"));
