@@ -3471,8 +3471,8 @@ body.mobile-mission-open{overflow:hidden}
 
 /* 교육과정 표: HWP 원문 텍스트 + 공식 PDF의 표 배치를 결합해 책처럼 표시 */
 .curriculum-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:14px 0 16px;border:1px solid #d9d9dd;border-radius:8px;background:#fff}
-.curriculum-table{border-collapse:collapse;width:100%;min-width:max-content;font-size:.78em;line-height:1.45;background:#fff}
-.curriculum-table td{border:1px solid #cfd0d4;padding:7px 8px;vertical-align:middle;min-width:74px;max-width:300px;white-space:normal;word-break:keep-all;overflow-wrap:anywhere}
+.curriculum-table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:.78em;line-height:1.45;background:#fff}
+.curriculum-table td{border:1px solid #cfd0d4;padding:7px 8px;vertical-align:middle;min-width:0;max-width:none;white-space:normal;word-break:keep-all;overflow-wrap:break-word}
 .curriculum-table tr:first-child td{font-weight:750;background:#f5f5f6;text-align:center}
 .curriculum-table td:first-child{font-weight:650}
 .curriculum-table .curriculum-source-segment{white-space:pre-line}
@@ -3480,7 +3480,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-table-page{display:block;padding:3px 7px 4px;font-size:8.5px;color:#999;text-align:right;background:#fafafa;border-bottom:1px solid #ededf0}
 .curriculum-passage.editing .curriculum-table-wrap{border-color:#cfd0d4}
 .curriculum-passage.editing .curriculum-table td{user-select:text;-webkit-user-select:text}
-@media(max-width:699px){.curriculum-table{font-size:12px}.curriculum-table td{padding:6px;min-width:68px;max-width:230px}.curriculum-table-wrap{margin:11px 0 13px}}
+@media(max-width:699px){.curriculum-table{font-size:12px}.curriculum-table td{padding:6px;min-width:0;max-width:none}.curriculum-table-wrap{margin:11px 0 13px}}
 @media(monochrome){.curriculum-table-wrap,.curriculum-table td{border-color:#111!important}.curriculum-table tr:first-child td{background:#fff!important}.curriculum-table-page{background:#fff!important;color:#111!important;border-color:#111!important}}
 
 </style>
@@ -10771,7 +10771,7 @@ function updateTypingFloatingBadge(){
 /* ===== 교육과정 원문 빈칸 타자 =====
    공식 HWP에서 추출한 curriculum.json을 교육과정 탭을 열 때만 불러온다.
    원문 데이터와 개인 빈칸/쪽 편집/삭제 기록은 분리한다. */
-const CURRICULUM_DATA_URL="./curriculum.json?v=20260912-elementary-only-table3";
+const CURRICULUM_DATA_URL="./curriculum-v5.json?v=20260912-grid-v5";
 let curriculumData=null,curriculumLoadPromise=null,curriculumScopeCache=new Map(),curriculumDerivedItemsCache=null;
 let curriculumPracticeSession=null,curriculumTimerHandle=0,curriculumCloudTimer=0,curriculumPendingFocus="";
 let curriculumLastSelection=null,curriculumSourceEditing=false;
@@ -10842,7 +10842,7 @@ async function ensureCurriculumData(){
   curriculumLoadPromise=(async()=>{
     // curriculum.json은 사용자가 나중에 올릴 수 있으므로 브라우저/PWA의 예전 404 캐시를 믿지 않는다.
     // 1차는 버전 URL, 실패하면 완전한 cache-buster URL로 한 번 더 시도한다.
-    const urls=[CURRICULUM_DATA_URL,`./curriculum.json?cb=${Date.now()}`];
+    const urls=[`./curriculum-v5.json?cb=${Date.now()}`,CURRICULUM_DATA_URL,`./curriculum.json?cb=${Date.now()}`];
     let lastErr=null;
     for(const url of urls){
       const controller=typeof AbortController!=="undefined"?new AbortController():null;
@@ -10854,6 +10854,7 @@ async function ensureCurriculumData(){
         if(/^\s*</.test(raw))throw new Error("curriculum.json 대신 HTML 응답을 받음");
         const data=JSON.parse(raw);
         if(!data||!Array.isArray(data.items)||!Array.isArray(data.subjects))throw new Error("교육과정 데이터 형식 오류");
+        if(Number(data.tableVersion||0)<5)throw new Error("예전 교육과정 표 데이터가 캐시에 남아 있음");
         curriculumData=data;curriculumScopeCache.clear();curriculumDerivedItemsCache=null;migrateCurriculumGroupedState();return curriculumData;
       }catch(err){
         lastErr=err;
@@ -11252,7 +11253,11 @@ function appendCurriculumPracticeSegment(parent,item,start,end,spans,state){
 }
 function appendCurriculumTable(parent,item,meta,mode,spans,state){
   const wrap=document.createElement("div");wrap.className="curriculum-table-wrap";wrap.dataset.pdfPage=String(meta.pdf||"");
-  const table=document.createElement("table");table.className="curriculum-table";const tbody=document.createElement("tbody");
+  const table=document.createElement("table");table.className="curriculum-table";
+  const cols=Math.max(1,Number(meta.cols)||Math.max(1,...(meta.rows||[]).map(r=>(r||[]).length)));
+  table.style.minWidth=`${Math.max(720,cols*150)}px`;
+  if(Array.isArray(meta.colWidths)&&meta.colWidths.length===cols){const cg=document.createElement("colgroup");for(const w of meta.colWidths){const col=document.createElement("col");col.style.width=`${Math.max(.1,Number(w)||0)}%`;cg.append(col)}table.append(cg)}
+  const tbody=document.createElement("tbody");
   for(const row of meta.rows||[]){const tr=document.createElement("tr");for(const cell of row||[]){if(!cell)continue;const td=document.createElement("td");if(Number(cell.rs)>1)td.rowSpan=Number(cell.rs);if(Number(cell.cs)>1)td.colSpan=Number(cell.cs);const a=Number(cell.a),b=Number(cell.b);if(Number.isInteger(a)&&Number.isInteger(b)&&b>a){if(mode==="edit")appendCurriculumEditSegment(td,item,a,b,spans);else appendCurriculumPracticeSegment(td,item,a,b,spans,state)}else td.textContent=cell.t||"";tr.append(td)}tbody.append(tr)}
   table.append(tbody);wrap.append(table);parent.append(wrap);
 }
