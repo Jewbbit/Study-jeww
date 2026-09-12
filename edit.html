@@ -3284,6 +3284,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-page-actions{display:flex;gap:5px;flex-wrap:wrap;margin:8px 0;padding-top:8px;border-top:1px solid #e6e6e8}
 .curriculum-page-actions button{border:1px solid #d9d9dd;background:#fff;border-radius:6px;padding:7px 9px;font-size:10.5px;color:#4f5055}
 .curriculum-page-actions button:disabled{opacity:.38}
+.curriculum-page-actions .curriculum-page-delete{color:#a84f49;border-color:#e6cfcd;background:#fffafa}
 .curriculum-source-editor{margin-top:8px;padding-top:8px;border-top:1px solid #e6e6e8}
 .curriculum-source-editor textarea{width:100%;min-height:230px;box-sizing:border-box;border:1px solid #d8d8dc;border-radius:7px;background:#fff;padding:10px;font:inherit;font-size:12px;line-height:1.65;resize:vertical;white-space:pre-wrap}
 .curriculum-source-editor-actions{display:flex;justify-content:flex-end;gap:5px;margin-top:6px;flex-wrap:wrap}
@@ -3331,6 +3332,25 @@ body.mobile-mission-open{overflow:hidden}
   .curriculum-source-editor textarea{min-height:260px;font-size:16px}
 }
 @media(monochrome){.curriculum-edit-mark{background:#fff!important;border-bottom:2px solid #111!important}}
+/* 교육과정 펜 편집 보강: 겹친 빈칸은 합치고, 표시를 두 번 탭하면 삭제 */
+.curriculum-edit-mark{cursor:pointer;-webkit-tap-highlight-color:transparent}
+.curriculum-bookmark-btn.active{background:#25262a!important;color:#fff!important;border-color:#25262a!important}
+.curriculum-bookmark-panel{
+  position:fixed;right:12px;bottom:66px;z-index:91;width:min(360px,calc(100vw - 24px));max-height:min(58vh,520px);
+  overflow:auto;border:1px solid #d8d8dc;border-radius:10px;background:#fff;box-shadow:0 8px 26px rgba(0,0,0,.14);padding:8px
+}
+.curriculum-bookmark-panel.hidden{display:none!important}
+.curriculum-bookmark-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:2px 2px 7px;border-bottom:1px solid #ececef}
+.curriculum-bookmark-head strong{font-size:12px}.curriculum-bookmark-head button{border:0;background:transparent;font-size:16px;color:#777}
+.curriculum-bookmark-empty{padding:15px 7px;text-align:center;font-size:10.5px;color:#85868c}
+.curriculum-bookmark-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:4px;align-items:center;padding:5px 0;border-bottom:1px solid #f0f0f2}
+.curriculum-bookmark-row:last-child{border-bottom:0}
+.curriculum-bookmark-jump{min-width:0;text-align:left;border:0;background:transparent;padding:6px 5px;color:#34353a}
+.curriculum-bookmark-jump strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.curriculum-bookmark-jump span{display:block;margin-top:2px;font-size:9px;color:#8a8b90;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.curriculum-bookmark-row>button:not(.curriculum-bookmark-jump){border:1px solid #e0e0e3;background:#fff;border-radius:6px;padding:5px 7px;font-size:10px;color:#67686e}
+@media(max-width:699px){.curriculum-bookmark-panel{right:max(8px,env(safe-area-inset-right));bottom:62px;width:min(340px,calc(100vw - 16px));max-height:54vh}}
+@media(monochrome){.curriculum-bookmark-btn.active{background:#111!important;color:#fff!important}.curriculum-bookmark-panel{box-shadow:none!important;border:1px solid #111!important}}
 
 /* Apple Pencil 형광펜 + 스크롤 중에도 바로 전환할 수 있는 책자형 도구 */
 .curriculum-passage.editing.pen-highlighting::selection,
@@ -3461,7 +3481,10 @@ body.mobile-mission-open{overflow:hidden}
       <span id="curriculumFloatHint" class="curriculum-float-hint">연습</span>
       <button id="curriculumFloatEditBtn" type="button">✎ 빈칸</button>
       <button id="curriculumFloatSourceBtn" class="curriculum-float-source hidden" type="button">원문 정리</button>
+      <button id="curriculumBookmarkBtn" class="curriculum-bookmark-btn" type="button" title="현재 쪽 책갈피">🔖</button>
+      <button id="curriculumBookmarkListBtn" type="button">책갈피</button>
     </div>
+    <div id="curriculumBookmarkPanel" class="curriculum-bookmark-panel hidden" aria-label="교육과정 책갈피"></div>
     <div id="curriculumPassage" class="curriculum-passage" tabindex="0"></div>
     <div id="curriculumSourceNote" class="curriculum-source-note"></div>
     <div id="curriculumEditPanel" class="curriculum-edit-panel hidden"></div>
@@ -10573,13 +10596,14 @@ function updateTypingFloatingBadge(){
 
 
 /* ===== 교육과정 원문 빈칸 타자 =====
-   공식 초등학교 교육과정 합본을 압축 문자열로 넣고 교육과정 탭을 열 때만 해제한다.
-   기본 빈칸은 1차 자동 후보이며, 사용자가 문단별로 삭제/수정/추가한 값만 study에 저장한다. */
-const CURRICULUM_DATA_URL="./curriculum.json?v=20260912-3";
+   공식 HWP에서 추출한 curriculum.json을 교육과정 탭을 열 때만 불러온다.
+   원문 데이터와 개인 빈칸/쪽 편집/삭제 기록은 분리한다. */
+const CURRICULUM_DATA_URL="./curriculum.json?v=20260912-hwp1";
 let curriculumData=null,curriculumLoadPromise=null,curriculumScopeCache=new Map(),curriculumDerivedItemsCache=null;
 let curriculumPracticeSession=null,curriculumTimerHandle=0,curriculumCloudTimer=0,curriculumPendingFocus="";
 let curriculumLastSelection=null,curriculumSourceEditing=false;
-let curriculumPenStroke=null,curriculumPenFrame=0;
+let curriculumPenStroke=null,curriculumPenFrame=0,curriculumBlankTap=null;
+let curriculumBookmarkPanelOpen=false;
 
 function curriculumUi(){
   if(!app.ui.curriculum||typeof app.ui.curriculum!=="object")app.ui.curriculum={subject:"전체",mode:"copy",edit:false};
@@ -10594,6 +10618,8 @@ function curriculumStore(){
   if(!st.blankOverrides||typeof st.blankOverrides!=="object")st.blankOverrides={};
   if(!st.records||typeof st.records!=="object")st.records={};
   if(!Array.isArray(st.pageOps))st.pageOps=[];
+  if(!Array.isArray(st.deletedPages))st.deletedPages=[];
+  if(!Array.isArray(st.bookmarks))st.bookmarks=[];
   return st;
 }
 function migrateCurriculumGroupedState(){
@@ -10691,7 +10717,9 @@ function curriculumDerivedItems(){
       pages.splice(i,2,{...left,i:op.newId,t:left.t+sep+right.t,p0:left.p0||right.p0,p1:right.p1||left.p1,legacy:[],customPage:true,userEdited:!!(left.userEdited||right.userEdited)});
     }
   }
-  curriculumDerivedItemsCache=pages;return pages;
+  const deleted=new Set((curriculumStore().deletedPages||[]).map(String));
+  curriculumDerivedItemsCache=deleted.size?pages.filter(x=>!deleted.has(String(x.i))):pages;
+  return curriculumDerivedItemsCache;
 }
 function curriculumItems(){
   if(!curriculumData)return [];
@@ -10707,14 +10735,21 @@ function curriculumCurrentIndex(){
 }
 function curriculumCurrentItem(){const items=curriculumItems();return items[curriculumCurrentIndex()]||null}
 function validCurriculumSpans(item,spans){
-  const text=item?.t||"",out=[];
+  const text=item?.t||"",raw=[];
   (Array.isArray(spans)?spans:[]).forEach(x=>{
     const a=Number(x?.[0]),b=Number(x?.[1]);
     if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<=a||b>text.length)return;
-    if(out.some(y=>!(b<=y[0]||a>=y[1])))return;
-    out.push([a,b]);
+    raw.push([a,b]);
   });
-  return out.sort((a,b)=>a[0]-b[0]);
+  raw.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const out=[];
+  for(const span of raw){
+    const last=out[out.length-1];
+    // 기존 빈칸 위에 다시 긋거나 일부를 겹쳐 그으면 막지 않고 하나의 큰 빈칸으로 합친다.
+    if(last&&span[0]<last[1])last[1]=Math.max(last[1],span[1]);
+    else out.push(span.slice());
+  }
+  return out;
 }
 function curriculumSpans(item){
   const st=curriculumStore(),key=String(item.i);
@@ -10773,6 +10808,8 @@ function splitCurriculumAtSelection(){
   const leftSpans=spans.filter(sp=>sp[1]<=cut),rightSpans=spans.filter(sp=>sp[0]>=cut).map(sp=>[sp[0]-cut,sp[1]-cut]);
   delete curriculumStore().blankOverrides[String(item.i)];setCurriculumBlankKey(leftId,leftSpans);setCurriculumBlankKey(rightId,rightSpans);
   appendCurriculumPageOp({type:"split",id:String(item.i),offset:cut,leftId,rightId});
+  for(const b of curriculumStore().bookmarks||[])if(String(b?.itemId)===String(item.i)){b.itemId=leftId;b.subject=item.s}
+  normalizeCurriculumBookmarks();
   curriculumLastSelection=null;curriculumSourceEditing=false;resetCurriculumSession(false);setCurriculumPositionToItem(leftId);saveLocal();scheduleCurriculumCloud(700);renderCurriculumCurrent();toast("선택한 부분 앞에서 장을 나눴습니다");
 }
 function mergeCurriculumPage(direction){
@@ -10783,6 +10820,8 @@ function mergeCurriculumPage(direction){
   const leftSpans=curriculumSpans(left),shift=left.t.length+sep.length,rightSpans=curriculumSpans(right).map(sp=>[sp[0]+shift,sp[1]+shift]);
   delete curriculumStore().blankOverrides[String(left.i)];delete curriculumStore().blankOverrides[String(right.i)];setCurriculumBlankKey(newId,[...leftSpans,...rightSpans]);
   appendCurriculumPageOp({type:"merge",leftId:String(left.i),rightId:String(right.i),newId,sep});
+  for(const b of curriculumStore().bookmarks||[])if([String(left.i),String(right.i)].includes(String(b?.itemId))){b.itemId=newId;b.subject=left.s}
+  normalizeCurriculumBookmarks();
   curriculumLastSelection=null;curriculumSourceEditing=false;resetCurriculumSession(false);setCurriculumPositionToItem(newId);saveLocal();scheduleCurriculumCloud(700);renderCurriculumCurrent();toast("두 장을 합쳤습니다");
 }
 function scheduleCurriculumCloud(delay=3200){
@@ -10897,6 +10936,23 @@ function curriculumTrimSpan(item,a,b){
   while(a<b&&/\s/.test(item.t[a]||""))a++;while(b>a&&/\s/.test(item.t[b-1]||""))b--;
   return b>a?[a,b]:null;
 }
+function curriculumPointOffsetLoose(root,x,y,item){
+  let at=curriculumPointOffset(root,x,y,item);if(at!==null)return at;
+  // 줄 사이의 빈 공간을 펜이 가로지를 때에도 가까운 글자 위치를 이어 잡는다.
+  const samples=[[0,-4],[0,4],[0,-8],[0,8],[-5,0],[5,0],[-10,0],[10,0],[0,-13],[0,13],[-7,-7],[7,-7],[-7,7],[7,7]];
+  for(const [dx,dy] of samples){at=curriculumPointOffset(root,x+dx,y+dy,item);if(at!==null)return at}
+  return null;
+}
+function removeCurriculumBlankAt(item,index){
+  const spans=curriculumSpans(item);index=Number(index);if(!Number.isInteger(index)||index<0||index>=spans.length)return false;
+  setCurriculumSpans(item,spans.filter((_,i)=>i!==index));curriculumLastSelection=null;curriculumBlankTap=null;renderCurriculumCurrent();toast("빈칸을 지웠습니다");return true;
+}
+function registerCurriculumBlankTap(item,index,e){
+  index=Number(index);if(!Number.isInteger(index)||index<0)return false;
+  const now=Date.now(),prev=curriculumBlankTap,same=prev&&prev.itemId===String(item.i)&&prev.index===index&&now-prev.at<430;
+  if(same){curriculumBlankTap=null;return removeCurriculumBlankAt(item,index)}
+  curriculumBlankTap={itemId:String(item.i),index,at:now,x:Number(e?.clientX)||0,y:Number(e?.clientY)||0};return false;
+}
 function curriculumShowPenSelection(root,a,b){
   if(a===null||b===null)return;const span=a<=b?[a,b]:[b,a];
   try{const p1=curriculumDomPointFromOffset(root,span[0]),p2=curriculumDomPointFromOffset(root,span[1]),r=document.createRange();r.setStart(p1.node,p1.offset);r.setEnd(p2.node,p2.offset);const sel=window.getSelection();sel.removeAllRanges();sel.addRange(r)}catch{}
@@ -10906,28 +10962,34 @@ function curriculumFinishPenStroke(item,root,e,cancel=false){
   if(curriculumPenFrame){cancelAnimationFrame(curriculumPenFrame);curriculumPenFrame=0}
   curriculumPenStroke=null;root.classList.remove("pen-highlighting");
   try{if(e&&root.hasPointerCapture?.(e.pointerId))root.releasePointerCapture(e.pointerId)}catch{}
-  if(cancel||!st.moved){try{window.getSelection()?.removeAllRanges()}catch{};return}
-  const span=curriculumTrimSpan(item,st.start,st.end);if(!span){try{window.getSelection()?.removeAllRanges()}catch{};return}
+  if(cancel){try{window.getSelection()?.removeAllRanges()}catch{};return}
+  if(!st.moved){
+    try{window.getSelection()?.removeAllRanges()}catch{};
+    if(Number.isInteger(st.blankIndex))registerCurriculumBlankTap(item,st.blankIndex,e);
+    return;
+  }
+  const span=curriculumTrimSpan(item,st.min,st.max);if(!span){try{window.getSelection()?.removeAllRanges()}catch{};return}
   curriculumLastSelection={itemId:String(item.i),span,text:item.t.slice(span[0],span[1])};
-  const existing=curriculumSpans(item);
-  if(existing.some(x=>!(span[1]<=x[0]||span[0]>=x[1]))){updateCurriculumSelectionUi();toast("기존 빈칸과 겹칩니다");return}
-  setCurriculumSpans(item,[...existing,span]);curriculumLastSelection=null;try{window.getSelection()?.removeAllRanges()}catch{};renderCurriculumCurrent();toast("펜으로 빈칸을 만들었습니다");
+  const before=curriculumSpans(item),after=validCurriculumSpans(item,[...before,span]);
+  setCurriculumSpans(item,after);curriculumLastSelection=null;try{window.getSelection()?.removeAllRanges()}catch{};renderCurriculumCurrent();
+  toast(after.length<before.length+1?"겹친 빈칸을 이어서 합쳤습니다":"펜으로 빈칸을 만들었습니다");
 }
 function bindCurriculumPencilHighlighter(root,item){
   root.addEventListener("pointerdown",e=>{
     if(e.pointerType!=="pen"||!curriculumUi().edit||curriculumSourceEditing)return;
-    const at=curriculumPointOffset(root,e.clientX,e.clientY,item);if(at===null)return;
+    const at=curriculumPointOffsetLoose(root,e.clientX,e.clientY,item);if(at===null)return;
+    const mark=e.target?.closest?.(".curriculum-edit-mark"),blankIndex=mark?Number(mark.dataset.blankIndex):null;
     e.preventDefault();e.stopPropagation();try{root.setPointerCapture(e.pointerId)}catch{}
-    curriculumPenStroke={pointerId:e.pointerId,itemId:String(item.i),start:at,end:at,startX:e.clientX,startY:e.clientY,moved:false};root.classList.add("pen-highlighting");
+    curriculumPenStroke={pointerId:e.pointerId,itemId:String(item.i),start:at,end:at,min:at,max:at,last:at,startX:e.clientX,startY:e.clientY,moved:false,blankIndex:Number.isInteger(blankIndex)?blankIndex:null};root.classList.add("pen-highlighting");
     try{window.getSelection()?.removeAllRanges()}catch{}
   },{passive:false});
   root.addEventListener("pointermove",e=>{
     const st=curriculumPenStroke;if(e.pointerType!=="pen"||!st||st.pointerId!==e.pointerId||st.itemId!==String(item.i))return;
-    e.preventDefault();const at=curriculumPointOffset(root,e.clientX,e.clientY,item);if(at===null)return;st.end=at;
+    e.preventDefault();const at=curriculumPointOffsetLoose(root,e.clientX,e.clientY,item);if(at===null)return;st.end=at;st.last=at;st.min=Math.min(st.min,at);st.max=Math.max(st.max,at);
     if(Math.hypot(e.clientX-st.startX,e.clientY-st.startY)>5)st.moved=true;
-    if(!curriculumPenFrame)curriculumPenFrame=requestAnimationFrame(()=>{curriculumPenFrame=0;const cur=curriculumPenStroke;if(cur&&cur.itemId===String(item.i))curriculumShowPenSelection(root,cur.start,cur.end)});
+    if(!curriculumPenFrame)curriculumPenFrame=requestAnimationFrame(()=>{curriculumPenFrame=0;const cur=curriculumPenStroke;if(cur&&cur.itemId===String(item.i))curriculumShowPenSelection(root,cur.min,cur.max)});
   },{passive:false});
-  root.addEventListener("pointerup",e=>{const st=curriculumPenStroke;if(e.pointerType!=="pen"||!st||st.pointerId!==e.pointerId)return;e.preventDefault();const at=curriculumPointOffset(root,e.clientX,e.clientY,item);if(at!==null)st.end=at;curriculumFinishPenStroke(item,root,e,false)},{passive:false});
+  root.addEventListener("pointerup",e=>{const st=curriculumPenStroke;if(e.pointerType!=="pen"||!st||st.pointerId!==e.pointerId)return;e.preventDefault();const at=curriculumPointOffsetLoose(root,e.clientX,e.clientY,item);if(at!==null){st.end=at;st.min=Math.min(st.min,at);st.max=Math.max(st.max,at)}curriculumFinishPenStroke(item,root,e,false)},{passive:false});
   root.addEventListener("pointercancel",e=>curriculumFinishPenStroke(item,root,e,true));
 }
 function setCurriculumEditMode(on){
@@ -10973,9 +11035,8 @@ function updateCurriculumSelectionUi(){
 }
 function addCurrentCurriculumSelection(){
   const item=curriculumCurrentItem(),s=curriculumLastSelection;if(!item||!s||s.itemId!==String(item.i))return toast("원문에서 먼저 가릴 부분을 선택하세요");
-  const spans=curriculumSpans(item),candidate=s.span;
-  if(spans.some(x=>!(candidate[1]<=x[0]||candidate[0]>=x[1])))return toast("기존 빈칸과 겹칩니다");
-  setCurriculumSpans(item,[...spans,candidate]);curriculumLastSelection=null;renderCurriculumCurrent();toast("빈칸을 추가했습니다");
+  const spans=curriculumSpans(item),candidate=s.span,merged=validCurriculumSpans(item,[...spans,candidate]);
+  setCurriculumSpans(item,merged);curriculumLastSelection=null;renderCurriculumCurrent();toast(merged.length<spans.length+1?"겹친 빈칸을 이어서 합쳤습니다":"빈칸을 추가했습니다");
 }
 function renderCurriculumPracticePassage(item){
   const box=document.getElementById("curriculumPassage");box.innerHTML="";box.classList.remove("editing");box.dataset.itemId=String(item.i);box.onpointerup=null;box.ontouchend=null;
@@ -11000,9 +11061,37 @@ function renderCurriculumEditPassage(item){
   const box=document.getElementById("curriculumPassage");box.innerHTML="";box.classList.add("editing");box.dataset.itemId=String(item.i);box.onkeydown=null;
   box.append(curriculumHighlightedSource(item,curriculumSpans(item)));
   bindCurriculumPencilHighlighter(box,item);
-  const capture=e=>{if(e?.pointerType==="pen")return;setTimeout(()=>captureCurriculumSelection(item),20)};box.onpointerup=capture;box.ontouchend=capture;
+  const capture=e=>{
+    if(e?.pointerType==="pen")return;
+    const mark=e?.target?.closest?.(".curriculum-edit-mark");
+    if(mark&&registerCurriculumBlankTap(item,Number(mark.dataset.blankIndex),e)){e.preventDefault?.();e.stopPropagation?.();return}
+    setTimeout(()=>captureCurriculumSelection(item),20);
+  };
+  box.onpointerup=capture;box.ontouchend=null;
 }
 function renderCurriculumPassage(item){if(curriculumUi().edit)renderCurriculumEditPassage(item);else renderCurriculumPracticePassage(item)}
+function deleteCurriculumPage(item){
+  if(!item)return;
+  const items=curriculumItems(),idx=curriculumCurrentIndex();
+  if(items.length<=1)return toast("현재 범위의 마지막 쪽은 삭제할 수 없습니다");
+  if(!confirm("현재 쪽을 내 교육과정 책자에서 삭제할까요?\n원본 curriculum.json은 바뀌지 않고, ‘삭제한 쪽 복구’로 되돌릴 수 있습니다."))return;
+  const st=curriculumStore(),id=String(item.i);
+  st.deletedPages=(st.deletedPages||[]).filter(x=>String(x)!==id);
+  st.deletedPages.push(id);
+  curriculumLastSelection=null;curriculumSourceEditing=false;resetCurriculumSession(false);invalidateCurriculumDerived();
+  const nextItems=curriculumItems();
+  st.positions[curriculumScopeName()]=Math.max(0,Math.min(idx,nextItems.length-1));
+  saveLocal();scheduleCurriculumCloud(500);renderCurriculumCurrent();toast("이 쪽을 책자에서 삭제했습니다");
+}
+function restoreLastCurriculumPage(){
+  const st=curriculumStore();
+  if(!st.deletedPages?.length)return toast("복구할 쪽이 없습니다");
+  const id=String(st.deletedPages.pop());
+  invalidateCurriculumDerived();
+  const items=curriculumItems(),idx=items.findIndex(x=>String(x.i)===id);
+  if(idx>=0)st.positions[curriculumScopeName()]=idx;
+  saveLocal();scheduleCurriculumCloud(500);renderCurriculumCurrent();toast("마지막으로 삭제한 쪽을 복구했습니다");
+}
 function renderCurriculumEdit(item){
   const panel=document.getElementById("curriculumEditPanel"),edit=!!curriculumUi().edit;panel.classList.toggle("hidden",!edit);panel.innerHTML="";if(!edit)return;
   const spans=curriculumSpans(item),items=curriculumItems(),idx=curriculumCurrentIndex(),head=document.createElement("div");head.className="curriculum-edit-head";
@@ -11019,8 +11108,10 @@ function renderCurriculumEdit(item){
   const mergePrev=document.createElement("button");mergePrev.type="button";mergePrev.textContent="앞 장과 합치기";mergePrev.disabled=idx<=0||items[idx-1]?.s!==item.s;mergePrev.onclick=()=>mergeCurriculumPage(-1);
   const mergeNext=document.createElement("button");mergeNext.type="button";mergeNext.textContent="뒤 장과 합치기";mergeNext.disabled=idx>=items.length-1||items[idx+1]?.s!==item.s;mergeNext.onclick=()=>mergeCurriculumPage(1);
   const editSource=document.createElement("button");editSource.type="button";editSource.textContent=curriculumSourceEditing?"원문 정리 닫기":"원문 정리";editSource.title="잘못 들어간 엔터·공백을 붙이거나 필요한 줄바꿈을 직접 넣습니다";editSource.onclick=toggleCurriculumSourceEditor;
-  pageActions.append(split,mergePrev,mergeNext,editSource);panel.append(pageActions);
-  const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="장 나누기/합치기와 원문 정리는 내 학습용 설정으로만 저장됩니다. ‘원문 정리’에서 잘못 들어간 엔터를 지우거나 필요한 줄바꿈·띄어쓰기를 직접 고칠 수 있고, curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
+  const deletePage=document.createElement("button");deletePage.type="button";deletePage.className="curriculum-page-delete";deletePage.textContent="이 쪽 삭제";deletePage.disabled=items.length<=1;deletePage.onclick=()=>deleteCurriculumPage(item);
+  const restorePage=document.createElement("button");restorePage.type="button";const deletedCount=curriculumStore().deletedPages?.length||0;restorePage.textContent=deletedCount?`삭제한 쪽 복구 (${deletedCount})`:"삭제한 쪽 복구";restorePage.disabled=!deletedCount;restorePage.onclick=restoreLastCurriculumPage;
+  pageActions.append(split,mergePrev,mergeNext,editSource,deletePage,restorePage);panel.append(pageActions);
+  const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="빈칸·쪽 나누기/합치기·원문 정리·쪽 삭제·책갈피는 내 학습용 설정으로만 저장됩니다. 펜으로 기존 빈칸에 겹쳐 그으면 범위가 이어지고, 빈칸 표시를 두 번 누르면 바로 삭제할 수 있습니다. curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
   if(curriculumSourceEditing){
     const wrap=document.createElement("div");wrap.className="curriculum-source-editor";
     const ta=document.createElement("textarea");ta.value=item.t;ta.setAttribute("aria-label","현재 교육과정 원문 편집");
@@ -11035,15 +11126,59 @@ function renderCurriculumEdit(item){
   const done=document.createElement("button");done.type="button";done.textContent="연습으로";done.onclick=()=>setCurriculumEditMode(false);actions.append(clear,done);panel.append(actions);updateCurriculumSelectionUi();
   const splitBtn=document.getElementById("curriculumSplitBtn");if(splitBtn)splitBtn.disabled=!(curriculumLastSelection&&curriculumLastSelection.itemId===String(item.i));
 }
+function curriculumBookmarkAutoLabel(item){
+  const lines=String(item?.t||"").split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  let label=lines.find(x=>x.length>=2&&x.length<=48)||lines[0]||item?.s||"책갈피";
+  label=label.replace(/^[-•·⋅\s]+/,"").trim();return label.length>34?label.slice(0,34)+"…":label;
+}
+function normalizeCurriculumBookmarks(){
+  const st=curriculumStore(),seen=new Set(),out=[];
+  for(const b of st.bookmarks||[]){const id=String(b?.itemId||"");if(!id||seen.has(id))continue;seen.add(id);out.push({itemId:id,label:String(b?.label||"").trim()||"책갈피",subject:String(b?.subject||"")})}
+  st.bookmarks=out;return out;
+}
+function currentCurriculumBookmark(){const item=curriculumCurrentItem();if(!item)return null;return normalizeCurriculumBookmarks().find(b=>b.itemId===String(item.i))||null}
+function toggleCurrentCurriculumBookmark(){
+  const item=curriculumCurrentItem();if(!item)return;const st=curriculumStore(),id=String(item.i),i=(st.bookmarks||[]).findIndex(b=>String(b?.itemId)===id);
+  if(i>=0){st.bookmarks.splice(i,1);toast("책갈피를 뺐습니다")}else{st.bookmarks.push({itemId:id,label:curriculumBookmarkAutoLabel(item),subject:item.s});toast("현재 쪽에 책갈피를 꽂았습니다")}
+  saveLocal();scheduleCurriculumCloud(700);updateCurriculumBookmarkUi();renderCurriculumBookmarkPanel();
+}
+function jumpToCurriculumBookmark(b){
+  const target=curriculumDerivedItems().find(x=>String(x.i)===String(b?.itemId));if(!target)return toast("현재 책자에서 찾을 수 없는 책갈피입니다");
+  const ui=curriculumUi();if(ui.subject!=="전체"&&ui.subject!==target.s)ui.subject=target.s;
+  invalidateCurriculumDerived(); // subject cache도 현재 설정 기준으로 다시 계산
+  const items=curriculumItems(),idx=items.findIndex(x=>String(x.i)===String(target.i));if(idx<0)return toast("삭제한 쪽의 책갈피입니다");
+  curriculumStore().positions[curriculumScopeName()]=idx;curriculumBookmarkPanelOpen=false;curriculumLastSelection=null;curriculumSourceEditing=false;resetCurriculumSession(false);saveLocal();renderCurriculum();
+}
+function renameCurriculumBookmark(b){
+  const st=curriculumStore(),hit=(st.bookmarks||[]).find(x=>String(x?.itemId)===String(b?.itemId));if(!hit)return;
+  const name=prompt("책갈피 이름",hit.label||"");if(name===null)return;const clean=name.trim();if(!clean)return;hit.label=clean;saveLocal();scheduleCurriculumCloud(700);renderCurriculumBookmarkPanel();
+}
+function removeCurriculumBookmark(b){
+  const st=curriculumStore();st.bookmarks=(st.bookmarks||[]).filter(x=>String(x?.itemId)!==String(b?.itemId));saveLocal();scheduleCurriculumCloud(700);updateCurriculumBookmarkUi();renderCurriculumBookmarkPanel();
+}
+function renderCurriculumBookmarkPanel(){
+  const panel=document.getElementById("curriculumBookmarkPanel");if(!panel)return;panel.classList.toggle("hidden",!curriculumBookmarkPanelOpen);if(!curriculumBookmarkPanelOpen){panel.innerHTML="";return}
+  panel.innerHTML="";const head=document.createElement("div");head.className="curriculum-bookmark-head";const title=document.createElement("strong");title.textContent="내 책갈피";const close=document.createElement("button");close.type="button";close.textContent="×";close.onclick=()=>{curriculumBookmarkPanelOpen=false;renderCurriculumBookmarkPanel()};head.append(title,close);panel.append(head);
+  const visibleIds=new Set(curriculumDerivedItems().map(x=>String(x.i))),all=normalizeCurriculumBookmarks(),list=all.filter(b=>visibleIds.has(b.itemId));
+  if(!list.length){const empty=document.createElement("div");empty.className="curriculum-bookmark-empty";empty.textContent="아직 책갈피가 없습니다. 읽다가 오른쪽 아래 🔖를 누르면 현재 쪽에 표시됩니다.";panel.append(empty);return}
+  const order=new Map(curriculumDerivedItems().map((x,i)=>[String(x.i),i]));list.sort((a,b)=>(order.get(a.itemId)??1e9)-(order.get(b.itemId)??1e9));
+  for(const b of list){const item=curriculumDerivedItems().find(x=>String(x.i)===b.itemId),row=document.createElement("div");row.className="curriculum-bookmark-row";const jump=document.createElement("button");jump.type="button";jump.className="curriculum-bookmark-jump";const strong=document.createElement("strong");strong.textContent=b.label;const meta=document.createElement("span");meta.textContent=item?.s||b.subject||"교육과정";jump.append(strong,meta);jump.onclick=()=>jumpToCurriculumBookmark(b);const rename=document.createElement("button");rename.type="button";rename.textContent="이름";rename.onclick=()=>renameCurriculumBookmark(b);const del=document.createElement("button");del.type="button";del.textContent="삭제";del.onclick=()=>removeCurriculumBookmark(b);row.append(jump,rename,del);panel.append(row)}
+}
+function updateCurriculumBookmarkUi(){
+  const btn=document.getElementById("curriculumBookmarkBtn"),listBtn=document.getElementById("curriculumBookmarkListBtn"),active=!!currentCurriculumBookmark(),count=normalizeCurriculumBookmarks().length;
+  if(btn){btn.classList.toggle("active",active);btn.textContent=active?"🔖✓":"🔖";btn.title=active?"현재 쪽 책갈피 빼기":"현재 쪽 책갈피 추가"}
+  if(listBtn)listBtn.textContent=count?`책갈피 ${count}`:"책갈피";
+}
+function toggleCurriculumBookmarkPanel(){curriculumBookmarkPanelOpen=!curriculumBookmarkPanelOpen;renderCurriculumBookmarkPanel()}
 function renderCurriculumCurrent(){
   if(!curriculumData)return;const items=curriculumItems(),item=curriculumCurrentItem();
   const title=document.getElementById("curriculumTitle"),meta=document.getElementById("curriculumMeta"),sourceNote=document.getElementById("curriculumSourceNote");
   if(!item){title.textContent="교육과정";meta.textContent="표시할 원문이 없습니다";document.getElementById("curriculumPassage").textContent="";return}
   title.textContent=item.s;
-  const p0=Number(item.p0)||0,p1=Number(item.p1)||p0,page=p0?(p1>p0?`PDF p.${p0}–${p1}`:`PDF p.${p0}`):"연속 원문";
+  const page="HWP 원문";
   meta.textContent=`${page} · 장 ${curriculumCurrentIndex()+1}/${items.length}${item.userEdited?" · 수정본":""}`;
-  sourceNote.textContent=curriculumUi().edit?"Apple Pencil은 형광펜처럼 원문 위를 그으면 떼는 즉시 빈칸이 됩니다. 손가락·마우스는 기존처럼 드래그 후 ‘선택 → 빈칸’을 쓰면 됩니다.":"장 구분과 빈칸은 사용자가 직접 만든 설정을 사용합니다.";
-  renderCurriculumPassage(item);renderCurriculumEdit(item);updateCurriculumStatus();updateCurriculumFloatingTools();
+  sourceNote.textContent=curriculumUi().edit?"Apple Pencil은 줄이 바뀌어도 형광펜처럼 이어 그을 수 있습니다. 기존 빈칸과 겹치면 자동으로 이어지고, 표시된 빈칸을 두 번 톡톡 누르면 삭제됩니다.":"HWP 원문을 바탕으로 하며, 빈칸·쪽 구성·책갈피는 사용자가 직접 만든 설정을 사용합니다.";
+  renderCurriculumPassage(item);renderCurriculumEdit(item);updateCurriculumStatus();updateCurriculumFloatingTools();updateCurriculumBookmarkUi();renderCurriculumBookmarkPanel();
   document.getElementById("curriculumPrev").disabled=curriculumCurrentIndex()<=0;document.getElementById("curriculumNext").disabled=curriculumCurrentIndex()>=items.length-1;
   const editBtn=document.getElementById("curriculumBlankEditBtn");if(editBtn)editBtn.textContent=curriculumUi().edit?"연습으로":"빈칸 만들기";
   if(curriculumPendingFocus&&!curriculumUi().edit){const f=curriculumPendingFocus;curriculumPendingFocus="";requestAnimationFrame(()=>focusCurriculumInput(f))}
@@ -11639,9 +11774,12 @@ bindModeSwitchTap(document.getElementById("curriculumRecallMode"),()=>setCurricu
 bindModeSwitchTap(document.getElementById("curriculumBlankEditBtn"),()=>setCurriculumEditMode(!curriculumUi().edit),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumFloatEditBtn"),()=>setCurriculumEditMode(!curriculumUi().edit),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumFloatSourceBtn"),()=>toggleCurriculumSourceEditor(),{release:false});
+bindModeSwitchTap(document.getElementById("curriculumBookmarkBtn"),()=>toggleCurrentCurriculumBookmark(),{release:false});
+bindModeSwitchTap(document.getElementById("curriculumBookmarkListBtn"),()=>toggleCurriculumBookmarkPanel(),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumResetBtn"),()=>{if(!confirm("현재 범위를 처음부터 다시 시작할까요? 빈칸 편집 내용은 유지됩니다."))return;resetCurriculumSession(true);renderCurriculum()},{release:false});
 document.getElementById("curriculumPrev")?.addEventListener("click",()=>curriculumStep(-1,"last"));
 document.getElementById("curriculumNext")?.addEventListener("click",()=>curriculumStep(1,"first"));
+document.addEventListener("pointerdown",e=>{if(!curriculumBookmarkPanelOpen)return;const p=document.getElementById("curriculumBookmarkPanel"),b=document.getElementById("curriculumBookmarkListBtn");if(p?.contains(e.target)||b?.contains(e.target))return;curriculumBookmarkPanelOpen=false;renderCurriculumBookmarkPanel()},true);
 bindModeSwitchTap(document.getElementById("studyBtn"),()=>{
   app.ui.typingPractice=false;resetTypingPracticeSessions();
   app.study.mode="study";
