@@ -1,5 +1,5 @@
-const CACHE_NAME="study-jew-pwa-v6-curriculum-tools";
-const CORE=["./edit.html","./hotfix-v4.js","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
+const CACHE_NAME="study-jew-pwa-v7-curriculum-tools";
+const CORE=["./edit.html","./hotfix-v5.js","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));
@@ -20,8 +20,9 @@ function withHotfix(response){
     html=html
       .replace(/<script[^>]+src=["'][^"']*hotfix\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
       .replace(/<script[^>]+src=["'][^"']*hotfix-bridge\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
-      .replace(/<script[^>]+src=["'][^"']*hotfix-v4\.js[^"']*["'][^>]*><\/script>\s*/gi,"");
-    const tag='<script src="./hotfix-v4.js?v=20260913-4"></script>';
+      .replace(/<script[^>]+src=["'][^"']*hotfix-v4\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
+      .replace(/<script[^>]+src=["'][^"']*hotfix-v5\.js[^"']*["'][^>]*><\/script>\s*/gi,"");
+    const tag='<script src="./hotfix-v5.js?v=20260913-5"></script>';
     if(/<\/body>/i.test(html))html=html.replace(/<\/body>/i,tag+"\n</body>");
     else if(/<\/head>/i.test(html))html=html.replace(/<\/head>/i,tag+"\n</head>");
     else html+=tag;
@@ -43,7 +44,7 @@ self.addEventListener("fetch",event=>{
     return;
   }
   if(url.origin===self.location.origin){
-    if(url.pathname.endsWith("/hotfix-v4.js")){
+    if(url.pathname.endsWith("/hotfix-v5.js")){
       event.respondWith(fetch(req,{cache:"no-store"}).then(res=>{const copy=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(req,copy));return res;}).catch(()=>caches.match(req)));
       return;
     }
