@@ -1,10 +1,6 @@
-const CACHE_NAME="study-jew-pwa-v14-consideration-blank-hotfix";
+const CACHE_NAME="study-jew-pwa-v15-safe-standards-blank";
 const FALLBACK_URL="./edit.html";
-const HOTFIX_SRCS=[
-  "./hotfix-v6.js?v=20260913-3",
-  "./hotfix-v7.js?v=20260913-1"
-];
-const HOTFIX_TAGS=HOTFIX_SRCS.map(src=>`<script src="${src}"></script>`).join("\n");
+const HOTFIX_SRC="./hotfix-v6.js?v=20260913-4";
 
 async function injectHotfix(response){
   if(!response||!response.ok)return response;
@@ -12,22 +8,16 @@ async function injectHotfix(response){
   if(!type.includes("text/html"))return response;
 
   let html=await response.text();
-  const missing=[];
-  if(!html.includes("hotfix-v6.js"))missing.push(HOTFIX_SRCS[0]);
-  if(!html.includes("hotfix-v7.js"))missing.push(HOTFIX_SRCS[1]);
-  if(missing.length){
-    const tags=missing.map(src=>`<script src="${src}"></script>`).join("\n");
-    html=html.includes("</body>")?html.replace("</body>",`${tags}\n</body>`):html+tags;
-  }
+  html=html
+    .replace(/<script[^>]+src=["'][^"']*hotfix-v6\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
+    .replace(/<script[^>]+src=["'][^"']*hotfix-v7\.js[^"']*["'][^>]*><\/script>\s*/gi,"");
+  const tag=`<script src="${HOTFIX_SRC}"></script>`;
+  html=html.includes("</body>")?html.replace("</body>",`${tag}\n</body>`):html+tag;
 
   const headers=new Headers(response.headers);
   headers.delete("content-length");
   headers.delete("content-encoding");
-  return new Response(html,{
-    status:response.status,
-    statusText:response.statusText,
-    headers
-  });
+  return new Response(html,{status:response.status,statusText:response.statusText,headers});
 }
 
 self.addEventListener("install",event=>{
@@ -66,7 +56,5 @@ self.addEventListener("fetch",event=>{
         })
         .catch(()=>caches.match(FALLBACK_URL))
     );
-    return;
   }
-  /* 다른 정적 파일은 변형/주입하지 않고 브라우저가 그대로 네트워크에서 받게 둔다. */
 });
