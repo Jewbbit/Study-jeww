@@ -1,5 +1,5 @@
-const CACHE_NAME="study-jew-pwa-v3";
-const CORE=["./edit.html","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
+const CACHE_NAME="study-jew-pwa-v4-hotfix";
+const CORE=["./edit.html","./hotfix.js","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 
 self.addEventListener("install",event=>{
   event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting()));
@@ -12,26 +12,53 @@ self.addEventListener("activate",event=>{
   );
 });
 
+function withHotfix(response){
+  if(!response)return response;
+  const type=response.headers.get("content-type")||"";
+  if(!type.includes("text/html"))return response;
+  return response.text().then(html=>{
+    if(!html.includes("hotfix.js")){
+      const tag='<script src="./hotfix.js?v=20260913-2"></script>';
+      if(/<\/body>/i.test(html))html=html.replace(/<\/body>/i,tag+"\n</body>");
+      else if(/<\/head>/i.test(html))html=html.replace(/<\/head>/i,tag+"\n</head>");
+      else html+=tag;
+    }
+    const headers=new Headers(response.headers);
+    headers.delete("content-length");
+    return new Response(html,{status:response.status,statusText:response.statusText,headers});
+  });
+}
+
 self.addEventListener("fetch",event=>{
   if(event.request.method!=="GET")return;
   const req=event.request;
+  const url=new URL(req.url);
+
   if(req.mode==="navigate"){
     event.respondWith(
-      fetch(req).then(res=>{
-        const copy=res.clone();
-        caches.open(CACHE_NAME).then(cache=>cache.put("./edit.html",copy));
-        return res;
-      }).catch(()=>caches.match("./edit.html"))
+      fetch(req,{cache:"no-store"})
+        .then(withHotfix)
+        .then(res=>{
+          if(res){const copy=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put("./edit.html",copy));}
+          return res;
+        })
+        .catch(()=>caches.match("./edit.html").then(withHotfix))
     );
     return;
   }
-  const url=new URL(req.url);
+
   if(url.origin===self.location.origin){
+    if(url.pathname.endsWith("/hotfix.js")){
+      event.respondWith(
+        fetch(req,{cache:"no-store"}).then(res=>{
+          const copy=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(req,copy));return res;
+        }).catch(()=>caches.match(req))
+      );
+      return;
+    }
     event.respondWith(
       caches.match(req).then(cached=>cached||fetch(req).then(res=>{
-        const copy=res.clone();
-        caches.open(CACHE_NAME).then(cache=>cache.put(req,copy));
-        return res;
+        const copy=res.clone();caches.open(CACHE_NAME).then(cache=>cache.put(req,copy));return res;
       }))
     );
   }
