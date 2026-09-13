@@ -3486,7 +3486,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-table-wrap{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;margin:14px 0 16px;border:1px solid #d9d9dd;border-radius:8px;background:#fff}
 .curriculum-table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:.78em;line-height:1.45;background:#fff}
 .curriculum-table td{border:1px solid #cfd0d4;padding:7px 8px;vertical-align:middle;min-width:0;max-width:none;white-space:normal;word-break:keep-all;overflow-wrap:break-word}
-.curriculum-table tr:first-child td{font-weight:750;background:#f5f5f6;text-align:center}
+.curriculum-table tr:first-child td{font-weight:750;background:#f5f5f6;text-align:left;vertical-align:top}
 .curriculum-table td:first-child{font-weight:650}
 .curriculum-table .curriculum-source-segment{white-space:pre-line}
 .curriculum-text-segment{white-space:pre-wrap}
@@ -3508,7 +3508,7 @@ body.mobile-mission-open{overflow:hidden}
   .curriculum-table tbody{display:table-row-group!important;width:auto!important;padding:0!important;background:#fff!important;gap:0!important}
   .curriculum-table tr{display:table-row!important;width:auto!important;position:static!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important}
   .curriculum-table td{display:table-cell!important;width:auto!important;min-width:0!important;max-width:none!important;padding:6px 7px!important;border:1px solid #cfd0d4!important;vertical-align:middle!important;white-space:normal!important;word-break:keep-all!important;overflow-wrap:break-word!important}
-  .curriculum-table tr:first-child td{font-weight:750!important;background:#f5f5f6!important;text-align:center!important}
+  .curriculum-table tr:first-child td{font-weight:750!important;background:#f5f5f6!important;text-align:left!important;vertical-align:top!important}
   .curriculum-table td:first-child{font-weight:650!important}
   .curriculum-table-tools{position:sticky;left:0;z-index:3;justify-content:flex-start;min-width:max-content}
   .curriculum-table-tools button{min-height:30px;font-size:10.5px;padding:5px 8px;white-space:nowrap}
@@ -10968,7 +10968,7 @@ function updateTypingFloatingBadge(){
 /* ===== 교육과정 원문 빈칸 타자 =====
    공식 HWP에서 추출한 curriculum.json을 교육과정 탭을 열 때만 불러온다.
    원문 데이터와 개인 빈칸/쪽 편집/삭제 기록은 분리한다. */
-const CURRICULUM_DATA_URL="./curriculum-v5.json?v=20260912-grid-v5";
+const CURRICULUM_DATA_URL="./curriculum-v6.json?v=20260913-logical-v6";
 let curriculumData=null,curriculumLoadPromise=null,curriculumScopeCache=new Map(),curriculumDerivedItemsCache=null;
 let curriculumPracticeSession=null,curriculumTimerHandle=0,curriculumCloudTimer=0,curriculumPendingFocus="";
 let curriculumLastSelection=null,curriculumSourceEditing=false;
@@ -11001,38 +11001,58 @@ function curriculumStore(){
 }
 function migrateCurriculumGroupedState(){
   const st=curriculumStore();
-  if(st.groupedVersion===2||!curriculumData)return;
-  const oldBlanks=st.blankOverrides||{};
-  // 사용자가 기존 버전에서 직접 수정한 빈칸만 새 연속 원문 묶음으로 옮긴다.
-  // AI가 자동으로 만든 기본 빈칸은 새 버전에서 모두 폐기한다.
-  for(const item of curriculumData.items||[]){
+  if((Number(st.groupedVersion)||0)>=3||!curriculumData)return;
+  const oldBlanks=st.blankOverrides||{},items=curriculumData.items||[];
+  // v6는 HWP 물리 쪽이 아니라 목차의 실제 내용 단위로 다시 묶는다.
+  // legacy=[oldItemId,newBase,oldStart,oldEnd]를 이용해 기존 사용자가 만든 빈칸만 가능한 범위에서 옮긴다.
+  for(const item of items){
     if(Object.prototype.hasOwnProperty.call(oldBlanks,item.i))continue;
     const merged=[];
     for(const part of item.legacy||[]){
-      const oldId=String(part[0]),base=Number(part[1])||0,spans=oldBlanks[oldId];
+      const oldId=String(part?.[0]??""),base=Number(part?.[1])||0,oldStart=Math.max(0,Number(part?.[2])||0),oldEnd=Number.isFinite(Number(part?.[3]))?Number(part[3]):Infinity,spans=oldBlanks[oldId];
       if(!Array.isArray(spans))continue;
       for(const sp of spans){
         const a=Number(sp?.[0]),b=Number(sp?.[1]);
-        if(Number.isInteger(a)&&Number.isInteger(b)&&b>a)merged.push([base+a,base+b]);
+        if(Number.isInteger(a)&&Number.isInteger(b)&&b>a&&a>=oldStart&&b<=oldEnd)merged.push([base+(a-oldStart),base+(b-oldStart)]);
       }
     }
     if(merged.length)oldBlanks[item.i]=validCurriculumSpans(item,merged);
   }
-  // 예전 문장 단위 위치를 새 묶음 위치에 최대한 맞춰 옮긴다.
+  // 현재 보고 있던 물리 쪽은 그 원문을 포함하는 새 논리 쪽으로 최대한 이동한다.
+  const sourceOrder=curriculumData.legacySourceOrder||{};
   for(const scope of ["전체",...(curriculumData.subjects||[])]){
-    const oldPos=Number(st.positions?.[scope]);
-    if(!Number.isFinite(oldPos)||oldPos<0)continue;
-    const arr=scope==="전체"?(curriculumData.items||[]):(curriculumData.items||[]).filter(x=>x.s===scope);
-    let count=0,mapped=0;
-    for(let i=0;i<arr.length;i++){
-      const c=Math.max(1,Array.isArray(arr[i].legacy)?arr[i].legacy.length:1);
-      if(oldPos<count+c){mapped=i;break}
-      count+=c;mapped=Math.min(i+1,arr.length-1);
-    }
-    st.positions[scope]=Math.max(0,mapped);
+    const oldPos=Number(st.positions?.[scope]),order=Array.isArray(sourceOrder[scope])?sourceOrder[scope]:null;
+    if(!Number.isFinite(oldPos)||oldPos<0||!order?.length)continue;
+    const oldId=String(order[Math.max(0,Math.min(order.length-1,Math.floor(oldPos)))]||"");
+    const arr=scope==="전체"?items:items.filter(x=>x.s===scope);
+    const mapped=arr.findIndex(x=>(x.legacy||[]).some(p=>String(p?.[0])===oldId));
+    if(mapped>=0)st.positions[scope]=mapped;
   }
-  Object.keys(oldBlanks).forEach(k=>{if(/^\d+$/.test(k))delete oldBlanks[k]});
-  st.groupedVersion=2;
+  // 예전 쪽에 꽂은 책갈피도 그 원문을 포함하는 첫 논리 쪽으로 옮긴다.
+  for(const b of st.bookmarks||[]){
+    const oldId=String(b?.itemId||"");if(!oldId||items.some(x=>String(x.i)===oldId))continue;
+    const hit=items.find(x=>(x.legacy||[]).some(p=>String(p?.[0])===oldId));
+    if(hit){b.itemId=String(hit.i);b.subject=hit.s}
+  }
+  // 직접 눌러 고친 원문(replace)은 구 쪽의 범위가 새 논리 쪽 한 곳에 온전히 들어오는 경우 함께 옮긴다.
+  // split/merge 자체는 새 기본 쪽 구성을 우선하기 위해 옮기지 않는다.
+  const migratedOps=[];
+  for(const op of st.pageOps||[]){
+    if(op?.type!=="replace"||items.some(x=>String(x.i)===String(op.id)))continue;
+    const oa=Number(op.start),ob=Number(op.end);if(!Number.isInteger(oa)||!Number.isInteger(ob)||ob<oa)continue;
+    for(const item of items){
+      const part=(item.legacy||[]).find(p=>String(p?.[0])===String(op.id)&&oa>=Math.max(0,Number(p?.[2])||0)&&ob<=Number(p?.[3]));
+      if(!part)continue;
+      const oldStart=Math.max(0,Number(part[2])||0),base=Number(part[1])||0,na=base+(oa-oldStart),nb=base+(ob-oldStart);
+      migratedOps.push({...op,id:String(item.i),start:na,end:nb,migratedFrom:String(op.id)});
+      if(Array.isArray(oldBlanks[item.i]))oldBlanks[item.i]=curriculumRemapSpansForReplace(oldBlanks[item.i],na,nb,String(op.text??"").length).spans;
+      break;
+    }
+  }
+  if(migratedOps.length)st.pageOps.push(...migratedOps);
+  // 기존 쪽 나누기/합치기 기록은 새 기본 쪽 ID와 일치하지 않아 자동으로 적용되지 않는다.
+  // 기록 자체는 지우지 않아 사용자의 과거 수정 데이터를 파괴하지 않는다.
+  st.groupedVersion=3;
   saveLocal();scheduleCurriculumCloud(1800);
 }
 async function ensureCurriculumData(){
@@ -11041,7 +11061,7 @@ async function ensureCurriculumData(){
   curriculumLoadPromise=(async()=>{
     // curriculum.json은 사용자가 나중에 올릴 수 있으므로 브라우저/PWA의 예전 404 캐시를 믿지 않는다.
     // 1차는 버전 URL, 실패하면 완전한 cache-buster URL로 한 번 더 시도한다.
-    const urls=[`./curriculum-v5.json?cb=${Date.now()}`,CURRICULUM_DATA_URL,`./curriculum.json?cb=${Date.now()}`];
+    const urls=[`./curriculum-v6.json?cb=${Date.now()}`,CURRICULUM_DATA_URL,`./curriculum-v5.json?cb=${Date.now()}`,`./curriculum.json?cb=${Date.now()}`];
     let lastErr=null;
     for(const url of urls){
       const controller=typeof AbortController!=="undefined"?new AbortController():null;
