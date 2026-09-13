@@ -1,38 +1,49 @@
 (()=>{
   "use strict";
 
-  const NOTE_SELECTOR = ".curriculum-standard-note-element, .curriculum-standard-note-memo";
-  const DOUBLE_TAP_MS = 380;
+  const VERSION="2026-09-13-standards-blank-hotfix-v2";
+  if(window.__studyJewStandardsBlankHotfix===VERSION)return;
+  window.__studyJewStandardsBlankHotfix=VERSION;
+
+  const NOTE_SELECTOR = ".curriculum-standard-note-strip input, .curriculum-standard-note-strip textarea";
+  const MARK_SELECTOR = ".curriculum-standard-text mark";
+  const DOUBLE_TAP_MS = 520;
   let lastTapAt = 0;
   let lastTapMark = null;
 
+  function blankEditButton(){
+    const toolbar=document.querySelector("#curriculumPassage .curriculum-standards-v2-toolbar");
+    if(!toolbar)return null;
+    return [...toolbar.querySelectorAll("button")].find(b=>String(b.textContent||"").includes("빈칸"))||null;
+  }
+
   function isBlankEditMode(){
-    return document.body?.classList.contains("standard-blank-edit");
+    const btn=blankEditButton();
+    return !!(btn&&(btn.classList.contains("active")||String(btn.textContent||"").includes("완료")));
   }
 
   function syncNoteInputs(root=document){
-    const inputs = root.querySelectorAll ? root.querySelectorAll(NOTE_SELECTOR) : [];
-    const locked = isBlankEditMode();
-    inputs.forEach((input)=>{
-      // 안내용 예시 문구는 실제 메모/내용 요소와 헷갈리므로 표시하지 않는다.
+    const inputs=root.querySelectorAll?root.querySelectorAll(NOTE_SELECTOR):[];
+    const locked=isBlankEditMode();
+    inputs.forEach(input=>{
+      /* 예: 주장과 근거 / 연결·제한·헷갈리는 점 같은 안내 문구는 항상 숨긴다. */
       input.removeAttribute("placeholder");
+      input.placeholder="";
 
       if(locked){
-        if(input.dataset.blankModeLock !== "1"){
-          input.dataset.blankModeLock = "1";
-          input.dataset.blankModePrevReadonly = input.readOnly ? "1" : "0";
-          input.dataset.blankModePrevTabindex = input.hasAttribute("tabindex")
-            ? input.getAttribute("tabindex")
-            : "__none__";
+        if(input.dataset.blankModeLock!=="1"){
+          input.dataset.blankModeLock="1";
+          input.dataset.blankModePrevReadonly=input.readOnly?"1":"0";
+          input.dataset.blankModePrevTabindex=input.hasAttribute("tabindex")?input.getAttribute("tabindex"):"__none__";
         }
-        input.readOnly = true;
-        input.setAttribute("tabindex", "-1");
-        if(document.activeElement === input) input.blur();
-      }else if(input.dataset.blankModeLock === "1"){
-        input.readOnly = input.dataset.blankModePrevReadonly === "1";
-        const prevTab = input.dataset.blankModePrevTabindex;
-        if(prevTab === "__none__") input.removeAttribute("tabindex");
-        else if(prevTab != null) input.setAttribute("tabindex", prevTab);
+        input.readOnly=true;
+        input.setAttribute("tabindex","-1");
+        if(document.activeElement===input)input.blur();
+      }else if(input.dataset.blankModeLock==="1"){
+        input.readOnly=input.dataset.blankModePrevReadonly==="1";
+        const prev=input.dataset.blankModePrevTabindex;
+        if(prev==="__none__")input.removeAttribute("tabindex");
+        else if(prev!=null)input.setAttribute("tabindex",prev);
         delete input.dataset.blankModeLock;
         delete input.dataset.blankModePrevReadonly;
         delete input.dataset.blankModePrevTabindex;
@@ -41,89 +52,71 @@
   }
 
   function installStyles(){
-    if(document.getElementById("standard-blank-note-hotfix-style")) return;
-    const style = document.createElement("style");
-    style.id = "standard-blank-note-hotfix-style";
-    style.textContent = `
-      body.standard-blank-edit .curriculum-standard-note-input{
-        pointer-events:none !important;
-        -webkit-user-select:none !important;
-        user-select:none !important;
-        caret-color:transparent !important;
+    let style=document.getElementById("standard-blank-note-hotfix-style");
+    if(!style){style=document.createElement("style");style.id="standard-blank-note-hotfix-style";document.head.appendChild(style)}
+    style.textContent=`
+      .curriculum-standard-note-strip input::placeholder,
+      .curriculum-standard-note-strip textarea::placeholder{color:transparent!important;opacity:0!important}
+      body.sj-standard-blank-edit .curriculum-standard-note-strip input,
+      body.sj-standard-blank-edit .curriculum-standard-note-strip textarea{
+        pointer-events:none!important;
+        caret-color:transparent!important;
+      }
+      body.sj-standard-blank-edit ${MARK_SELECTOR}{
+        touch-action:manipulation!important;
+        -webkit-tap-highlight-color:transparent!important;
       }
     `;
-    document.head.appendChild(style);
   }
 
-  // 기존 코드는 mouse dblclick만 처리해서 iPad/모바일의 더블탭이 빠진다.
-  // 두 번째 탭에서 기존 dblclick 핸들러를 그대로 재사용해 mark를 제거한다.
-  function onTouchEndCapture(event){
-    if(!isBlankEditMode()) return;
-    const target = event.target instanceof Element ? event.target : event.target?.parentElement;
-    const mark = target?.closest?.('mark[data-standard-blank="1"]');
-    if(!mark) return;
+  function syncModeClass(){
+    document.body?.classList.toggle("sj-standard-blank-edit",isBlankEditMode());
+    syncNoteInputs();
+  }
 
-    const now = Date.now();
-    const isDoubleTap = mark === lastTapMark && (now - lastTapAt) <= DOUBLE_TAP_MS;
-    lastTapAt = now;
-    lastTapMark = mark;
+  function currentMark(target){
+    const el=target instanceof Element?target:target?.parentElement;
+    const mark=el?.closest?.(MARK_SELECTOR);
+    if(!mark||!document.getElementById("curriculumPassage")?.contains(mark))return null;
+    return mark;
+  }
 
-    if(!isDoubleTap) return;
+  function triggerMarkDelete(mark,event){
+    lastTapAt=0;lastTapMark=null;
+    try{event?.preventDefault?.();event?.stopPropagation?.()}catch{}
+    mark.dispatchEvent(new MouseEvent("dblclick",{bubbles:true,cancelable:true,view:window,detail:2}));
+    try{window.getSelection()?.removeAllRanges()}catch{}
+  }
 
-    lastTapAt = 0;
-    lastTapMark = null;
-    event.preventDefault();
-    event.stopPropagation();
-
-    mark.dispatchEvent(new MouseEvent("dblclick", {
-      bubbles:true,
-      cancelable:true,
-      view:window,
-      detail:2
-    }));
-
-    try{ window.getSelection()?.removeAllRanges(); }catch(_error){}
+  function registerTap(event){
+    if(!isBlankEditMode())return;
+    const mark=currentMark(event.target);if(!mark)return;
+    const now=Date.now();
+    const same=mark===lastTapMark&&(now-lastTapAt)<=DOUBLE_TAP_MS;
+    lastTapAt=now;lastTapMark=mark;
+    if(same)triggerMarkDelete(mark,event);
   }
 
   function install(){
     installStyles();
-    syncNoteInputs();
+    syncModeClass();
 
-    document.addEventListener("touchend", onTouchEndCapture, {capture:true, passive:false});
+    /* iPad Safari는 touchend 대신 pointerup만 안정적으로 오는 경우가 있어 둘 다 받는다. */
+    document.addEventListener("pointerup",e=>{
+      if(e.pointerType==="touch"||e.pointerType==="pen")registerTap(e);
+    },{capture:true,passive:false});
+    document.addEventListener("touchend",registerTap,{capture:true,passive:false});
 
-    const observer = new MutationObserver((mutations)=>{
-      let modeChanged = false;
-      const addedRoots = [];
-
+    const observer=new MutationObserver(mutations=>{
+      let shouldSync=false;
       for(const mutation of mutations){
-        if(mutation.type === "attributes" && mutation.target === document.body){
-          modeChanged = true;
-        }
-        if(mutation.type === "childList"){
-          mutation.addedNodes.forEach((node)=>{
-            if(node instanceof Element) addedRoots.push(node);
-          });
-        }
+        if(mutation.type==="childList"||mutation.type==="attributes")shouldSync=true;
       }
-
-      if(modeChanged) syncNoteInputs();
-      addedRoots.forEach((root)=>{
-        if(root.matches?.(NOTE_SELECTOR)) syncNoteInputs(root.parentElement || document);
-        else if(root.querySelector?.(NOTE_SELECTOR)) syncNoteInputs(root);
-      });
+      if(shouldSync)queueMicrotask(syncModeClass);
     });
-
-    observer.observe(document.body, {
-      subtree:true,
-      childList:true,
-      attributes:true,
-      attributeFilter:["class"]
-    });
+    observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:["class"]});
   }
 
-  if(document.readyState === "loading"){
-    document.addEventListener("DOMContentLoaded", install, {once:true});
-  }else{
-    install();
-  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",install,{once:true});
+  else install();
 })();
