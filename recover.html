@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>교육과정 편집 복구</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#171719;background:#f5f5f7}
+*{box-sizing:border-box}body{margin:0;padding:18px}.wrap{max-width:680px;margin:0 auto}.card{background:#fff;border:1px solid #e1e1e6;border-radius:14px;padding:15px;margin-bottom:10px}h1{font-size:20px;margin:0 0 8px}p{font-size:13px;line-height:1.55;color:#666;margin:7px 0}.warn{color:#a44}.backup{width:100%;border:1px solid #dddde2;background:#fafafa;border-radius:10px;padding:11px;margin:6px 0;text-align:left;font:inherit}.backup strong{display:block;font-size:13px}.backup small{display:block;color:#777;margin-top:4px;line-height:1.45}.primary{background:#222;color:#fff;border-color:#222}.empty{padding:18px;text-align:center;color:#777}.status{font-size:12px;margin-top:8px}.back{display:block;width:100%;border:0;background:transparent;padding:10px;color:#777;font:inherit}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <h1>교육과정 편집 복구</h1>
+    <p>이 페이지는 기존 앱 데이터를 자동으로 지우지 않습니다. 아래 안전 백업 중 하나를 직접 선택했을 때만 교육과정 편집 내용을 복구합니다.</p>
+    <p class="warn">복구 대상은 교육과정의 성취기준 빈칸, 내용요소·메모, 해설/적용 시 고려 사항 빈칸입니다.</p>
+  </div>
+  <div id="list" class="card"></div>
+  <button id="back" class="back" type="button">복구하지 않고 돌아가기</button>
+</div>
+<script>
+(()=>{
+  const APP_KEY="study-jew-v4",QUICK_KEY="study-jew-v4-study-edit",BACKUP_KEY="study-jew-curriculum-safety-v1";
+  const EXPLANATION_KEY="study-jew-explanation-blanks-v1",CONSIDERATION_KEY="study-jew-consideration-blanks-v1";
+  const parse=s=>{try{return JSON.parse(s||"null")}catch{return null}},clone=v=>{try{return JSON.parse(JSON.stringify(v))}catch{return null}},obj=v=>v&&typeof v==="object"&&!Array.isArray(v)?v:{};
+  const cp=e=>clone(e?.quick||e?.main||null);
+  function count(e){
+    const c=obj(cp(e)),sp=obj(c.standardBlankOverrides),notes=obj(c.standardNotes);let blanks=0,noteCount=0;
+    for(const xs of Object.values(sp))if(Array.isArray(xs))blanks+=xs.length;
+    for(const n of Object.values(notes)){if(!n||typeof n!=="object")continue;if(String(n.content||"").trim())noteCount++;if(String(n.memo||"").trim())noteCount++}
+    return {blanks,noteCount,ex:Object.keys(obj(e.explanation)).length,co:Object.keys(obj(e.consideration)).length};
+  }
+  function fmt(ts){try{return new Date(Number(ts)||0).toLocaleString("ko-KR")}catch{return String(ts||"")}}
+  function restore(entry){
+    const curriculum=cp(entry);if(!curriculum){alert("이 백업에는 복구할 교육과정 데이터가 없습니다.");return}
+    const now=Date.now()+60000;
+    try{
+      const app=parse(localStorage.getItem(APP_KEY))||{};if(!app.study||typeof app.study!=="object")app.study={};app.study.curriculumPractice=clone(curriculum);app.study.updatedAt=now;localStorage.setItem(APP_KEY,JSON.stringify(app));
+      const quick=parse(localStorage.getItem(QUICK_KEY))||{};const study=quick.study&&typeof quick.study==="object"?quick.study:clone(app.study);study.curriculumPractice=clone(curriculum);study.updatedAt=now;localStorage.setItem(QUICK_KEY,JSON.stringify({study,updatedAt:now}));
+      if(entry.explanation&&typeof entry.explanation==="object")localStorage.setItem(EXPLANATION_KEY,JSON.stringify(entry.explanation));
+      if(entry.consideration&&typeof entry.consideration==="object")localStorage.setItem(CONSIDERATION_KEY,JSON.stringify(entry.consideration));
+      localStorage.setItem("study-jew-curriculum-manual-recovery",JSON.stringify({at:Date.now(),backupAt:entry.at||0}));
+      location.replace("./edit.html?recovered="+Date.now());
+    }catch(err){alert("복구 저장에 실패했습니다. "+(err?.message||err));}
+  }
+  const listEl=document.getElementById("list"),all=parse(localStorage.getItem(BACKUP_KEY));const list=Array.isArray(all)?all.filter(Boolean):[];
+  if(!list.length){listEl.innerHTML='<div class="empty">이 기기에서 찾은 교육과정 안전 백업이 없습니다.</div>'}
+  else{
+    const title=document.createElement("p");title.innerHTML='<strong>찾은 백업 '+list.length+'개</strong><br>가장 최근 것이 위에 있습니다.';listEl.append(title);
+    [...list].reverse().forEach((entry,i)=>{const c=count(entry),b=document.createElement("button");b.type="button";b.className="backup"+(i===0?" primary":"");b.innerHTML=`<strong>${i===0?"최신 · ":""}${fmt(entry.at)}</strong><small>성취기준 빈칸 ${c.blanks} · 내용요소/메모 ${c.noteCount} · 해설 빈칸묶음 ${c.ex} · 적용 시 고려 빈칸묶음 ${c.co}</small>`;b.onclick=()=>{if(confirm(`${fmt(entry.at)} 백업으로 복구할까요?`))restore(entry)};listEl.append(b)});
+  }
+  document.getElementById("back").onclick=()=>location.replace("./edit.html");
+})();
+</script>
+</body>
+</html>
