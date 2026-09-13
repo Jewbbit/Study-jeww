@@ -18,8 +18,10 @@ jobs:
         with:
           ref: curriculum-safe-20260913
           fetch-depth: 0
-      - name: Patch edit.html and syntax-check module
-        run: python3 tools/patch_curriculum_safe.py
+      - name: Patch edit.html
+        run: |
+          python3 tools/patch_curriculum_safe.py
+          python3 tools/fix_curriculum_safe.py
       - name: Verify diff
         run: git diff --check
       - name: Browser smoke test
@@ -55,7 +57,7 @@ jobs:
           url=f'https://api.github.com/repos/{repo}/contents/edit.html?ref={branch}'
           q=urllib.request.Request(url,headers=headers)
           with urllib.request.urlopen(q) as r: current=json.load(r)
-          payload=json.dumps({'message':'Integrate curriculum standards tab and content-system view','content':base64.b64encode(open('edit.html','rb').read()).decode(),'sha':current['sha'],'branch':branch}).encode()
+          payload=json.dumps({'message':'Finalize curriculum standards tab and content-system view','content':base64.b64encode(open('edit.html','rb').read()).decode(),'sha':current['sha'],'branch':branch}).encode()
           req=urllib.request.Request(f'https://api.github.com/repos/{repo}/contents/edit.html',data=payload,headers={**headers,'Content-Type':'application/json'},method='PUT')
           with urllib.request.urlopen(req) as r: out=json.load(r)
           print('updated edit.html',out['content']['sha'],out['commit']['sha'])
