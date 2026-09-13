@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>교육과정 저장상태 정밀 진단</title>
+<style>:root{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo",sans-serif;background:#f5f5f7;color:#171719}*{box-sizing:border-box}body{margin:0;padding:16px}.wrap{max-width:820px;margin:auto}.card{background:#fff;border:1px solid #e0e0e5;border-radius:14px;padding:14px;margin-bottom:10px}h1{font-size:19px;margin:0 0 8px}p,small{font-size:12px;line-height:1.55;color:#666}.row{border:1px solid #dddde3;border-radius:10px;padding:10px;margin:7px 0;background:#fafafa}.row.good{background:#f4fbf7;border-color:#9dc8ae}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;white-space:pre-wrap;word-break:break-all}button{width:100%;font:inherit;border:1px solid #d9d9df;background:#fff;border-radius:9px;padding:9px 10px}</style>
+</head><body><div class="wrap">
+<div class="card"><h1>교육과정 저장상태 정밀 진단</h1><p>읽기만 합니다. 저장·복구·삭제는 하지 않습니다. 기존 앱 탭은 그대로 두세요.</p></div>
+<div id="out" class="card"></div>
+<div class="card"><button id="copy">진단 결과 복사</button><p id="status"></p></div>
+</div><script>
+(()=>{
+ const APP='study-jew-v4',QUICK='study-jew-v4-study-edit';
+ const parse=s=>{try{return JSON.parse(s||'null')}catch{return null}};
+ const obj=v=>v&&typeof v==='object'&&!Array.isArray(v)?v:{};
+ const size=v=>{try{return JSON.stringify(v).length}catch{return 0}};
+ const countSpans=o=>Object.values(obj(o)).reduce((n,x)=>n+(Array.isArray(x)?x.length:0),0);
+ const countNotes=o=>Object.values(obj(o)).reduce((n,x)=>n+(x&&typeof x==='object'?(String(x.content||'').trim()?1:0)+(String(x.memo||'').trim()?1:0):0),0);
+ const hash=s=>{let h=2166136261;for(const ch of String(s||'')){h^=ch.codePointAt(0);h=Math.imul(h,16777619)}return (h>>>0).toString(36)};
+ function extract(label,root){
+   const study=root?.study||null, cp=study?.curriculumPractice||null;
+   return {label,root,study,cp,rootUpdated:Number(root?.updatedAt||0),studyUpdated:Number(study?.updatedAt||0)};
+ }
+ const main=extract('main',parse(localStorage.getItem(APP))||{});
+ const quickRoot=parse(localStorage.getItem(QUICK))||{};
+ const quick=extract('quick',quickRoot);
+ const list=[main,quick];
+ const lines=['[교육과정 저장상태 정밀 진단]'];
+ function fmt(t){return t?new Date(t).toLocaleString('ko-KR'):'없음'}
+ function cpStats(cp){
+   cp=obj(cp);return {
+    bytes:size(cp), keys:Object.keys(cp),
+    standardBlanks:countSpans(cp.standardBlankOverrides),
+    standardNotes:countNotes(cp.standardNotes),
+    considerationAssignments:Object.keys(obj(cp.considerationAssignments)).length,
+    baseBlanks:countSpans(cp.blankOverrides),
+    positions:Object.keys(obj(cp.positions)).length,
+    records:Object.keys(obj(cp.records)).length
+   };
+ }
+ const out=document.getElementById('out');
+ for(const x of list){
+   const s=cpStats(x.cp),d=document.createElement('div');d.className='row '+(s.standardBlanks||s.standardNotes?'good':'');
+   d.innerHTML=`<strong>${x.label}</strong><div class="mono">study.updatedAt: ${fmt(x.studyUpdated)}\nroot.updatedAt: ${fmt(x.rootUpdated)}\ncurriculumPractice: ${x.cp?'있음':'없음'} · ${s.bytes}자\nkeys: ${s.keys.join(', ')||'(없음)'}\nstandardBlankOverrides: ${s.standardBlanks}\nstandardNotes(채운 필드): ${s.standardNotes}\nconsiderationAssignments: ${s.considerationAssignments}\n기존 blankOverrides: ${s.baseBlanks}\npositions: ${s.positions}\nrecords: ${s.records}</div>`;out.append(d);
+   lines.push(`${x.label}: studyUpdated=${fmt(x.studyUpdated)}, rootUpdated=${fmt(x.rootUpdated)}, cp=${x.cp?'있음':'없음'} ${s.bytes}자, keys=[${s.keys.join(', ')}], standardBlanks=${s.standardBlanks}, standardNotes=${s.standardNotes}, considerationAssignments=${s.considerationAssignments}, baseBlanks=${s.baseBlanks}, positions=${s.positions}, records=${s.records}`);
+ }
+ const mainRaw=main.cp?JSON.stringify(main.cp):'',quickRaw=quick.cp?JSON.stringify(quick.cp):'';
+ lines.push(`main/quick curriculumPractice 동일: ${mainRaw&&quickRaw?String(mainRaw===quickRaw):'비교불가'}`);
+ lines.push(`main cp hash=${hash(mainRaw)} / quick cp hash=${hash(quickRaw)}`);
+ const storage=[];
+ for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i),raw=localStorage.getItem(k)||'';let p=null;try{p=JSON.parse(raw)}catch{};let hits=[];
+   function walk(v,path,depth){if(!v||typeof v!=='object'||depth>8)return;if(Array.isArray(v)){for(let j=0;j<Math.min(v.length,80);j++)walk(v[j],`${path}[${j}]`,depth+1);return}for(const [kk,vv] of Object.entries(v)){const np=path?`${path}.${kk}`:kk;if(/curriculumPractice|standardBlankOverrides|standardNotes|considerationAssignments|blankOverrides/i.test(kk))hits.push(`${np}${vv&&typeof vv==='object'?`(${size(vv)}자)`:''}`);walk(vv,np,depth+1)}}
+   if(p)walk(p,'',0);if(hits.length||/study|curriculum|backup|draft/i.test(k))storage.push({k,bytes:raw.length,hits:[...new Set(hits)].slice(0,40)});
+ }
+ const sd=document.createElement('div');sd.className='row';sd.innerHTML='<strong>관련 localStorage 키</strong><div class="mono">'+storage.map(x=>`${x.k} · ${x.bytes}자${x.hits.length?'\n  '+x.hits.join('\n  '):''}`).join('\n\n')+'</div>';out.append(sd);
+ lines.push('관련 localStorage 키:');for(const x of storage){lines.push(`- ${x.k} ${x.bytes}자`);for(const h of x.hits)lines.push(`  ${h}`)}
+ document.getElementById('copy').onclick=async()=>{const t=lines.join('\n');try{await navigator.clipboard.writeText(t);document.getElementById('status').textContent='복사됨'}catch{document.getElementById('status').textContent=t}};
+})();
+</script></body></html>
