@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v8-curriculum-core";
+const CACHE_NAME="study-jew-pwa-v9-curriculum-core";
 const CORE=["./edit.html","./manifest.webmanifest","./icon-192.png","./icon-512.png"];
 
 /*
@@ -9,9 +9,9 @@ const CORE=["./edit.html","./manifest.webmanifest","./icon-192.png","./icon-512.
 */
 const EXTRA_MODULE_PATCH=String.raw`
 ;(()=>{
-  if(globalThis.__sjCurriculumV8)return;globalThis.__sjCurriculumV8=1;
+  if(globalThis.__sjCurriculumV9)return;globalThis.__sjCurriculumV9=1;
   let contentOpen=false,contentSubject="";
-  const style=document.createElement("style");style.id="sj-curriculum-v8-style";style.textContent=\`
+  const style=document.createElement("style");style.id="sj-curriculum-v9-style";style.textContent=\`
 @media(min-width:700px) and (min-height:600px){
  #widePlannerSide,#widePlannerSide .wide-planner-inner,#widePlannerList{overflow-x:hidden!important;overscroll-behavior-x:none!important;max-width:100%!important}
  #widePlannerList .planner-task,#widePlannerList .planner-task-link,#widePlannerList .planner-task-check,#widePlannerList .planner-task-exclude{touch-action:pan-y!important}
@@ -57,7 +57,7 @@ body.sj-content-system .curriculum-page-dock,body.sj-content-system .curriculum-
   const baseRenderCurrent=renderCurriculumCurrent;
   renderCurriculumCurrent=function(){if(contentOpen){renderContent();return}if(curriculumStandardsView()){renderCurriculumStandards();return}return baseRenderCurrent()};
   const baseRenderCurriculum=renderCurriculum;
-  renderCurriculum=async function(){if(contentOpen){if(!curriculumData)await ensureCurriculumData();renderContent();return}const out=await baseRenderCurriculum();if(curriculumStandardsView()){document.querySelector("#curriculumModebar .curriculum-mode-switch")?.classList.remove("hidden");const b=document.getElementById("curriculumBlankEditBtn");if(b){b.classList.remove("hidden");b.textContent=curriculumUi().standardBlankEdit?"✓ 빈칸 편집":"빈칸 편집";b.classList.toggle("active",curriculumUi().standardBlankEdit);b.onclick=()=>{curriculumUi().standardBlankEdit=!curriculumUi().standardBlankEdit;saveLocal();renderCurriculumStandards();renderWidePlannerSide()}}}return out};
+  renderCurriculum=async function(){if(contentOpen){if(!curriculumData)await ensureCurriculumData();renderContent();return}return await baseRenderCurriculum()};
   const baseRenderMode=renderMode;
   renderMode=function(){const out=baseRenderMode();if((app.ui.workspace||"memory")==="curriculum"&&curriculumStandardsView()){widePlannerSideTab="blank";renderWidePlannerSide()}else addContentButton();lockX();return out};
   const baseSetSideSubject=setCurriculumSideOutlineSubject;
@@ -85,7 +85,7 @@ function relocateStandards(html){
   if(start<0)return html;
   const openEnd=html.indexOf(">",start)+1,close=html.indexOf("</script>",openEnd);
   if(close<0)return html;
-  const marker="/* sj-curriculum-v8-injected */";
+  const marker="/* sj-curriculum-v9-injected */";
   if(html.includes(marker))return html;
   const code=`\n${marker}\n${standards}\n${EXTRA_MODULE_PATCH}\n`;
   return html.slice(0,close)+code+html.slice(close);
