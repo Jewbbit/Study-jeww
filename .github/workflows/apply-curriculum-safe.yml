@@ -22,15 +22,22 @@ jobs:
         run: python3 tools/patch_curriculum_safe.py
       - name: Verify diff
         run: git diff --check
-      - name: Commit patched edit.html
-        shell: bash
+      - name: Update patched edit.html through GitHub API
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          GH_BRANCH: curriculum-safe-20260913
         run: |
-          if git diff --quiet -- edit.html; then
-            echo "No edit.html changes"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add edit.html
-          git commit -m "Integrate curriculum standards tab and content-system view"
-          git push origin HEAD:curriculum-safe-20260913
+          python3 - <<'PY'
+          import os, json, base64, urllib.request
+          repo=os.environ['GH_REPO']; branch=os.environ['GH_BRANCH']; token=os.environ['GH_TOKEN']
+          headers={'Authorization':f'Bearer {token}','Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28','User-Agent':'study-jew-safe-patcher'}
+          url=f'https://api.github.com/repos/{repo}/contents/edit.html?ref={branch}'
+          q=urllib.request.Request(url,headers=headers)
+          with urllib.request.urlopen(q) as r: current=json.load(r)
+          payload=json.dumps({'message':'Integrate curriculum standards tab and content-system view','content':base64.b64encode(open('edit.html','rb').read()).decode(),'sha':current['sha'],'branch':branch}).encode()
+          req=urllib.request.Request(f'https://api.github.com/repos/{repo}/contents/edit.html',data=payload,headers={**headers,'Content-Type':'application/json'},method='PUT')
+          with urllib.request.urlopen(req) as r:
+              out=json.load(r)
+          print('updated edit.html',out['content']['sha'],out['commit']['sha'])
+          PY
