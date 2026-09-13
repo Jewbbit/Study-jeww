@@ -10,7 +10,8 @@ async function injectHotfix(response){
   let html=await response.text();
   html=html
     .replace(/<script[^>]+src=["'][^"']*hotfix-v6\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
-    .replace(/<script[^>]+src=["'][^"']*hotfix-v7\.js[^"']*["'][^>]*><\/script>\s*/gi,"");
+    .replace(/<script[^>]+src=["'][^"']*hotfix-v7\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
+    .replace(/\s*if\(!useCompactMissionPanel\(\)\)\{\s*button\.textContent="오늘";\s*button\.setAttribute\("aria-label","하루 미션"\);\s*return;\s*\}\s*(?=const x=plannerDaySummary\(plannerToday\(\)\);)/,"\n");
   const tag=`<script src="${HOTFIX_SRC}"></script>`;
   html=html.includes("</body>")?html.replace("</body>",`${tag}\n</body>`):html+tag;
 
