@@ -1,0 +1,36 @@
+name: Apply safe curriculum patch
+
+on:
+  push:
+    branches:
+      - curriculum-safe-20260913
+    paths:
+      - .github/workflows/apply-curriculum-safe.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: curriculum-safe-20260913
+          fetch-depth: 0
+      - name: Patch edit.html and syntax-check module
+        run: python3 tools/patch_curriculum_safe.py
+      - name: Verify diff
+        run: git diff --check
+      - name: Commit patched edit.html
+        shell: bash
+        run: |
+          if git diff --quiet -- edit.html; then
+            echo "No edit.html changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add edit.html
+          git commit -m "Integrate curriculum standards tab and content-system view"
+          git push origin HEAD:curriculum-safe-20260913
