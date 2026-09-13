@@ -13429,6 +13429,8 @@ body.sj-content-system #curriculumContext,body.sj-content-system .curriculum-sta
     if(tab==='standards'){
       widePlannerSideTab='standards';
       if((app.ui.workspace||'memory')!=='curriculum')openCurriculumWorkspace();
+      /* openCurriculumWorkspace() selects the curriculum outline tab; restore the requested independent standards tab. */
+      widePlannerSideTab='standards';
       if(curriculumData){const s=standardsSubject();if(s){curriculumUi().subject=s;curriculumUi().sideSubject=s}setCurriculumViewMode('standards')}
       else ensureCurriculumData().then(()=>{const s=standardsSubject();if(s){curriculumUi().subject=s;curriculumUi().sideSubject=s}setCurriculumViewMode('standards');renderWidePlannerSide()}).catch(()=>renderWidePlannerSide());
       renderWidePlannerSide();return;
