@@ -3260,6 +3260,10 @@ body.mobile-mission-open{overflow:hidden}
 #curriculumModebar select{max-width:180px}
 #curriculumModebar .active{background:#ededee!important;border-color:#c9c9cd!important;color:#202024!important;font-weight:700}
 .curriculum-mode-switch{display:inline-flex;gap:3px}
+.curriculum-font-controls{display:inline-flex;align-items:center;gap:3px;margin-left:auto}
+.curriculum-font-controls button{min-width:34px;padding-left:7px!important;padding-right:7px!important}
+#curriculumFontValue{min-width:42px!important;font-variant-numeric:tabular-nums;font-weight:700;color:#55565b!important}
+
 #curriculumView{max-width:980px;margin:0 auto;padding:2px 0 40px}
 .curriculum-nav{display:grid;grid-template-columns:42px minmax(0,1fr) 42px;align-items:center;gap:6px;margin:4px 0 8px}
 .curriculum-nav>button{height:38px;border:0;background:#f3f3f4;border-radius:7px;font-size:20px;color:#5e6065}
@@ -3269,11 +3273,15 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-status{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:28px;padding:5px 3px 8px;border-bottom:1px solid #ececef;font-size:10.5px;color:#6f7075}
 .curriculum-status strong{font-size:12px;color:#34353a}
 .curriculum-passage{
-  padding:20px 6px 18px;font-size:17px;line-height:2.15;color:#242529;word-break:keep-all;overflow-wrap:anywhere;outline:none
+  padding:20px 6px 18px;font-size:var(--curriculum-font-size,17px);line-height:2.15;color:#242529;word-break:keep-all;overflow-wrap:anywhere;outline:none
 }
+/* 교육과정 줄맞춤: 글머리표/번호가 있는 문장은 둘째 줄부터 본문 시작점에 맞춘다. */
+.curriculum-line{display:block;min-height:1em;white-space:pre-wrap}
+.curriculum-line.curriculum-hanging{padding-left:var(--curriculum-hang,1.5em);text-indent:calc(-1 * var(--curriculum-hang,1.5em))}
+.curriculum-line.curriculum-line-empty{min-height:.95em}
 .curriculum-blank{
   display:inline-block;vertical-align:baseline;height:32px;min-height:32px;max-width:100%;margin:0 3px;padding:3px 7px;
-  border:1px solid #cfd0d4;border-radius:6px;background:#fff;color:#222326;font:inherit;font-size:16px;line-height:24px;outline:none
+  border:1px solid #cfd0d4;border-radius:6px;background:#fff;color:#222326;font:inherit;font-size:.94em;line-height:1.5;outline:none
 }
 .curriculum-blank::placeholder{color:#a1a2a7;opacity:.82}
 .curriculum-blank:focus{border-color:#85868d;box-shadow:0 0 0 1px #85868d!important}
@@ -3308,10 +3316,12 @@ body.mobile-mission-open{overflow:hidden}
   #curriculumModebar{gap:4px;margin-bottom:2px!important}
   #curriculumModebar select{flex:1 1 120px;max-width:none;font-size:11px}
   #curriculumModebar button{padding:5px 7px}
+  .curriculum-font-controls{margin-left:0}
+  .curriculum-font-controls button{min-width:32px!important}
   #curriculumView{padding-bottom:70px}
   .curriculum-nav{grid-template-columns:38px minmax(0,1fr) 38px;margin-top:1px}
-  .curriculum-passage{padding:15px 2px 16px;font-size:16px;line-height:2.2}
-  .curriculum-blank{font-size:16px;height:34px;min-height:34px;line-height:24px;padding:4px 6px;margin:2px 2px}
+  .curriculum-passage{padding:15px 2px 16px;font-size:var(--curriculum-font-size,16px);line-height:2.2}
+  .curriculum-blank{font-size:1em;height:34px;min-height:34px;line-height:1.45;padding:4px 6px;margin:2px 2px}
   .curriculum-edit-add{grid-template-columns:1fr 1fr}
   .curriculum-edit-add input{grid-column:1/-1;font-size:16px}
 }
@@ -3335,7 +3345,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-edit-panel{position:sticky;bottom:6px;z-index:18;background:rgba(250,250,250,.97)!important;backdrop-filter:none!important}
 .curriculum-blank-chips{max-height:92px;overflow:auto}
 @media(max-width:640px){
-  .curriculum-passage{font-size:16px!important;line-height:2.05!important;padding:12px 1px 14px!important}
+  .curriculum-passage{font-size:var(--curriculum-font-size,16px)!important;line-height:2.05!important;padding:12px 1px 14px!important}
   .curriculum-passage.editing{padding:13px 10px!important}
   .curriculum-selection-row{grid-template-columns:1fr}
   .curriculum-selection-row button{width:100%;min-height:40px;font-size:12px}
@@ -3378,6 +3388,7 @@ body.mobile-mission-open{overflow:hidden}
 }
 .curriculum-float-tools button.active{background:#25262a;color:#fff;border-color:#25262a;font-weight:700}
 .curriculum-float-tools .curriculum-float-source.hidden{display:none!important}
+.curriculum-float-tools.side-docked{display:none!important}
 .curriculum-float-hint{font-size:9.5px;color:#74757b;padding:0 4px;white-space:nowrap}
 @media(max-width:640px){
   .curriculum-float-tools{right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));padding:4px;gap:3px}
@@ -3465,6 +3476,11 @@ body.mobile-mission-open{overflow:hidden}
 .wide-curriculum-toolbar select{flex:1;min-width:0;height:31px;border:1px solid #d9d9dd;border-radius:7px;background:#fff;padding:3px 7px;font-size:10.5px;color:#3f4045}
 .wide-curriculum-toolbar button,.curriculum-outline-edit-toggle{flex:0 0 auto;border:1px solid #d9d9dd;background:#fff;border-radius:7px;min-height:31px;padding:5px 7px;font-size:9.5px;color:#5f6066}
 .wide-curriculum-toolbar button.active,.curriculum-outline-edit-toggle.active{background:#303136;color:#fff;border-color:#303136;font-weight:750}
+.wide-curriculum-study-tools{display:flex;flex-wrap:wrap;gap:5px;margin:6px 0 5px;padding:6px;border:1px solid #e2e2e5;border-radius:8px;background:#fafafa}
+.wide-curriculum-study-tools button{flex:1 1 auto;min-height:32px;border:1px solid #d9d9dd;background:#fff;border-radius:7px;padding:5px 7px;font-size:9.8px;color:#505157;white-space:nowrap}
+.wide-curriculum-study-tools button.active{background:#303136;color:#fff;border-color:#303136;font-weight:750}
+.wide-curriculum-study-tools .wide-curriculum-source.hidden{display:none!important}
+.wide-curriculum-study-hint{flex:1 0 100%;font-size:8.8px;color:#86878d;line-height:1.35;padding:0 1px}
 .wide-curriculum-row-wrap,.curriculum-outline-row-wrap{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:stretch;border-bottom:1px solid #f1f1f3}
 .wide-curriculum-row-wrap>.wide-curriculum-row,.curriculum-outline-row-wrap>.curriculum-outline-row{border-bottom:0!important}
 .wide-curriculum-row-edit,.curriculum-outline-row-edit{width:30px;border:0;background:#fff;color:#8a8b90;font-size:15px;padding:0;display:none}
@@ -3479,7 +3495,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-outline-editor-actions button{border:1px solid #d9d9dd;background:#fff;border-radius:7px;padding:7px 9px;font-size:10.5px;color:#55565b}
 .curriculum-outline-editor-actions .danger{color:#a14c47;border-color:#e7cfcd;background:#fffafa}
 .curriculum-outline-editor-actions .primary{background:#303136;color:#fff;border-color:#303136}
-@media(monochrome){.curriculum-outline-editor-backdrop{background:#fff!important}.curriculum-outline-editor{box-shadow:none!important;border:1px solid #111!important}.wide-curriculum-toolbar button.active,.curriculum-outline-edit-toggle.active{background:#111!important;color:#fff!important}}
+@media(monochrome){.curriculum-outline-editor-backdrop{background:#fff!important}.curriculum-outline-editor{box-shadow:none!important;border:1px solid #111!important}.wide-curriculum-toolbar button.active,.curriculum-outline-edit-toggle.active,.wide-curriculum-study-tools button.active{background:#111!important;color:#fff!important}.wide-curriculum-study-tools{background:#fff!important;border-color:#111!important}.wide-curriculum-study-tools button{border-color:#111!important}}
 
 
 /* 교육과정 표: HWP 원문 텍스트 + 공식 PDF의 표 배치를 결합해 책처럼 표시 */
@@ -3503,7 +3519,7 @@ body.mobile-mission-open{overflow:hidden}
 @media(max-width:699px){
   /* Global phone CSS turns generic tables into stacked cards. Curriculum tables must stay real tables. */
   .curriculum-table-wrap{display:block!important;width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;margin:11px 0 13px!important;padding:0!important;touch-action:pan-x pan-y}
-  .curriculum-table{display:table!important;width:100%!important;max-width:none!important;table-layout:fixed!important;font-size:11.5px!important;line-height:1.42!important;border-collapse:collapse!important}
+  .curriculum-table{display:table!important;width:100%!important;max-width:none!important;table-layout:fixed!important;font-size:.72em!important;line-height:1.42!important;border-collapse:collapse!important}
   .curriculum-table thead{display:table-header-group!important;width:auto!important}
   .curriculum-table tbody{display:table-row-group!important;width:auto!important;padding:0!important;background:#fff!important;gap:0!important}
   .curriculum-table tr{display:table-row!important;width:auto!important;position:static!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important}
@@ -3571,6 +3587,46 @@ body.mobile-mission-open{overflow:hidden}
 @media(monochrome){.curriculum-visual{border-color:#111!important}.curriculum-visual figcaption{color:#111!important}.curriculum-visual-lightbox{background:#fff!important}.curriculum-visual-lightbox img{border:1px solid #111}.curriculum-visual-lightbox-caption,.curriculum-visual-lightbox-close{color:#000!important}.curriculum-visual-lightbox-close{background:#fff!important;border-color:#111!important}}
 </style>
 
+
+<style id="curriculum-standards-summary-style">
+#curriculumView.curriculum-standards-summary .curriculum-nav{grid-template-columns:minmax(0,1fr);margin-bottom:4px}
+#curriculumView.curriculum-standards-summary .curriculum-nav>button,
+#curriculumView.curriculum-standards-summary .curriculum-context,
+#curriculumView.curriculum-standards-summary .curriculum-status,
+#curriculumView.curriculum-standards-summary .curriculum-page-dock,
+#curriculumView.curriculum-standards-summary .curriculum-float-tools,
+#curriculumView.curriculum-standards-summary .curriculum-source-note,
+#curriculumView.curriculum-standards-summary .curriculum-edit-panel,
+#curriculumView.curriculum-standards-summary .curriculum-bookmark-panel,
+#curriculumView.curriculum-standards-summary .curriculum-outline-panel{display:none!important}
+#curriculumView.curriculum-standards-summary .curriculum-passage{white-space:normal!important;padding-top:8px!important;line-height:1.72!important}
+.curriculum-standards-intro{padding:7px 4px 14px;color:#77787d;font-size:.72em;border-bottom:1px solid #e6e6e8}
+.curriculum-standards-group{padding:20px 4px 24px;border-bottom:1px solid #dedee1}
+.curriculum-standards-group-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:13px}
+.curriculum-standards-group-title{min-width:0}
+.curriculum-standards-grade{display:block;margin-bottom:3px;font-size:.68em;color:#85868b;font-weight:650}
+.curriculum-standards-group-title strong{display:block;font-size:1.04em;line-height:1.45;color:#292a2e}
+.curriculum-standards-source-btn{flex:0 0 auto;border:1px solid #d9d9dd;background:#fff;border-radius:6px;padding:5px 7px;font-size:.62em;color:#66676c}
+.curriculum-standard-item{padding:11px 0 13px}
+.curriculum-standard-main{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:8px;align-items:start}
+.curriculum-standard-code{font-size:.78em;font-weight:760;color:#55565b;white-space:nowrap;line-height:1.65}
+.curriculum-standard-text{min-width:0;line-height:1.78;word-break:keep-all;overflow-wrap:anywhere}
+.curriculum-standard-explanation{margin:8px 0 0 1.2em;padding:8px 10px;border-left:2px solid #d7d7da;background:#fafafa;border-radius:0 6px 6px 0;font-size:.82em;line-height:1.72;color:#55565b;white-space:pre-wrap}
+.curriculum-standard-explanation b{display:inline-block;margin-right:6px;font-size:.86em;color:#77787d}
+.curriculum-standards-general-explanation{margin:11px 0 2px;padding:9px 10px;background:#fafafa;border:1px solid #e5e5e7;border-radius:7px;font-size:.82em;line-height:1.72;white-space:pre-wrap}
+.curriculum-standards-considerations{margin-top:15px;padding:12px 12px 4px;border-top:2px solid #d4d4d7;background:#fcfcfc}
+.curriculum-standards-considerations>strong{display:block;margin-bottom:9px;font-size:.82em;color:#44454a}
+.curriculum-standards-considerations p{margin:0 0 10px;font-size:.84em;line-height:1.76;white-space:pre-wrap;word-break:keep-all}
+.curriculum-standards-empty{padding:42px 12px;text-align:center;color:#7d7e83;font-size:.85em}
+@media(max-width:640px){
+ .curriculum-standards-group{padding:16px 1px 20px}
+ .curriculum-standard-main{grid-template-columns:1fr;gap:2px}
+ .curriculum-standard-code{font-size:.74em}
+ .curriculum-standard-explanation{margin-left:0}
+ .curriculum-standards-considerations{padding-left:8px;padding-right:8px}
+}
+</style>
+
 </head>
 <body>
 <header>
@@ -3631,7 +3687,13 @@ body.mobile-mission-open{overflow:hidden}
       <button id="curriculumRecallMode" type="button">안보고쓰기</button>
     </div>
     <button id="curriculumBlankEditBtn" type="button">빈칸 편집</button>
+    <button id="curriculumStandardsBtn" type="button" title="선택한 과목의 성취기준·해설·적용 시 고려 사항만 모아보기">성취기준</button>
     <button id="curriculumResetBtn" type="button">처음부터</button>
+    <div class="curriculum-font-controls" role="group" aria-label="교육과정 글자 크기">
+      <button id="curriculumFontDown" type="button" aria-label="교육과정 글자 작게">A−</button>
+      <button id="curriculumFontValue" type="button" title="기본 크기로" aria-label="교육과정 글자 크기 초기화">17</button>
+      <button id="curriculumFontUp" type="button" aria-label="교육과정 글자 크게">A＋</button>
+    </div>
   </div>
 
   <section id="studyView">
@@ -10783,7 +10845,19 @@ function renderWidePlannerCurriculum(list,count){
   const meta=document.createElement("span");meta.className="wide-curriculum-context";
   const info=(item&&item.s===subject)?curriculumContextInfo(item):null;
   meta.textContent=info?.trail?.length?(info.trail.slice(-3).map(x=>x.label).join("  ›  ")):"표시할 목차 깊이를 골라 바로 이동할 수 있습니다";
-  head.append(toolbar,meta,curriculumOutlineFilterBar("wide"));list.append(head);
+  head.append(toolbar,meta);
+  if((app.ui.workspace||"memory")==="curriculum"){
+    const studyTools=document.createElement("div");studyTools.className="wide-curriculum-study-tools";const summary=curriculumStandardsView();
+    const vbtn=document.createElement("button");vbtn.type="button";vbtn.classList.toggle("active",summary);vbtn.textContent=summary?"원문 보기":"성취기준";vbtn.onclick=()=>{setCurriculumViewMode(summary?"book":"standards");renderWidePlannerSide()};studyTools.append(vbtn);
+    if(!summary){
+      const ebtn=document.createElement("button");ebtn.type="button";ebtn.classList.toggle("active",!!curriculumUi().edit);ebtn.textContent=curriculumUi().edit?"✓ 연습":"✎ 빈칸";ebtn.onclick=()=>{setCurriculumEditMode(!curriculumUi().edit);renderWidePlannerSide()};
+      const sbtn=document.createElement("button");sbtn.type="button";sbtn.className="wide-curriculum-source";sbtn.classList.toggle("hidden",!curriculumUi().edit);sbtn.classList.toggle("active",!!curriculumSourceEditing);sbtn.textContent=curriculumSourceEditing?"수정 완료":"원문 수정";sbtn.onclick=()=>{toggleCurriculumSourceEditor();renderWidePlannerSide()};
+      const bbtn=document.createElement("button");bbtn.type="button";bbtn.classList.toggle("active",!!currentCurriculumBookmark());bbtn.textContent=currentCurriculumBookmark()?"🔖✓ 쪽 표시":"🔖 쪽 표시";bbtn.onclick=()=>{toggleCurrentCurriculumBookmark();renderWidePlannerSide()};
+      const blist=document.createElement("button");blist.type="button";const bcount=normalizeCurriculumBookmarks().length;blist.textContent=bcount?`책갈피 ${bcount}`:"책갈피";blist.onclick=()=>toggleCurriculumBookmarkPanel();studyTools.append(ebtn,sbtn,bbtn,blist);
+    }
+    const hint=document.createElement("div");hint.className="wide-curriculum-study-hint";hint.textContent=summary?"성취기준 + 해당 해설 + 적용 시 고려 사항":(curriculumUi().edit?(curriculumSourceEditing?"본문·표를 직접 눌러 수정 중":"Apple Pencil로 원문을 그어 빈칸 만들기"):"연습 모드");studyTools.append(hint);head.append(studyTools);
+  }
+  head.append(curriculumOutlineFilterBar("wide"));list.append(head);
   if(!entries.length){
     const empty=document.createElement("div");empty.className="wide-planner-empty";empty.textContent="선택한 깊이에서 표시할 목차가 없습니다.";list.append(empty);return;
   }
@@ -10976,14 +11050,31 @@ let curriculumPenStroke=null,curriculumPenFrame=0,curriculumBlankTap=null;
 let curriculumBookmarkPanelOpen=false,curriculumOutlinePanelOpen=false,curriculumOutlineCache=null,curriculumOutlineRevision=0;
 
 function curriculumUi(){
-  if(!app.ui.curriculum||typeof app.ui.curriculum!=="object")app.ui.curriculum={subject:"전체",mode:"copy",edit:false,outlineDepth:3,sideSubject:"",outlineEdit:false};
+  if(!app.ui.curriculum||typeof app.ui.curriculum!=="object")app.ui.curriculum={subject:"전체",mode:"copy",edit:false,view:"book",outlineDepth:3,sideSubject:"",outlineEdit:false,fontSize:null};
   if(!["copy","recall"].includes(app.ui.curriculum.mode))app.ui.curriculum.mode="copy";
+  if(!["book","standards"].includes(app.ui.curriculum.view))app.ui.curriculum.view="book";
   if(typeof app.ui.curriculum.subject!=="string")app.ui.curriculum.subject="전체";
   if(typeof app.ui.curriculum.sideSubject!=="string")app.ui.curriculum.sideSubject="";
   if(typeof app.ui.curriculum.outlineEdit!=="boolean")app.ui.curriculum.outlineEdit=false;
   if(![1,2,3,5].includes(Number(app.ui.curriculum.outlineDepth)))app.ui.curriculum.outlineDepth=3;
+  const fs=Number(app.ui.curriculum.fontSize);
+  if(app.ui.curriculum.fontSize!==null&&app.ui.curriculum.fontSize!==undefined&&(!Number.isFinite(fs)||fs<13||fs>26))app.ui.curriculum.fontSize=null;
   return app.ui.curriculum;
 }
+function curriculumDefaultFontSize(){return window.matchMedia&&window.matchMedia("(max-width:640px)").matches?16:17}
+function curriculumFontSize(){const n=Number(curriculumUi().fontSize);return Number.isFinite(n)?Math.max(13,Math.min(26,Math.round(n))):curriculumDefaultFontSize()}
+function applyCurriculumFontSize(){
+  const n=curriculumFontSize(),view=document.getElementById("curriculumView"),value=document.getElementById("curriculumFontValue");
+  if(view)view.style.setProperty("--curriculum-font-size",`${n}px`);
+  if(value){value.textContent=String(n);value.title=`현재 ${n}px · 누르면 기본 크기`;value.setAttribute("aria-label",`교육과정 글자 크기 ${n}px, 누르면 기본 크기`)}
+}
+function setCurriculumFontSize(n){
+  const ui=curriculumUi(),next=Math.max(13,Math.min(26,Math.round(Number(n)||curriculumDefaultFontSize())));
+  ui.fontSize=next;saveLocal();applyCurriculumFontSize();
+}
+function changeCurriculumFontSize(delta){setCurriculumFontSize(curriculumFontSize()+Number(delta||0))}
+function resetCurriculumFontSize(){curriculumUi().fontSize=null;saveLocal();applyCurriculumFontSize()}
+
 function curriculumStore(){
   if(!app.study.curriculumPractice||typeof app.study.curriculumPractice!=="object")app.study.curriculumPractice={positions:{},blankOverrides:{},records:{}};
   const st=app.study.curriculumPractice;
@@ -11551,7 +11642,7 @@ function bindCurriculumPencilHighlighter(root,item){
   root.addEventListener("pointercancel",e=>curriculumFinishPenStroke(item,root,e,true));
 }
 function setCurriculumEditMode(on){
-  const ui=curriculumUi();ui.edit=!!on;if(!ui.edit)curriculumSourceEditing=false;curriculumLastSelection=null;curriculumPenStroke=null;saveLocal();renderCurriculumCurrent();
+  const ui=curriculumUi();if(on&&curriculumStandardsView())ui.view="book";ui.edit=!!on;if(!ui.edit)curriculumSourceEditing=false;curriculumLastSelection=null;curriculumPenStroke=null;saveLocal();renderCurriculum();
 }
 function toggleCurriculumSourceEditor(){
   if(!curriculumUi().edit)setCurriculumEditMode(true);
@@ -11561,7 +11652,9 @@ function toggleCurriculumSourceEditor(){
   if(curriculumSourceEditing)toast("화면의 글자나 표 셀을 바로 눌러 수정하세요");
 }
 function updateCurriculumFloatingTools(){
-  const edit=!!curriculumUi().edit,editBtn=document.getElementById("curriculumFloatEditBtn"),sourceBtn=document.getElementById("curriculumFloatSourceBtn"),hint=document.getElementById("curriculumFloatHint");
+  const edit=!!curriculumUi().edit,editBtn=document.getElementById("curriculumFloatEditBtn"),sourceBtn=document.getElementById("curriculumFloatSourceBtn"),hint=document.getElementById("curriculumFloatHint"),tools=document.getElementById("curriculumFloatTools");
+  const docked=widePlannerSideEligible()&&(app.ui.workspace||"memory")==="curriculum";
+  if(tools)tools.classList.toggle("side-docked",docked);
   if(editBtn){editBtn.classList.toggle("active",edit);editBtn.textContent=edit?"✓ 연습":"✎ 빈칸";editBtn.setAttribute("aria-pressed",edit?"true":"false")}
   if(sourceBtn){sourceBtn.classList.toggle("hidden",!edit);sourceBtn.classList.toggle("active",edit&&curriculumSourceEditing);sourceBtn.textContent=curriculumSourceEditing?"수정 완료":"원문 수정"}
   if(hint)hint.textContent=edit?(curriculumSourceEditing?"본문 직접 수정":"Pencil로 긋기"):"연습";
@@ -11652,19 +11745,46 @@ function bindCurriculumInlineSourceEditor(el,item,start,end){
 function appendCurriculumSourceEditableSegment(parent,item,start,end){
   if(end<=start)return;const wrap=curriculumSourceSegment(start,end,"curriculum-text-segment");wrap.textContent=item.t.slice(start,end);bindCurriculumInlineSourceEditor(wrap,item,start,end);parent.append(wrap);
 }
+function curriculumHangingLineInfo(text){
+  const raw=String(text||"");
+  const m=raw.match(/^([ \t]*)([•⋅▪◦‣·]\s*|\d{1,2}[.)]\s*|\(\d{1,2}\)\s*|[가-하][.)]\s*|\([가-하]\)\s*|[①-⑳]\s*)/);
+  if(!m)return null;
+  const lead=String(m[1]||"").replace(/\t/g,"    ").length,marker=Array.from(String(m[2]||"")).length;
+  return {hang:Math.max(1.15,Math.min(4.8,lead*.34+marker*.62+.2))};
+}
+function curriculumLineSegment(item,start,end){
+  const wrap=curriculumSourceSegment(start,end,"curriculum-text-segment curriculum-line"),txt=String(item?.t||"").slice(start,end),info=curriculumHangingLineInfo(txt);
+  if(info){wrap.classList.add("curriculum-hanging");wrap.style.setProperty("--curriculum-hang",`${info.hang.toFixed(2)}em`)}
+  if(!txt)wrap.classList.add("curriculum-line-empty");
+  return wrap;
+}
+function curriculumEachDisplayLine(item,start,end,fn){
+  let p=start;
+  while(p<end){
+    let nl=String(item?.t||"").indexOf("\n",p);if(nl<0||nl>=end)nl=end;
+    fn(p,nl);
+    if(nl>=end)break;p=nl+1;
+  }
+}
 function appendCurriculumEditSegment(parent,item,start,end,spans){
-  if(end<=start)return;const wrap=curriculumSourceSegment(start,end,"curriculum-text-segment");let pos=start;
-  spans.forEach((sp,idx)=>{const a=Math.max(start,sp[0]),b=Math.min(end,sp[1]);if(b<=a)return;if(a>pos)wrap.append(document.createTextNode(item.t.slice(pos,a)));const m=document.createElement("mark");m.className="curriculum-edit-mark";m.dataset.blankIndex=String(idx);m.textContent=item.t.slice(a,b);wrap.append(m);pos=Math.max(pos,b)});
-  if(pos<end)wrap.append(document.createTextNode(item.t.slice(pos,end)));parent.append(wrap);
+  if(end<=start)return;
+  curriculumEachDisplayLine(item,start,end,(lineStart,lineEnd)=>{
+    const wrap=curriculumLineSegment(item,lineStart,lineEnd);let pos=lineStart;
+    spans.forEach((sp,idx)=>{const a=Math.max(lineStart,sp[0]),b=Math.min(lineEnd,sp[1]);if(b<=a)return;if(a>pos)wrap.append(document.createTextNode(item.t.slice(pos,a)));const m=document.createElement("mark");m.className="curriculum-edit-mark";m.dataset.blankIndex=String(idx);m.textContent=item.t.slice(a,b);wrap.append(m);pos=Math.max(pos,b)});
+    if(pos<lineEnd)wrap.append(document.createTextNode(item.t.slice(pos,lineEnd)));if(lineEnd===lineStart)wrap.append(document.createElement("br"));parent.append(wrap);
+  });
 }
 function appendCurriculumPracticeInput(parent,item,span,n,session){
   const answer=curriculumAnswer(item,span),input=document.createElement("input");input.type="text";input.className="curriculum-blank";input.autocomplete="off";input.spellcheck=false;input.autocorrect="off";input.autocapitalize="off";input.enterKeyHint="enter";input.setAttribute("aria-label",`빈칸 ${n+1}`);input.style.width=`${Math.max(5.2,Math.min(22,Array.from(answer).length+1.5))}em`;if(curriculumUi().mode==="copy")input.placeholder=answer;
   const key=curriculumValueKey(item,span);input.value=session.values.get(key)||"";curriculumApplyInputState(input,answer);input.addEventListener("input",()=>curriculumTrackInput(item,span,input));input.addEventListener("compositionend",()=>curriculumTrackInput(item,span,input));bindCurriculumInputNavigation(input,item,span,answer);parent.append(input);
 }
 function appendCurriculumPracticeSegment(parent,item,start,end,spans,state){
-  if(end<=start)return;const wrap=curriculumSourceSegment(start,end,"curriculum-text-segment");let pos=start;
-  spans.forEach((sp,idx)=>{if(sp[1]<=start||sp[0]>=end)return;const a=Math.max(start,sp[0]),b=Math.min(end,sp[1]);if(a>pos)wrap.append(document.createTextNode(item.t.slice(pos,a)));const key=`${sp[0]}:${sp[1]}`;if(!state.rendered.has(key)){appendCurriculumPracticeInput(wrap,item,sp,idx,state.session);state.rendered.add(key)}pos=Math.max(pos,b)});
-  if(pos<end)wrap.append(document.createTextNode(item.t.slice(pos,end)));parent.append(wrap);
+  if(end<=start)return;
+  curriculumEachDisplayLine(item,start,end,(lineStart,lineEnd)=>{
+    const wrap=curriculumLineSegment(item,lineStart,lineEnd);let pos=lineStart;
+    spans.forEach((sp,idx)=>{if(sp[1]<=lineStart||sp[0]>=lineEnd)return;const a=Math.max(lineStart,sp[0]),b=Math.min(lineEnd,sp[1]);if(a>pos)wrap.append(document.createTextNode(item.t.slice(pos,a)));const key=`${sp[0]}:${sp[1]}`;if(!state.rendered.has(key)){appendCurriculumPracticeInput(wrap,item,sp,idx,state.session);state.rendered.add(key)}pos=Math.max(pos,b)});
+    if(pos<lineEnd)wrap.append(document.createTextNode(item.t.slice(pos,lineEnd)));if(lineEnd===lineStart)wrap.append(document.createElement("br"));parent.append(wrap);
+  });
 }
 function curriculumTableStableKey(meta){
   const pdf=String(meta?.pdf??"");
@@ -12158,7 +12278,77 @@ function updateCurriculumPageDock(){
   if(count){count.disabled=!items.length;count.innerHTML=items.length?`${idx+1} / ${items.length}<span>장 이동</span>`:`0 / 0<span>장 이동</span>`}
 }
 function curriculumDockStep(delta){curriculumStep(delta,delta<0?"last":"first");curriculumScrollToReadingTop()}
+function curriculumStandardsView(){return curriculumUi().view==="standards"}
+function curriculumStandardCodeNormalize(code){return String(code||"").replace(/[–—−]/g,"-").replace(/\s+/g,"")}
+function curriculumStandardParagraphs(text){
+  const out=[];for(const raw of String(text||"").split(/\n\s*\n+/)){const p=raw.trim();if(!p)continue;const m=p.match(/^\[((?:2|4|6)[가-힣]+\d{2}[-–—−]\d{2})\]\s*([\s\S]*)$/);if(!m)continue;out.push({code:curriculumStandardCodeNormalize(m[1]),text:String(m[2]||"").trim()})}return out;
+}
+function curriculumStandardsList(item){
+  const label=String(item?.logicalLabel||"")+"\n"+String(item?.t||"").slice(0,80);if(/성취기준 해설|성취기준 적용 시 고려 사항/.test(label))return [];return curriculumStandardParagraphs(item?.t);
+}
+function curriculumSectionBody(text,heading){
+  const parts=String(text||"").split(/\n\s*\n+/).map(x=>x.trim()).filter(Boolean);if(parts.length&&parts[0].includes(heading))parts.shift();return parts;
+}
+function curriculumExplanationRefs(ref,codes){
+  const normalized=curriculumStandardCodeNormalize(ref),set=new Set(codes.map(curriculumStandardCodeNormalize));if(set.has(normalized))return [normalized];
+  const m=normalized.match(/^((?:2|4|6)[가-힣]+\d{2}-)(\d{2})[∼~～](\d{2})$/);if(!m)return [];
+  const a=Number(m[2]),b=Number(m[3]);if(!Number.isFinite(a)||!Number.isFinite(b))return [];
+  const out=[];for(let n=Math.min(a,b);n<=Math.max(a,b);n++){const c=m[1]+String(n).padStart(2,"0");if(set.has(c))out.push(c)}return out;
+}
+function curriculumGradeBandFromCode(code){const n=Number(String(code||"").match(/^\d+/)?.[0]);return n===2?"1~2학년":n===4?"3~4학년":n===6?"5~6학년":""}
+function curriculumGradeBandsFromCodes(codes){return [...new Set((codes||[]).map(curriculumGradeBandFromCode).filter(Boolean))].join(" · ")}
+function curriculumStandardsGroups(subject){
+  if(!curriculumData||!subject||subject==="전체"||subject==="총론")return [];
+  const arr=curriculumDerivedItems().filter(x=>x.s===subject),groups=[];
+  for(let i=0;i<arr.length;i++){
+    const item=arr[i],standards=curriculumStandardsList(item);if(!standards.length)continue;
+    const firstPara=String(item.t||"").split(/\n\s*\n+/).map(x=>x.trim()).find(Boolean)||String(item.logicalLabel||"");
+    const title=/^\[(?:2|4|6)[가-힣]+\d{2}[-–—−]\d{2}\]/.test(firstPara)?String(item.logicalLabel||"성취기준"):firstPara;
+    const codes=standards.map(x=>x.code),explainMap=new Map(codes.map(c=>[c,[]])),general=[],considerations=[];
+    for(let j=i+1;j<arr.length;j++){
+      const next=arr[j];if(curriculumStandardsList(next).length)break;
+      const label=String(next.logicalLabel||"")+"\n"+String(next.t||"").slice(0,80);
+      if(/성취기준 해설/.test(label)){
+        const paras=curriculumSectionBody(next.t,"성취기준 해설");
+        for(const p of paras){const m=p.match(/^\[([^\]]+)\]\s*([\s\S]*)$/);if(!m){general.push(p);continue}const refs=curriculumExplanationRefs(m[1],codes);if(!refs.length){general.push(p);continue}for(const c of refs)explainMap.get(c)?.push(String(m[2]||"").trim())}
+      }else if(/성취기준 적용 시 고려 사항/.test(label))considerations.push(...curriculumSectionBody(next.t,"성취기준 적용 시 고려 사항"));
+    }
+    groups.push({subject,itemId:String(item.i),title:title||String(item.logicalLabel||"성취기준"),grade:curriculumGradeBandsFromCodes(codes),standards,explainMap,general,considerations});
+  }
+  return groups;
+}
+function curriculumSubjectHasStandards(subject){return curriculumStandardsGroups(subject).length>0}
+function jumpFromStandardsToSource(group){
+  const ui=curriculumUi();ui.view="book";ui.subject=group.subject;ui.sideSubject=group.subject;ui.edit=false;curriculumSourceEditing=false;curriculumLastSelection=null;invalidateCurriculumDerived();setCurriculumPositionToItem(group.itemId);saveLocal();renderCurriculum();curriculumScrollToReadingTop();
+}
+function setCurriculumViewMode(mode){
+  mode=mode==="standards"?"standards":"book";const ui=curriculumUi();if(ui.view===mode)return;
+  if(mode==="standards"){
+    const current=curriculumCurrentItem()?.s,candidates=(curriculumData?.subjects||[]).filter(curriculumSubjectHasStandards);
+    if(!curriculumSubjectHasStandards(ui.subject))ui.subject=curriculumSubjectHasStandards(current)?current:(candidates[0]||ui.subject);
+    if(ui.subject&&ui.subject!=="전체")ui.sideSubject=ui.subject;ui.edit=false;curriculumSourceEditing=false;curriculumLastSelection=null;finishCurriculumSession();
+  }
+  ui.view=mode;saveLocal();renderCurriculum();if(mode==="standards")curriculumScrollToReadingTop();
+}
+function renderCurriculumStandards(){
+  applyCurriculumFontSize();const ui=curriculumUi(),view=document.getElementById("curriculumView"),box=document.getElementById("curriculumPassage"),title=document.getElementById("curriculumTitle"),meta=document.getElementById("curriculumMeta");
+  view?.classList.add("curriculum-standards-summary");box.innerHTML="";const groups=curriculumStandardsGroups(ui.subject),total=groups.reduce((n,g)=>n+g.standards.length,0);title.textContent=ui.subject||"성취기준";meta.textContent=`성취기준 모아보기 · ${total}개`;
+  if(!groups.length){const empty=document.createElement("div");empty.className="curriculum-standards-empty";empty.textContent=ui.subject==="총론"?"총론에는 교과 성취기준이 없습니다. 과목을 선택해 주세요.":"이 범위에서 성취기준을 찾지 못했습니다.";box.append(empty);return}
+  const intro=document.createElement("div");intro.className="curriculum-standards-intro";intro.textContent="성취기준별 해설은 해당 기준 바로 아래에 붙이고, 적용 시 고려 사항은 해당 영역의 성취기준 뒤에 모았습니다.";box.append(intro);
+  for(const group of groups){
+    const sec=document.createElement("section");sec.className="curriculum-standards-group";
+    const head=document.createElement("div");head.className="curriculum-standards-group-head";const tt=document.createElement("div");tt.className="curriculum-standards-group-title";
+    if(group.grade){const gr=document.createElement("span");gr.className="curriculum-standards-grade";gr.textContent=group.grade;tt.append(gr)}const st=document.createElement("strong");st.textContent=group.title;tt.append(st);
+    const src=document.createElement("button");src.type="button";src.className="curriculum-standards-source-btn";src.textContent="원문";src.onclick=()=>jumpFromStandardsToSource(group);head.append(tt,src);sec.append(head);
+    for(const standard of group.standards){const row=document.createElement("div");row.className="curriculum-standard-item";const main=document.createElement("div");main.className="curriculum-standard-main";const code=document.createElement("span");code.className="curriculum-standard-code";code.textContent=`[${standard.code}]`;const text=document.createElement("div");text.className="curriculum-standard-text";text.textContent=standard.text;main.append(code,text);row.append(main);for(const ex of group.explainMap.get(standard.code)||[]){const e=document.createElement("div");e.className="curriculum-standard-explanation";const b=document.createElement("b");b.textContent="해설";const body=document.createElement("span");body.textContent=ex;e.append(b,body);row.append(e)}sec.append(row)}
+    if(group.general.length){const g=document.createElement("div");g.className="curriculum-standards-general-explanation";const b=document.createElement("b");b.textContent="공통 해설";g.append(b,document.createTextNode("\n"+group.general.join("\n\n")));sec.append(g)}
+    if(group.considerations.length){const c=document.createElement("div");c.className="curriculum-standards-considerations";const h=document.createElement("strong");h.textContent="성취기준 적용 시 고려 사항";c.append(h);for(const para of group.considerations){const p=document.createElement("p");p.textContent=para;c.append(p)}sec.append(c)}
+    box.append(sec);
+  }
+}
+
 function renderCurriculumCurrent(){
+  applyCurriculumFontSize();document.getElementById("curriculumView")?.classList.remove("curriculum-standards-summary");
   if(!curriculumData)return;const items=curriculumItems(),item=curriculumCurrentItem();
   const title=document.getElementById("curriculumTitle"),meta=document.getElementById("curriculumMeta"),sourceNote=document.getElementById("curriculumSourceNote");
   if(!item){title.textContent="교육과정";meta.textContent="표시할 원문이 없습니다";document.getElementById("curriculumPassage").textContent="";updateCurriculumPageDock();return}
@@ -12167,7 +12357,7 @@ function renderCurriculumCurrent(){
   meta.textContent=`${page} · 장 ${curriculumCurrentIndex()+1}/${items.length}${item.userEdited?" · 수정본":""}`;
   sourceNote.textContent=curriculumUi().edit?(curriculumSourceEditing?"원문 수정 중 · 화면의 본문과 표 셀을 그대로 눌러 고치세요. 다른 곳을 누르면 자동 저장됩니다.":"Apple Pencil은 실제로 펜이 지나간 글자만 따라갑니다. 표 안의 글자도 직접 그어 빈칸으로 만들 수 있고, 기존 빈칸과 겹치면 자동으로 이어지며 표시된 빈칸을 두 번 톡톡 누르면 삭제됩니다."):"본문은 HWP 원문을 사용하고, 내용 체계표 등은 공식 PDF의 표 배치를 복원해 표시합니다. 교육과정에 실린 도식·인포그래픽은 공식 PDF 원본 이미지를 그대로 넣었으며 빈칸 대상에서는 제외됩니다.";
   renderCurriculumPassage(item);renderCurriculumEdit(item);updateCurriculumStatus();updateCurriculumFloatingTools();updateCurriculumBookmarkUi();updateCurriculumPageDock();renderCurriculumContext();renderCurriculumOutlinePanel();renderCurriculumBookmarkPanel();
-  if(widePlannerSideTab==="curriculum"&&widePlannerSideEligible())updateWidePlannerCurriculumCurrent();
+  if(widePlannerSideTab==="curriculum"&&widePlannerSideEligible())renderWidePlannerSide();
   document.getElementById("curriculumPrev").disabled=curriculumCurrentIndex()<=0;document.getElementById("curriculumNext").disabled=curriculumCurrentIndex()>=items.length-1;
   const editBtn=document.getElementById("curriculumBlankEditBtn");if(editBtn)editBtn.textContent=curriculumUi().edit?"연습으로":"빈칸 만들기";
   if(curriculumPendingFocus&&!curriculumUi().edit){const f=curriculumPendingFocus;curriculumPendingFocus="";requestAnimationFrame(()=>focusCurriculumInput(f))}
@@ -12187,11 +12377,14 @@ async function renderCurriculum(){
     }
     if((app.ui.workspace||"memory")!=="curriculum")return;
   }
-  const sel=document.getElementById("curriculumSubject"),ui=curriculumUi(),subjects=["전체",...(curriculumData.subjects||[])];
+  const sel=document.getElementById("curriculumSubject"),ui=curriculumUi(),subjects=curriculumStandardsView()?(curriculumData.subjects||[]).filter(curriculumSubjectHasStandards):["전체",...(curriculumData.subjects||[])];
   if(sel.options.length!==subjects.length||[...sel.options].some((o,i)=>o.value!==subjects[i])){sel.innerHTML="";subjects.forEach(name=>{const o=document.createElement("option");o.value=name;o.textContent=name==="전체"?"전체 교육과정":name;sel.append(o)})}
-  if(!subjects.includes(ui.subject))ui.subject="전체";sel.value=ui.subject;
+  if(!subjects.includes(ui.subject))ui.subject=curriculumStandardsView()?(subjects[0]||"전체"):"전체";sel.value=ui.subject;
+  const standards=curriculumStandardsView(),modeSwitch=document.querySelector("#curriculumModebar .curriculum-mode-switch"),blankBtn=document.getElementById("curriculumBlankEditBtn"),resetBtn=document.getElementById("curriculumResetBtn"),standardsBtn=document.getElementById("curriculumStandardsBtn");
   document.getElementById("curriculumCopyMode").classList.toggle("active",ui.mode==="copy");document.getElementById("curriculumRecallMode").classList.toggle("active",ui.mode==="recall");
-  document.getElementById("curriculumBlankEditBtn").classList.toggle("active",!!ui.edit);renderCurriculumCurrent();
+  modeSwitch?.classList.toggle("hidden",standards);if(blankBtn){blankBtn.classList.toggle("active",!!ui.edit&&!standards);blankBtn.classList.toggle("hidden",standards)}resetBtn?.classList.toggle("hidden",standards);
+  if(standardsBtn){standardsBtn.classList.toggle("active",standards);standardsBtn.textContent=standards?"원문 보기":"성취기준"}
+  if(standards)renderCurriculumStandards();else renderCurriculumCurrent();
 }
 function setCurriculumMode(mode){if(!["copy","recall"].includes(mode)||curriculumUi().mode===mode)return;curriculumUi().mode=mode;resetCurriculumSession(false);saveLocal();renderCurriculum()}
 function openCurriculumWorkspace(){suspendQuizForWorkspaceNavigation();app.ui.workspace="curriculum";widePlannerSideTab="curriculum";curriculumUi();curriculumStore();saveLocal();renderMode();}
@@ -12762,16 +12955,20 @@ bindModeSwitchTap(document.getElementById("bankSpace"),()=>{
   saveLocal();renderMode();
 });
 bindModeSwitchTap(document.getElementById("curriculumSpace"),()=>{openCurriculumWorkspace()});
-document.getElementById("curriculumSubject")?.addEventListener("change",e=>{const ui=curriculumUi();ui.subject=e.target.value||"전체";if(ui.subject!=="전체")ui.sideSubject=ui.subject;curriculumSourceEditing=false;curriculumLastSelection=null;resetCurriculumSession(false);saveLocal();renderCurriculum()});
+document.getElementById("curriculumSubject")?.addEventListener("change",e=>{const ui=curriculumUi();ui.subject=e.target.value||"전체";if(curriculumStandardsView()&&!curriculumSubjectHasStandards(ui.subject)){const fallback=(curriculumData?.subjects||[]).find(curriculumSubjectHasStandards);if(fallback)ui.subject=fallback}if(ui.subject!=="전체")ui.sideSubject=ui.subject;curriculumSourceEditing=false;curriculumLastSelection=null;resetCurriculumSession(false);saveLocal();renderCurriculum()});
 bindModeSwitchTap(document.getElementById("curriculumCopyMode"),()=>setCurriculumMode("copy"),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumRecallMode"),()=>setCurriculumMode("recall"),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumBlankEditBtn"),()=>setCurriculumEditMode(!curriculumUi().edit),{release:false});
+bindModeSwitchTap(document.getElementById("curriculumStandardsBtn"),()=>setCurriculumViewMode(curriculumStandardsView()?"book":"standards"),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumFloatEditBtn"),()=>setCurriculumEditMode(!curriculumUi().edit),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumFloatSourceBtn"),()=>toggleCurriculumSourceEditor(),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumBookmarkBtn"),()=>toggleCurrentCurriculumBookmark(),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumBookmarkListBtn"),()=>toggleCurriculumBookmarkPanel(),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumOutlineBtn"),()=>toggleCurriculumOutlinePanel(),{release:false});
 bindModeSwitchTap(document.getElementById("curriculumResetBtn"),()=>{if(!confirm("현재 범위를 처음부터 다시 시작할까요? 빈칸 편집 내용은 유지됩니다."))return;resetCurriculumSession(true);renderCurriculum()},{release:false});
+bindModeSwitchTap(document.getElementById("curriculumFontDown"),()=>changeCurriculumFontSize(-1),{release:false});
+bindModeSwitchTap(document.getElementById("curriculumFontUp"),()=>changeCurriculumFontSize(1),{release:false});
+bindModeSwitchTap(document.getElementById("curriculumFontValue"),()=>resetCurriculumFontSize(),{release:false});
 document.getElementById("curriculumPrev")?.addEventListener("click",()=>{curriculumStep(-1,"last");curriculumScrollToReadingTop()});
 document.getElementById("curriculumNext")?.addEventListener("click",()=>{curriculumStep(1,"first");curriculumScrollToReadingTop()});
 bindModeSwitchTap(document.getElementById("curriculumDockPrev"),()=>curriculumDockStep(-1),{release:false});
