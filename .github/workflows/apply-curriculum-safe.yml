@@ -22,12 +22,32 @@ jobs:
         run: python3 tools/patch_curriculum_safe.py
       - name: Verify diff
         run: git diff --check
+      - name: Browser smoke test
+        shell: bash
+        run: |
+          python3 -m http.server 8123 >/tmp/study-http.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID 2>/dev/null || true' EXIT
+          CHROME="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
+          if [ -z "$CHROME" ]; then
+            echo "Chrome/Chromium not found" >&2
+            exit 1
+          fi
+          "$CHROME" --headless --no-sandbox --disable-gpu --disable-dev-shm-usage --virtual-time-budget=15000 --dump-dom http://127.0.0.1:8123/edit.html >/tmp/study-dom.html 2>/tmp/study-chrome.log
+          grep -q '<style id="sj-curriculum-direct-v10"' /tmp/study-dom.html
+          grep -q 'id="widePlannerStandardsTab"' /tmp/study-dom.html
+          grep -q 'id="curriculumSpace"' /tmp/study-dom.html
+          echo "Browser smoke test OK"
       - name: Update patched edit.html through GitHub API
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           GH_BRANCH: curriculum-safe-20260913
         run: |
+          if git diff --quiet -- edit.html; then
+            echo "edit.html already patched; nothing to upload"
+            exit 0
+          fi
           python3 - <<'PY'
           import os, json, base64, urllib.request
           repo=os.environ['GH_REPO']; branch=os.environ['GH_BRANCH']; token=os.environ['GH_TOKEN']
@@ -37,7 +57,6 @@ jobs:
           with urllib.request.urlopen(q) as r: current=json.load(r)
           payload=json.dumps({'message':'Integrate curriculum standards tab and content-system view','content':base64.b64encode(open('edit.html','rb').read()).decode(),'sha':current['sha'],'branch':branch}).encode()
           req=urllib.request.Request(f'https://api.github.com/repos/{repo}/contents/edit.html',data=payload,headers={**headers,'Content-Type':'application/json'},method='PUT')
-          with urllib.request.urlopen(req) as r:
-              out=json.load(r)
+          with urllib.request.urlopen(req) as r: out=json.load(r)
           print('updated edit.html',out['content']['sha'],out['commit']['sha'])
           PY
