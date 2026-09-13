@@ -1,6 +1,7 @@
 const CACHE_NAME="study-jew-pwa-v15-safe-standards-blank";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRC="./hotfix-v6.js?v=20260913-4";
+const HEADER_PROGRESS_STYLE='<style id="mission-progress-fit">#plannerQuickBtn{width:auto!important;min-width:38px!important;max-width:none!important;height:33px!important;padding:5px 6px!important;font-size:9px!important;line-height:1!important;white-space:nowrap!important;letter-spacing:-.15px!important;flex:0 0 auto!important}</style>';
 
 async function injectHotfix(response){
   if(!response||!response.ok)return response;
@@ -11,8 +12,10 @@ async function injectHotfix(response){
   html=html
     .replace(/<script[^>]+src=["'][^"']*hotfix-v6\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
     .replace(/<script[^>]+src=["'][^"']*hotfix-v7\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
+    .replace(/<style id=["']mission-progress-fit["'][^>]*>[\s\S]*?<\/style>\s*/gi,"")
     .replace(/\s*if\(!useCompactMissionPanel\(\)\)\{\s*button\.textContent="오늘";\s*button\.setAttribute\("aria-label","하루 미션"\);\s*return;\s*\}\s*(?=const x=plannerDaySummary\(plannerToday\(\)\);)/,"\n")
     .replace(/button\.textContent="✓";(?=\s*button\.classList\.add\("mission-complete"\))/,'button.textContent=`${x.done}/${x.total}`;');
+  html=html.includes("</head>")?html.replace("</head>",`${HEADER_PROGRESS_STYLE}\n</head>`):HEADER_PROGRESS_STYLE+html;
   const tag=`<script src="${HOTFIX_SRC}"></script>`;
   html=html.includes("</body>")?html.replace("</body>",`${tag}\n</body>`):html+tag;
 
