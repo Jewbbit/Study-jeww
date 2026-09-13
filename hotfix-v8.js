@@ -1,7 +1,7 @@
 (()=>{
   "use strict";
 
-  const VERSION="2026-09-13-consideration-pencil-v2";
+  const VERSION="2026-09-13-consideration-pencil-v3-overdraw";
   if(window.__studyJewConsiderationPencilHotfix===VERSION)return;
   window.__studyJewConsiderationPencilHotfix=VERSION;
 
@@ -52,7 +52,7 @@
 
   function onDown(e){
     if(!isBlankEditMode()||!stylusLike(e))return;
-    const body=bodyFromEvent(e);if(!body||e.target.closest?.("mark"))return;
+    const body=bodyFromEvent(e);if(!body)return;
     const o=offsetFromPoint(body,e.clientX,e.clientY);if(o===null)return;
     e.preventDefault();
     stroke={body,id:e.pointerId,min:o,max:o};
