@@ -1,6 +1,6 @@
-const CACHE_NAME="study-jew-pwa-v12-blank-editor-hotfix";
+const CACHE_NAME="study-jew-pwa-v13-explanation-blank-hotfix";
 const FALLBACK_URL="./edit.html";
-const HOTFIX_SRC="./hotfix-v6.js?v=20260913-2";
+const HOTFIX_SRC="./hotfix-v6.js?v=20260913-3";
 const HOTFIX_TAG=`<script src="${HOTFIX_SRC}"></script>`;
 
 async function injectHotfix(response){
