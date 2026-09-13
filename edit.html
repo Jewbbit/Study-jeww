@@ -3491,9 +3491,28 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-table .curriculum-source-segment{white-space:pre-line}
 .curriculum-text-segment{white-space:pre-wrap}
 .curriculum-table-page{display:block;padding:3px 7px 4px;font-size:8.5px;color:#999;text-align:right;background:#fafafa;border-bottom:1px solid #ededf0}
+.curriculum-table-label{font-size:.92em;font-weight:800;line-height:1.45;margin:16px 2px 6px;white-space:pre-wrap;word-break:keep-all}
+.curriculum-table-tools{display:flex;justify-content:flex-end;gap:6px;padding:5px 6px;border-bottom:1px solid #ededf0;background:#fafafa}
+.curriculum-table-tools button{border:1px solid #d8d8dc;background:#fff;border-radius:7px;padding:5px 8px;font-size:10px}
+.curriculum-table-tools button.active{font-weight:800;border-color:#999}
+.curriculum-table-wrap.cell-editing td{cursor:pointer;box-shadow:inset 0 0 0 1px #777}
+.curriculum-table-wrap.cell-editing td:active{box-shadow:inset 0 0 0 2px #333}
+@media(monochrome){.curriculum-table-tools{background:#fff!important;border-color:#111!important}.curriculum-table-tools button{border-color:#111!important}.curriculum-table-label{color:#000!important}.curriculum-table-wrap.cell-editing td{box-shadow:inset 0 0 0 1px #111!important}}
 .curriculum-passage.editing .curriculum-table-wrap{border-color:#cfd0d4}
 .curriculum-passage.editing .curriculum-table td{user-select:text;-webkit-user-select:text}
-@media(max-width:699px){.curriculum-table{font-size:12px}.curriculum-table td{padding:6px;min-width:0;max-width:none}.curriculum-table-wrap{margin:11px 0 13px}}
+@media(max-width:699px){
+  /* Global phone CSS turns generic tables into stacked cards. Curriculum tables must stay real tables. */
+  .curriculum-table-wrap{display:block!important;width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;margin:11px 0 13px!important;padding:0!important;touch-action:pan-x pan-y}
+  .curriculum-table{display:table!important;width:100%!important;max-width:none!important;table-layout:fixed!important;font-size:11.5px!important;line-height:1.42!important;border-collapse:collapse!important}
+  .curriculum-table thead{display:table-header-group!important;width:auto!important}
+  .curriculum-table tbody{display:table-row-group!important;width:auto!important;padding:0!important;background:#fff!important;gap:0!important}
+  .curriculum-table tr{display:table-row!important;width:auto!important;position:static!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important}
+  .curriculum-table td{display:table-cell!important;width:auto!important;min-width:0!important;max-width:none!important;padding:6px 7px!important;border:1px solid #cfd0d4!important;vertical-align:middle!important;white-space:normal!important;word-break:keep-all!important;overflow-wrap:break-word!important}
+  .curriculum-table tr:first-child td{font-weight:750!important;background:#f5f5f6!important;text-align:center!important}
+  .curriculum-table td:first-child{font-weight:650!important}
+  .curriculum-table-tools{position:sticky;left:0;z-index:3;justify-content:flex-start;min-width:max-content}
+  .curriculum-table-tools button{min-height:30px;font-size:10.5px;padding:5px 8px;white-space:nowrap}
+}
 @media(monochrome){.curriculum-table-wrap,.curriculum-table td{border-color:#111!important}.curriculum-table tr:first-child td{background:#fff!important}.curriculum-table-page{background:#fff!important;color:#111!important;border-color:#111!important}}
 
 </style>
@@ -10922,6 +10941,8 @@ function curriculumStore(){
   if(!Array.isArray(st.bookmarks))st.bookmarks=[];
   if(!st.outlineOverrides||typeof st.outlineOverrides!=="object"||Array.isArray(st.outlineOverrides))st.outlineOverrides={};
   if(!Array.isArray(st.outlineCustom))st.outlineCustom=[];
+  if(!st.tableLabelOverrides||typeof st.tableLabelOverrides!=="object"||Array.isArray(st.tableLabelOverrides))st.tableLabelOverrides={};
+  if(!st.tableCellOverrides||typeof st.tableCellOverrides!=="object"||Array.isArray(st.tableCellOverrides))st.tableCellOverrides={};
   return st;
 }
 function migrateCurriculumGroupedState(){
@@ -11032,6 +11053,35 @@ function curriculumWhitespaceTableRemap(oldText,newText,tables){
   };
   return (Array.isArray(tables)?tables:[]).map(remapOne);
 }
+function curriculumReplaceRangeTables(tables,start,end,newLen){
+  start=Number(start);end=Number(end);newLen=Math.max(0,Number(newLen)||0);
+  if(!Number.isInteger(start)||!Number.isInteger(end)||end<start)return curriculumShiftTables(tables,0);
+  const delta=newLen-(end-start);
+  const mapStart=p=>{p=Number(p);if(!Number.isInteger(p))return p;if(p<=start)return p;if(p>=end)return p+delta;return start};
+  const mapEnd=p=>{p=Number(p);if(!Number.isInteger(p))return p;if(p<=start)return p;if(p>=end)return p+delta;return start+newLen};
+  return (Array.isArray(tables)?tables:[]).map(meta=>{
+    const out={...meta};
+    if(Number.isInteger(Number(meta.a)))out.a=mapStart(meta.a);
+    if(Number.isInteger(Number(meta.b)))out.b=Math.max(Number(out.a)||0,mapEnd(meta.b));
+    if(Array.isArray(meta.rows))out.rows=meta.rows.map(row=>(row||[]).map(cell=>{
+      if(!cell)return cell;const c={...cell};
+      if(Number.isInteger(Number(cell.a)))c.a=mapStart(cell.a);
+      if(Number.isInteger(Number(cell.b)))c.b=Math.max(Number(c.a)||0,mapEnd(cell.b));
+      return c;
+    }));
+    return out;
+  });
+}
+function curriculumRemapSpansForReplace(spans,start,end,newLen){
+  const out=[],delta=newLen-(end-start);let dropped=0;
+  for(const sp of Array.isArray(spans)?spans:[]){
+    const a=Number(sp?.[0]),b=Number(sp?.[1]);if(!Number.isInteger(a)||!Number.isInteger(b)||b<=a)continue;
+    if(b<=start)out.push([a,b]);
+    else if(a>=end)out.push([a+delta,b+delta]);
+    else dropped++;
+  }
+  return {spans:out,dropped};
+}
 function curriculumPartitionTables(tables,cut){
   const left=[],right=[],crossing=[];
   for(const raw of Array.isArray(tables)?tables:[]){
@@ -11054,6 +11104,14 @@ function curriculumDerivedItems(){
         const src=pages[i],tables=curriculumWhitespaceTableRemap(src.t,op.text,src.tables);
         pages[i]={...src,t:op.text,tables,userEdited:true};
       }
+      continue;
+    }
+    if(op.type==="replace"){
+      const i=pages.findIndex(x=>String(x.i)===String(op.id));if(i<0)continue;
+      const src=pages[i],a=Number(op.start),b=Number(op.end),text=String(op.text??"");
+      if(!Number.isInteger(a)||!Number.isInteger(b)||a<0||b<a||b>src.t.length)continue;
+      const tables=curriculumReplaceRangeTables(src.tables,a,b,text.length);
+      pages[i]={...src,t:src.t.slice(0,a)+text+src.t.slice(b),tables,userEdited:true};
       continue;
     }
     if(op.type==="split"){
@@ -11430,14 +11488,65 @@ function appendCurriculumPracticeSegment(parent,item,start,end,spans,state){
   spans.forEach((sp,idx)=>{if(sp[1]<=start||sp[0]>=end)return;const a=Math.max(start,sp[0]),b=Math.min(end,sp[1]);if(a>pos)wrap.append(document.createTextNode(item.t.slice(pos,a)));const key=`${sp[0]}:${sp[1]}`;if(!state.rendered.has(key)){appendCurriculumPracticeInput(wrap,item,sp,idx,state.session);state.rendered.add(key)}pos=Math.max(pos,b)});
   if(pos<end)wrap.append(document.createTextNode(item.t.slice(pos,end)));parent.append(wrap);
 }
+function curriculumTableStableKey(meta){
+  const pdf=String(meta?.pdf??"");
+  const box=Array.isArray(meta?.pdfBox)?meta.pdfBox.map(x=>Number(x||0).toFixed(2)).join(","):"";
+  const first=[];for(const row of meta?.rows||[]){for(const cell of row||[]){if(cell?.t){first.push(String(cell.t).replace(/\s+/g," ").trim());if(first.length>=3)break}}if(first.length>=3)break}
+  return `${pdf}|${box}|${first.join("|").slice(0,120)}`;
+}
+function curriculumTableLabelValue(meta){
+  const key=curriculumTableStableKey(meta),ov=curriculumStore().tableLabelOverrides?.[key];
+  return typeof ov==="string"?ov:"";
+}
+function editCurriculumTableLabel(item,meta){
+  const key=curriculumTableStableKey(meta),old=curriculumTableLabelValue(meta);
+  const next=prompt("표 앞에 표시할 영역명·제목을 입력하세요.\n(비워서 저장하면 추가 문구를 지웁니다.)",old);
+  if(next===null)return;
+  const value=String(next).trim(),st=curriculumStore();
+  if(value)st.tableLabelOverrides[key]=value;else delete st.tableLabelOverrides[key];
+  saveLocal();scheduleCurriculumCloud(500);renderCurriculumCurrent();
+  toast(value?"표 앞 문구를 저장했습니다":"표 앞 문구를 지웠습니다");
+}
+function curriculumTableCellOverrideKey(meta,rowIndex,colIndex){return `${curriculumTableStableKey(meta)}::${rowIndex}:${colIndex}`}
+function curriculumTableCellVisualText(meta,cell,rowIndex,colIndex){
+  const key=curriculumTableCellOverrideKey(meta,rowIndex,colIndex),st=curriculumStore();
+  return Object.prototype.hasOwnProperty.call(st.tableCellOverrides,key)?String(st.tableCellOverrides[key]):String(cell?.t||"");
+}
+function editCurriculumTableCell(item,meta,cell,rowIndex,colIndex){
+  const a=Number(cell?.a),b=Number(cell?.b),mapped=Number.isInteger(a)&&Number.isInteger(b)&&b>a&&b<=String(item?.t||"").length;
+  if(mapped){
+    const old=String(item.t).slice(a,b);
+    const next=prompt("표 셀 문구를 수정하세요.\n이 수정은 현재 책자 원문에도 반영됩니다.",old);
+    if(next===null||next===old)return;
+    const st=curriculumStore(),id=String(item.i),remap=curriculumRemapSpansForReplace(curriculumSpans(item),a,b,String(next).length);
+    st.blankOverrides[id]=remap.spans;
+    appendCurriculumPageOp({type:"replace",id,start:a,end:b,text:String(next)});
+    saveLocal();scheduleCurriculumCloud(500);renderCurriculumCurrent();
+    toast(remap.dropped?`표 문구를 수정했습니다 · 겹친 빈칸 ${remap.dropped}개는 해제했습니다`:"표 문구를 수정했습니다");
+    return;
+  }
+  const key=curriculumTableCellOverrideKey(meta,rowIndex,colIndex),st=curriculumStore(),base=String(cell?.t||""),old=curriculumTableCellVisualText(meta,cell,rowIndex,colIndex);
+  const next=prompt("표 셀 문구를 수정하세요.\nPDF 표에서만 복원된 셀이라 표시값만 수정됩니다.\n자동 추출값과 똑같이 입력하면 사용자 수정을 해제합니다.",old);
+  if(next===null)return;
+  if(String(next)===base)delete st.tableCellOverrides[key];else st.tableCellOverrides[key]=String(next);
+  saveLocal();scheduleCurriculumCloud(500);renderCurriculumCurrent();toast("표 문구를 수정했습니다");
+}
 function appendCurriculumTable(parent,item,meta,mode,spans,state){
+  const labelText=curriculumTableLabelValue(meta);
+  if(labelText){const label=document.createElement("div");label.className="curriculum-table-label";label.textContent=labelText;label.title="두 번 눌러 표 앞 문구 수정";label.addEventListener("dblclick",()=>editCurriculumTableLabel(item,meta));parent.append(label)}
   const wrap=document.createElement("div");wrap.className="curriculum-table-wrap";wrap.dataset.pdfPage=String(meta.pdf||"");
+  if(mode==="edit"){
+    const tools=document.createElement("div");tools.className="curriculum-table-tools";
+    const cellBtn=document.createElement("button");cellBtn.type="button";cellBtn.textContent="셀 문구 수정";cellBtn.title="추출이 잘못된 셀 문구를 직접 고칩니다. 버튼을 켠 뒤 수정할 셀을 탭하세요";cellBtn.onclick=()=>{const on=!wrap.classList.contains("cell-editing");wrap.classList.toggle("cell-editing",on);cellBtn.classList.toggle("active",on);cellBtn.textContent=on?"수정할 셀 탭":"셀 문구 수정"};tools.append(cellBtn);
+    const labelBtn=document.createElement("button");labelBtn.type="button";labelBtn.textContent=labelText?"앞 문구 수정":"＋ 표 앞 문구";labelBtn.title="PDF 표에서 잘린 영역명·제목을 표 바로 앞에 직접 추가합니다";labelBtn.onclick=()=>editCurriculumTableLabel(item,meta);tools.append(labelBtn);wrap.append(tools);
+  }
   const table=document.createElement("table");table.className="curriculum-table";
   const cols=Math.max(1,Number(meta.cols)||Math.max(1,...(meta.rows||[]).map(r=>(r||[]).length)));
-  table.style.minWidth=`${Math.max(720,cols*150)}px`;
+  const compactTable=window.matchMedia?.("(max-width:699px)")?.matches;
+  table.style.minWidth=`${compactTable?Math.max(640,cols*120):Math.max(720,cols*150)}px`;
   if(Array.isArray(meta.colWidths)&&meta.colWidths.length===cols){const cg=document.createElement("colgroup");for(const w of meta.colWidths){const col=document.createElement("col");col.style.width=`${Math.max(.1,Number(w)||0)}%`;cg.append(col)}table.append(cg)}
   const tbody=document.createElement("tbody");
-  for(const row of meta.rows||[]){const tr=document.createElement("tr");for(const cell of row||[]){if(!cell)continue;const td=document.createElement("td");if(Number(cell.rs)>1)td.rowSpan=Number(cell.rs);if(Number(cell.cs)>1)td.colSpan=Number(cell.cs);const a=Number(cell.a),b=Number(cell.b);if(Number.isInteger(a)&&Number.isInteger(b)&&b>a){if(mode==="edit")appendCurriculumEditSegment(td,item,a,b,spans);else appendCurriculumPracticeSegment(td,item,a,b,spans,state)}else td.textContent=cell.t||"";tr.append(td)}tbody.append(tr)}
+  for(const [ri,row] of (meta.rows||[]).entries()){const tr=document.createElement("tr");for(const [ci,cell] of (row||[]).entries()){if(!cell)continue;const td=document.createElement("td");if(Number(cell.rs)>1)td.rowSpan=Number(cell.rs);if(Number(cell.cs)>1)td.colSpan=Number(cell.cs);const a=Number(cell.a),b=Number(cell.b),mapped=Number.isInteger(a)&&Number.isInteger(b)&&b>a;if(mapped){if(mode==="edit")appendCurriculumEditSegment(td,item,a,b,spans);else appendCurriculumPracticeSegment(td,item,a,b,spans,state)}else td.textContent=curriculumTableCellVisualText(meta,cell,ri,ci);if(mode==="edit"){td.title="‘표 문구 수정’을 켠 뒤 탭해서 수정";td.addEventListener("click",e=>{if(!wrap.classList.contains("cell-editing"))return;e.preventDefault();e.stopPropagation();editCurriculumTableCell(item,meta,cell,ri,ci)})}tr.append(td)}tbody.append(tr)}
   table.append(tbody);wrap.append(table);parent.append(wrap);
 }
 function renderCurriculumStructured(item,mode){
@@ -11535,7 +11644,7 @@ function renderCurriculumEdit(item){
   const deletePage=document.createElement("button");deletePage.type="button";deletePage.className="curriculum-page-delete";deletePage.textContent="이 쪽 삭제";deletePage.disabled=items.length<=1;deletePage.onclick=()=>deleteCurriculumPage(item);
   const restorePage=document.createElement("button");restorePage.type="button";const deletedCount=curriculumStore().deletedPages?.length||0;restorePage.textContent=deletedCount?`삭제한 쪽 복구 (${deletedCount})`:"삭제한 쪽 복구";restorePage.disabled=!deletedCount;restorePage.onclick=restoreLastCurriculumPage;
   pageActions.append(split,mergePrev,mergeNext,editSource,deletePage,restorePage);panel.append(pageActions);
-  const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="빈칸·쪽 나누기/합치기·원문 정리·쪽 삭제·책갈피는 내 학습용 설정으로만 저장됩니다. 상단에는 HWP 제목 구조를 따라 현재 대주제·중주제·소주제가 계속 표시되고, 목차에서는 대주제/중주제/소주제/전체 깊이를 골라 바로 이동할 수 있습니다. 펜으로 기존 빈칸에 겹쳐 그으면 범위가 이어지고, 빈칸 표시를 두 번 누르면 바로 삭제할 수 있습니다. curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
+  const help=document.createElement("div");help.className="curriculum-edit-help";help.textContent="빈칸·쪽 나누기/합치기·원문 정리·쪽 삭제·책갈피·표 문구 수정은 내 학습용 설정으로 저장됩니다. 상단에는 HWP 제목 구조를 따라 현재 대주제·중주제·소주제가 계속 표시되고, 목차에서는 대주제/중주제/소주제/전체 깊이를 골라 바로 이동할 수 있습니다. 펜으로 기존 빈칸에 겹쳐 그으면 범위가 이어지고, 빈칸 표시를 두 번 누르면 바로 삭제할 수 있습니다. curriculum.json 원본 파일은 바뀌지 않습니다.";panel.append(help);
   if(curriculumSourceEditing){
     const wrap=document.createElement("div");wrap.className="curriculum-source-editor";
     const ta=document.createElement("textarea");ta.value=item.t;ta.setAttribute("aria-label","현재 교육과정 원문 편집");
