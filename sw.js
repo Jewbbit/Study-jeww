@@ -1,8 +1,8 @@
-const CACHE_NAME="study-jew-pwa-v16-consideration-pencil";
+const CACHE_NAME="study-jew-pwa-v17-consideration-overdraw";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260913-4",
-  "./hotfix-v8.js?v=20260913-1"
+  "./hotfix-v8.js?v=20260913-2"
 ];
 const HEADER_PROGRESS_STYLE='<style id="mission-progress-fit">#plannerQuickBtn{width:auto!important;min-width:38px!important;max-width:none!important;height:33px!important;padding:5px 6px!important;font-size:9px!important;line-height:1!important;white-space:nowrap!important;letter-spacing:-.15px!important;flex:0 0 auto!important}</style>';
 
