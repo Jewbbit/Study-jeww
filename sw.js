@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v20-curriculum-recovery";
+const CACHE_NAME="study-jew-pwa-v21-rollback-overdue-today";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260913-4",
@@ -8,6 +8,16 @@ const HOTFIX_SRCS=[
 ];
 const HEADER_PROGRESS_STYLE='<style id="mission-progress-fit">#plannerQuickBtn{width:auto!important;min-width:38px!important;max-width:none!important;height:33px!important;padding:5px 6px!important;font-size:9px!important;line-height:1!important;white-space:nowrap!important;letter-spacing:-.15px!important;flex:0 0 auto!important}</style>';
 const STANDARD_NOTE_STYLE='<style id="standard-note-room">.curriculum-standard-note-strip{grid-template-columns:minmax(0,1.6fr) minmax(160px,.9fr)!important;align-items:start!important}.curriculum-standard-note-field{align-items:start!important}.curriculum-standard-note-field textarea{box-sizing:border-box!important;width:100%!important;min-height:31px!important;max-height:110px!important;overflow:auto!important}.curriculum-standard-note-field:first-child textarea{min-height:48px!important;resize:vertical!important;padding-top:5px!important;padding-bottom:5px!important}@media(max-width:699px){.curriculum-standard-note-strip{grid-template-columns:1fr!important}.curriculum-standard-note-field:first-child textarea{min-height:54px!important}}</style>';
+
+function appShellNavigation(request){
+  try{
+    const u=new URL(request.url),scope=new URL(self.registration.scope);
+    if(u.origin!==scope.origin)return false;
+    const base=scope.pathname.replace(/\/$/,"");
+    const p=u.pathname.replace(/\/$/,"");
+    return p===base||p===`${base}/edit.html`||p===`${base}/index.html`;
+  }catch{return false}
+}
 
 async function injectHotfix(response){
   if(!response||!response.ok)return response;
@@ -27,7 +37,12 @@ async function injectHotfix(response){
     .replace(/button\.textContent="✓";(?=\s*button\.classList\.add\("mission-complete"\))/,'button.textContent=`${x.done}/${x.total}`;')
     .replace(/const el=key==="memo"\?document\.createElement\("textarea"\):document\.createElement\("input"\);if\(el\.tagName==="INPUT"\)el\.type="text";else el\.rows=1;/g,'const el=document.createElement("textarea");el.rows=key==="content"?2:1;')
     .replace(/saveLocal\(\);scheduleCurriculumCloud\(700\)/g,'app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleCurriculumCloud(700)')
-    .replace(/saveLocal\(\);scheduleCurriculumCloud\(1300\)/g,'app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleCurriculumCloud(1300)');
+    .replace(/saveLocal\(\);scheduleCurriculumCloud\(1300\)/g,'app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleCurriculumCloud(1300)')
+    .replace('function plannerMissionsForDate(round,date,{includeExcluded=false}={}){\n  return (round?.missions||[]).filter(m=>plannerMissionDisplayDate(round,m)===date&&(includeExcluded||!plannerMissionExcluded(round,m)));\n}',`function plannerMissionsForDate(round,date,{includeExcluded=false}={}){\n  return (round?.missions||[]).filter(m=>plannerMissionDisplayDate(round,m)===date&&(includeExcluded||!plannerMissionExcluded(round,m)));\n}\nfunction plannerMissionsForDayView(round,date){\n  const exact=plannerMissionsForDate(round,date);\n  if(date!==plannerToday())return exact;\n  const seen=new Set(exact);\n  const overdue=(round?.missions||[]).filter(m=>String(m.date||"")<date&&!plannerMissionExcluded(round,m)&&!plannerMissionDone(round,m)&&!seen.has(m));\n  overdue.sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));\n  return [...overdue,...exact];\n}`)
+    .replace('for(const r of p.rounds)for(const m of plannerMissionsForDate(r,date))missions.push([r,m]);','for(const r of p.rounds)for(const m of plannerMissionsForDayView(r,date))missions.push([r,m]);')
+    .replace('const missions=plannerMissionsForDate(r,selected);','const missions=plannerMissionsForDayView(r,selected);')
+    .replace('const missions=plannerMissionsForDate(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;','const missions=plannerMissionsForDayView(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;')
+    .replace('if(m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);','if(selected!==today&&m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);');
   const headStyles=`${HEADER_PROGRESS_STYLE}\n${STANDARD_NOTE_STYLE}`;
   html=html.includes("</head>")?html.replace("</head>",`${headStyles}\n</head>`):headStyles+html;
   const tags=HOTFIX_SRCS.map(src=>`<script src="${src}"></script>`).join("\n");
@@ -62,18 +77,17 @@ self.addEventListener("activate",event=>{
 self.addEventListener("fetch",event=>{
   if(event.request.method!=="GET")return;
   const req=event.request;
-  if(req.mode==="navigate"){
-    event.respondWith(
-      fetch(req,{cache:"no-store"})
-        .then(async res=>{
-          const patched=await injectHotfix(res);
-          if(patched&&patched.ok){
-            const copy=patched.clone();
-            caches.open(CACHE_NAME).then(cache=>cache.put(FALLBACK_URL,copy)).catch(()=>{});
-          }
-          return patched;
-        })
-        .catch(()=>caches.match(FALLBACK_URL))
-    );
-  }
+  if(req.mode!=="navigate"||!appShellNavigation(req))return;
+  event.respondWith(
+    fetch(req,{cache:"no-store"})
+      .then(async res=>{
+        const patched=await injectHotfix(res);
+        if(patched&&patched.ok){
+          const copy=patched.clone();
+          caches.open(CACHE_NAME).then(cache=>cache.put(FALLBACK_URL,copy)).catch(()=>{});
+        }
+        return patched;
+      })
+      .catch(()=>caches.match(FALLBACK_URL))
+  );
 });
