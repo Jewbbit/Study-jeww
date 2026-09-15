@@ -1,12 +1,13 @@
 (()=>{
   "use strict";
-  const VERSION="2026-09-15-login-safari-v2-storage22";
+  const VERSION="2026-09-15-login-safari-v3-firebase11";
   if(window.__sjLoginSafari===VERSION)return;
   window.__sjLoginSafari=VERSION;
 
   let busy=false;
-  const appModP=import("https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js");
-  const authModP=import("https://www.gstatic.com/firebasejs/12.17.1/firebase-auth.js");
+  const SDK="11.6.0";
+  const appModP=import(`https://www.gstatic.com/firebasejs/${SDK}/firebase-app.js`);
+  const authModP=import(`https://www.gstatic.com/firebasejs/${SDK}/firebase-auth.js`);
 
   function toast(msg,ms=5200){
     const el=document.getElementById("toast");
@@ -17,7 +18,7 @@
   function codeOf(e){return String(e?.code??"").replace(/^auth\//,"")}
   function looksLikeStorage22(e){
     const c=String(e?.code??""),n=String(e?.name||""),m=String(e?.message||"");
-    return c==="22"||/QuotaExceeded/i.test(n)||/quota|storage/i.test(m)&&/exceed|full|limit|available/i.test(m);
+    return c==="22"||/QuotaExceeded/i.test(n)||(/quota|storage/i.test(m)&&/exceed|full|limit|available/i.test(m));
   }
   function detailOf(e){
     const parts=[];if(e?.name)parts.push(String(e.name));if(e?.code!=null)parts.push(`code ${String(e.code)}`);if(e?.message)parts.push(String(e.message));
@@ -36,8 +37,6 @@
     try{return await authMod.signInWithPopup(auth,provider)}
     catch(first){
       if(!looksLikeStorage22(first))throw first;
-      // Safari legacy DOMException code 22 is commonly a storage/quota failure.
-      // Do not clear app localStorage: switch Firebase Auth only to memory and retry once.
       await authMod.setPersistence(auth,authMod.inMemoryPersistence);
       try{return await authMod.signInWithPopup(auth,provider)}
       catch(second){second.__sjFirstError=first;throw second}
@@ -64,7 +63,7 @@
       const provider=new authMod.GoogleAuthProvider();
       provider.setCustomParameters({prompt:"select_account"});
       await popupLogin(auth,provider,authMod);
-      toast(persistence==="memory"?"로그인되었습니다 · Safari 저장소 문제로 이번 탭에서만 로그인 유지":"로그인되었습니다");
+      toast(persistence==="memory"?"로그인되었습니다 · 이번 탭에서 로그인 유지":"로그인되었습니다");
     }catch(e){
       console.error("Safari Google login failed",e,e?.__sjFirstError||"");
       const code=codeOf(e);
