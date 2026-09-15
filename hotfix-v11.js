@@ -1,7 +1,7 @@
 (()=>{
   "use strict";
 
-  const VERSION="2026-09-15-standard-notes-stack-v1";
+  const VERSION="2026-09-15-standard-notes-stack-v2-save";
   if(window.__studyJewStandardNotesHotfix===VERSION)return;
   window.__studyJewStandardNotesHotfix=VERSION;
 
@@ -56,16 +56,32 @@
       body.sj-standard-memo-hidden .curriculum-standard-note-strip .curriculum-standard-note-field:last-child{
         display:none!important;
       }
-      #sjStandardMemoToggle{
+      #sjStandardMemoToggle,#sjStandardSave{
         white-space:nowrap!important;
       }
     `;
     document.head.append(s);
   }
 
-  function ensureToggle(){
+  function ensureControls(){
     const toolbar=document.querySelector(TOOLBAR_SELECTOR);
     if(!toolbar)return;
+
+    let save=toolbar.querySelector("#sjStandardSave");
+    if(!save){
+      save=document.createElement("button");
+      save.id="sjStandardSave";
+      save.type="button";
+      save.textContent="저장";
+      save.addEventListener("click",e=>{
+        e.preventDefault();e.stopPropagation();
+        const ok=typeof window.sjSaveCurriculumStandardEdits==="function"?window.sjSaveCurriculumStandardEdits():false;
+        const old=save.textContent;save.textContent=ok===false?"저장 대기":"저장됨";
+        setTimeout(()=>{if(save.isConnected)save.textContent=old},900);
+      });
+      toolbar.append(save);
+    }
+
     let b=toolbar.querySelector("#sjStandardMemoToggle");
     if(!b){
       b=document.createElement("button");
@@ -89,7 +105,7 @@
     ensureStyle();
     const on=memoVisible();
     document.body?.classList.toggle("sj-standard-memo-hidden",!on);
-    ensureToggle();
+    ensureControls();
   }
 
   let queued=false;
