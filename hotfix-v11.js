@@ -1,12 +1,13 @@
 (()=>{
   "use strict";
 
-  const VERSION="2026-09-15-standard-notes-stack-v2-save";
+  const VERSION="2026-09-15-standard-notes-stack-v3-compact";
   if(window.__studyJewStandardNotesHotfix===VERSION)return;
   window.__studyJewStandardNotesHotfix=VERSION;
 
   const PREF_KEY="study-jew-standard-memo-visible-v1";
   const TOOLBAR_SELECTOR="#curriculumPassage .curriculum-standards-v2-toolbar";
+  const NOTE_SELECTOR="#curriculumPassage .curriculum-standard-note-strip textarea";
 
   function memoVisible(){
     try{
@@ -20,48 +21,68 @@
   }
 
   function ensureStyle(){
-    if(document.getElementById("sj-standard-note-stack-style"))return;
-    const s=document.createElement("style");
-    s.id="sj-standard-note-stack-style";
+    let s=document.getElementById("sj-standard-note-stack-style");
+    if(!s){s=document.createElement("style");s.id="sj-standard-note-stack-style";document.head.append(s)}
     s.textContent=`
       .curriculum-standard-note-strip{
         display:grid!important;
         grid-template-columns:minmax(0,1fr)!important;
-        gap:5px!important;
+        gap:1px!important;
         align-items:stretch!important;
+        margin:0 0 5px!important;
+        padding:0!important;
       }
       .curriculum-standard-note-strip .curriculum-standard-note-field{
+        display:grid!important;
+        grid-template-columns:48px minmax(0,1fr)!important;
+        gap:4px!important;
+        align-items:center!important;
         width:100%!important;
         min-width:0!important;
-        align-items:flex-start!important;
+        min-height:27px!important;
+        margin:0!important;
+        padding:0!important;
+      }
+      .curriculum-standard-note-strip .curriculum-standard-note-field label{
+        align-self:center!important;
+        font-size:.61em!important;
+        line-height:1.15!important;
+        color:#8a8b90!important;
+        white-space:nowrap!important;
       }
       .curriculum-standard-note-strip .curriculum-standard-note-field textarea,
       .curriculum-standard-note-strip .curriculum-standard-note-field input{
         box-sizing:border-box!important;
+        display:block!important;
         width:100%!important;
         min-width:0!important;
+        height:27px!important;
+        min-height:27px!important;
+        max-height:62px!important;
+        margin:0!important;
+        padding:3px 2px!important;
+        line-height:1.35!important;
+        resize:none!important;
+        overflow-y:hidden!important;
       }
-      .curriculum-standard-note-strip .curriculum-standard-note-field:first-child textarea{
-        min-height:44px!important;
-        max-height:130px!important;
-        resize:vertical!important;
-        overflow:auto!important;
-      }
-      .curriculum-standard-note-strip .curriculum-standard-note-field:last-child textarea{
-        min-height:34px!important;
-        max-height:110px!important;
-        resize:vertical!important;
-        overflow:auto!important;
+      .curriculum-standard-note-strip .curriculum-standard-note-field textarea.sj-note-expanded{
+        overflow-y:auto!important;
       }
       body.sj-standard-memo-hidden .curriculum-standard-note-strip .curriculum-standard-note-field:last-child{
         display:none!important;
       }
-      #sjStandardMemoToggle,#sjStandardSave{
-        white-space:nowrap!important;
-      }
+      #sjStandardMemoToggle,#sjStandardSave{white-space:nowrap!important}
     `;
-    document.head.append(s);
   }
+
+  function fit(el){
+    if(!(el instanceof HTMLTextAreaElement))return;
+    el.style.height="27px";
+    const h=Math.max(27,Math.min(62,el.scrollHeight));
+    el.style.height=`${h}px`;
+    el.classList.toggle("sj-note-expanded",el.scrollHeight>62);
+  }
+  function fitAll(){document.querySelectorAll(NOTE_SELECTOR).forEach(fit)}
 
   function ensureControls(){
     const toolbar=document.querySelector(TOOLBAR_SELECTOR);
@@ -89,9 +110,7 @@
       b.type="button";
       b.className="curriculum-standard-memo-toggle";
       b.addEventListener("click",e=>{
-        e.preventDefault();
-        e.stopPropagation();
-        setMemoVisible(!memoVisible());
+        e.preventDefault();e.stopPropagation();setMemoVisible(!memoVisible());
       });
       toolbar.append(b);
     }
@@ -106,6 +125,7 @@
     const on=memoVisible();
     document.body?.classList.toggle("sj-standard-memo-hidden",!on);
     ensureControls();
+    requestAnimationFrame(fitAll);
   }
 
   let queued=false;
@@ -117,6 +137,7 @@
 
   function start(){
     apply();
+    document.addEventListener("input",e=>{if(e.target instanceof HTMLTextAreaElement&&e.target.matches(NOTE_SELECTOR))fit(e.target)},{capture:true,passive:true});
     const mo=new MutationObserver(queueApply);
     mo.observe(document.body,{subtree:true,childList:true});
   }
