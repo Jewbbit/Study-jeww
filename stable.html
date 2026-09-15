@@ -2,7 +2,7 @@
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Study Jew</title></head><body><div style="font-family:-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo',sans-serif;padding:24px">앱을 불러오는 중…</div><script>
 (async()=>{
   try{
-    const res=await fetch('./edit.html?raw=20260915-1350',{cache:'no-store'});
+    const res=await fetch('./edit.html?raw=20260915-1400',{cache:'no-store'});
     if(!res.ok)throw new Error('edit '+res.status);
     let html=await res.text();
     html=html
@@ -15,9 +15,8 @@
       './hotfix-v11.js?v=20260915-3',
       './hotfix-v12.js?v=20260915-1',
       './hotfix-v13.js?v=20260915-1',
-      './hotfix-v18.js?v=20260915-1'
+      './hotfix-v18.js?v=20260915-2'
     ].map(src=>`<script src="${src}"><\/script>`).join('\n');
-    html=html.includes('</body>')?html.replace('</body>',tags+'\n</body>'):html+tags;
     document.open();document.write(html);document.close();
   }catch(e){document.body.innerHTML='<div style="font-family:-apple-system,BlinkMacSystemFont,Apple SD Gothic Neo,sans-serif;padding:24px"><b>앱 로드 실패</b><br><br>'+String(e&&e.message||e)+'</div>'}
 })();
