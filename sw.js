@@ -1,13 +1,16 @@
-const CACHE_NAME="study-jew-pwa-v23-standards-safe-save";
+const CACHE_NAME="study-jew-pwa-v24-curriculum-flow";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
-  "./hotfix-v6.js?v=20260915-1",
+  "./hotfix-v6.js?v=20260915-2",
   "./hotfix-v9.js?v=20260913-2",
   "./hotfix-v10.js?v=20260913-1",
-  "./hotfix-v11.js?v=20260915-2"
+  "./hotfix-v11.js?v=20260915-3",
+  "./hotfix-v12.js?v=20260915-1",
+  "./hotfix-v13.js?v=20260915-1",
+  "./hotfix-v15.js?v=20260915-1"
 ];
 const HEADER_PROGRESS_STYLE='<style id="mission-progress-fit">#plannerQuickBtn{width:auto!important;min-width:38px!important;max-width:none!important;height:33px!important;padding:5px 6px!important;font-size:9px!important;line-height:1!important;white-space:nowrap!important;letter-spacing:-.15px!important;flex:0 0 auto!important}</style>';
-const STANDARD_NOTE_STYLE='<style id="standard-note-room">.curriculum-standard-note-strip{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:5px!important;align-items:stretch!important}.curriculum-standard-note-field{width:100%!important;min-width:0!important;align-items:flex-start!important}.curriculum-standard-note-field textarea,.curriculum-standard-note-field input{box-sizing:border-box!important;width:100%!important;min-width:0!important}.curriculum-standard-note-field:first-child textarea{min-height:44px!important;max-height:130px!important;resize:vertical!important;overflow:auto!important}.curriculum-standard-note-field:last-child textarea{min-height:34px!important;max-height:110px!important;resize:vertical!important;overflow:auto!important}</style>';
+const STANDARD_NOTE_STYLE='<style id="standard-note-room">.curriculum-standard-note-strip{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:1px!important;align-items:stretch!important;margin:0 0 5px!important;padding:0!important}.curriculum-standard-note-field{display:grid!important;grid-template-columns:48px minmax(0,1fr)!important;gap:4px!important;align-items:center!important;width:100%!important;min-width:0!important;min-height:27px!important;margin:0!important;padding:0!important}.curriculum-standard-note-field textarea,.curriculum-standard-note-field input{box-sizing:border-box!important;width:100%!important;min-width:0!important;height:27px!important;min-height:27px!important;max-height:62px!important;margin:0!important;padding:3px 2px!important;resize:none!important;overflow-y:hidden!important}</style>';
 
 async function injectHotfix(response){
   if(!response||!response.ok)return response;
@@ -22,6 +25,10 @@ async function injectHotfix(response){
     .replace(/<script[^>]+src=["'][^"']*hotfix-v9\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
     .replace(/<script[^>]+src=["'][^"']*hotfix-v10\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
     .replace(/<script[^>]+src=["'][^"']*hotfix-v11\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
+    .replace(/<script[^>]+src=["'][^"']*hotfix-v12\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
+    .replace(/<script[^>]+src=["'][^"']*hotfix-v13\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
+    .replace(/<script[^>]+src=["'][^"']*hotfix-v14\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
+    .replace(/<script[^>]+src=["'][^"']*hotfix-v15\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
     .replace(/<style id=["']mission-progress-fit["'][^>]*>[\s\S]*?<\/style>\s*/gi,"")
     .replace(/<style id=["']standard-note-room["'][^>]*>[\s\S]*?<\/style>\s*/gi,"")
     .replace(/\s*if\(!useCompactMissionPanel\(\)\)\{\s*button\.textContent="오늘";\s*button\.setAttribute\("aria-label","하루 미션"\);\s*return;\s*\}\s*(?=const x=plannerDaySummary\(plannerToday\(\)\);)/,"\n")
