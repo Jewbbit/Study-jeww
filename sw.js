@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v27-curriculum-flow-rollback";
+const CACHE_NAME="study-jew-pwa-v28-stable-shell";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260915-2",
@@ -6,11 +6,20 @@ const HOTFIX_SRCS=[
   "./hotfix-v10.js?v=20260913-1",
   "./hotfix-v11.js?v=20260915-3",
   "./hotfix-v12.js?v=20260915-1",
-  "./hotfix-v13.js?v=20260915-1",
-  "./hotfix-v15.js?v=20260915-1"
+  "./hotfix-v13.js?v=20260915-1"
 ];
 const HEADER_PROGRESS_STYLE='<style id="mission-progress-fit">#plannerQuickBtn{width:auto!important;min-width:38px!important;max-width:none!important;height:33px!important;padding:5px 6px!important;font-size:9px!important;line-height:1!important;white-space:nowrap!important;letter-spacing:-.15px!important;flex:0 0 auto!important}</style>';
 const STANDARD_NOTE_STYLE='<style id="standard-note-room">.curriculum-standard-note-strip{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:1px!important;align-items:stretch!important;margin:0 0 5px!important;padding:0!important}.curriculum-standard-note-field{display:grid!important;grid-template-columns:48px minmax(0,1fr)!important;gap:4px!important;align-items:center!important;width:100%!important;min-width:0!important;min-height:27px!important;margin:0!important;padding:0!important}.curriculum-standard-note-field textarea,.curriculum-standard-note-field input{box-sizing:border-box!important;width:100%!important;min-width:0!important;height:27px!important;min-height:27px!important;max-height:62px!important;margin:0!important;padding:3px 2px!important;resize:none!important;overflow-y:hidden!important}</style>';
+
+function appShellNavigation(request){
+  try{
+    const u=new URL(request.url),scope=new URL(self.registration.scope);
+    if(u.origin!==scope.origin)return false;
+    const base=scope.pathname.replace(/\/$/,"");
+    const p=u.pathname.replace(/\/$/,"");
+    return p===base||p===`${base}/edit.html`||p===`${base}/index.html`;
+  }catch{return false}
+}
 
 async function injectHotfix(response){
   if(!response||!response.ok)return response;
@@ -42,7 +51,7 @@ async function injectHotfix(response){
     .replace('app.study=incoming;cleanup();\n  if(typeof invalidateCurriculumDerived==="function")invalidateCurriculumDerived();','app.study=incoming;cleanup();syncStandardExtraBlanksOutOfStudy();\n  if(typeof invalidateCurriculumDerived==="function")invalidateCurriculumDerived();')
     .replace('function setPage(subject,idx,focusBlank){const ui=curriculumUi(),groups=orderedGroups(subject);','function setPage(subject,idx,focusBlank){markStudyCloud();const ui=curriculumUi(),groups=orderedGroups(subject);')
     .replace('be.onclick=()=>{ui.standardBlankEdit=!ui.standardBlankEdit;standardSelection=null;saveLocal();renderCurriculumStandards()}','be.onclick=()=>{ui.standardBlankEdit=!ui.standardBlankEdit;standardSelection=null;saveLocal();markStudyCloud();renderCurriculumStandards()}')
-    .replace('function plannerMissionsForDate(round,date,{includeExcluded=false}={}){\n  return (round?.missions||[]).filter(m=>plannerMissionDisplayDate(round,m)===date&&(includeExcluded||!plannerMissionExcluded(round,m)));\n}',`function plannerMissionsForDate(round,date,{includeExcluded=false}={}){\n  return (round?.missions||[]).filter(m=>plannerMissionDisplayDate(round,m)===date&&(includeExcluded||!plannerMissionExcluded(round,m)));\n}\nfunction plannerMissionsForDayView(round,date){\n  const exact=plannerMissionsForDate(round,date);\n  if(date!==plannerToday())return exact;\n  const seen=new Set(exact);\n  const overdue=(round?.missions||[]).filter(m=>String(m.date||\"\")<date&&!plannerMissionExcluded(round,m)&&!plannerMissionDone(round,m)&&!seen.has(m));\n  overdue.sort((a,b)=>String(a.date||\"\").localeCompare(String(b.date||\"\")));\n  return [...overdue,...exact];\n}`)
+    .replace('function plannerMissionsForDate(round,date,{includeExcluded=false}={}){\n  return (round?.missions||[]).filter(m=>plannerMissionDisplayDate(round,m)===date&&(includeExcluded||!plannerMissionExcluded(round,m)));\n}',`function plannerMissionsForDate(round,date,{includeExcluded=false}={}){\n  return (round?.missions||[]).filter(m=>plannerMissionDisplayDate(round,m)===date&&(includeExcluded||!plannerMissionExcluded(round,m)));\n}\nfunction plannerMissionsForDayView(round,date){\n  const exact=plannerMissionsForDate(round,date);\n  if(date!==plannerToday())return exact;\n  const seen=new Set(exact);\n  const overdue=(round?.missions||[]).filter(m=>String(m.date||"")<date&&!plannerMissionExcluded(round,m)&&!plannerMissionDone(round,m)&&!seen.has(m));\n  overdue.sort((a,b)=>String(a.date||"").localeCompare(String(b.date||"")));\n  return [...overdue,...exact];\n}`)
     .replace('for(const r of p.rounds)for(const m of plannerMissionsForDate(r,date))missions.push([r,m]);','for(const r of p.rounds)for(const m of plannerMissionsForDayView(r,date))missions.push([r,m]);')
     .replace('const missions=plannerMissionsForDate(r,selected);','const missions=plannerMissionsForDayView(r,selected);')
     .replace('const missions=plannerMissionsForDate(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;','const missions=plannerMissionsForDayView(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;')
@@ -51,7 +60,6 @@ async function injectHotfix(response){
   html=html.includes("</head>")?html.replace("</head>",`${headStyles}\n</head>`):headStyles+html;
   const tags=HOTFIX_SRCS.map(src=>`<script src="${src}"></script>`).join("\n");
   html=html.includes("</body>")?html.replace("</body>",`${tags}\n</body>`):html+tags;
-
   const headers=new Headers(response.headers);
   headers.delete("content-length");
   headers.delete("content-encoding");
@@ -59,38 +67,22 @@ async function injectHotfix(response){
 }
 
 self.addEventListener("install",event=>{
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(async cache=>{
-        const response=await fetch(FALLBACK_URL,{cache:"no-store"});
-        const patched=await injectHotfix(response);
-        await cache.put(FALLBACK_URL,patched.clone());
-      })
-      .then(()=>self.skipWaiting())
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then(async cache=>{
+    const response=await fetch(FALLBACK_URL,{cache:"no-store"});
+    const patched=await injectHotfix(response);
+    await cache.put(FALLBACK_URL,patched.clone());
+  }).then(()=>self.skipWaiting()))
 });
 self.addEventListener("activate",event=>{
-  event.waitUntil(
-    caches.keys()
-      .then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k))))
-      .then(()=>self.clients.claim())
-  );
+  event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE_NAME).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))
 });
 self.addEventListener("fetch",event=>{
   if(event.request.method!=="GET")return;
   const req=event.request;
-  if(req.mode==="navigate"){
-    event.respondWith(
-      fetch(req,{cache:"no-store"})
-        .then(async res=>{
-          const patched=await injectHotfix(res);
-          if(patched&&patched.ok){
-            const copy=patched.clone();
-            caches.open(CACHE_NAME).then(cache=>cache.put(FALLBACK_URL,copy)).catch(()=>{});
-          }
-          return patched;
-        })
-        .catch(()=>caches.match(FALLBACK_URL))
-    );
-  }
+  if(req.mode!=="navigate"||!appShellNavigation(req))return;
+  event.respondWith(fetch(req,{cache:"no-store"}).then(async res=>{
+    const patched=await injectHotfix(res);
+    if(patched&&patched.ok)caches.open(CACHE_NAME).then(cache=>cache.put(FALLBACK_URL,patched.clone())).catch(()=>{});
+    return patched;
+  }).catch(()=>caches.match(FALLBACK_URL)))
 });
