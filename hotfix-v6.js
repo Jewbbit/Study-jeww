@@ -1,7 +1,7 @@
 (()=>{
   "use strict";
 
-  const VERSION="2026-09-13-standards-blank-hotfix-v4-safe";
+  const VERSION="2026-09-15-standards-blank-hotfix-v5-pencil";
   if(window.__studyJewStandardsBlankHotfix===VERSION)return;
   window.__studyJewStandardsBlankHotfix=VERSION;
 
@@ -18,13 +18,37 @@
   const DUPLICATE_EVENT_MS=95;
 
   let lastTapAt=0,lastTapMark=null,lastPhysicalAt=0,lastPhysicalMark=null;
-  let penState=null,scheduled=false,flushTimer=0,selectionTimer=0;
+  let penState=null,touchPenState=null,scheduled=false,flushTimer=0,selectionTimer=0;
 
   function parse(raw){try{return JSON.parse(raw||"null")}catch{return null}}
   function clone(v){try{return JSON.parse(JSON.stringify(v))}catch{return null}}
   function curriculumFrom(raw){const x=parse(raw);return clone(x?.study?.curriculumPractice||null)}
-  function loadObject(key){const x=parse(localStorage.getItem(key));return x&&typeof x==="object"&&!Array.isArray(x)?x:{}}
-  function saveObject(key,value){try{localStorage.setItem(key,JSON.stringify(value))}catch{}}
+  function extraField(key){return key===EXPLANATION_STORE_KEY?"explanationBlankOverrides":key===CONSIDERATION_STORE_KEY?"considerationBlankOverrides":""}
+  function object(v){return v&&typeof v==="object"&&!Array.isArray(v)?v:{}}
+  function loadObject(key){
+    const field=extraField(key),merged={};
+    if(field){
+      for(const storageKey of [APP_KEY,QUICK_KEY]){
+        const x=parse(localStorage.getItem(storageKey)),v=x?.study?.curriculumPractice?.[field];
+        if(v&&typeof v==="object"&&!Array.isArray(v))Object.assign(merged,v);
+      }
+    }
+    const local=parse(localStorage.getItem(key));if(local&&typeof local==="object"&&!Array.isArray(local))Object.assign(merged,local);
+    return merged;
+  }
+  function saveObject(key,value){
+    try{localStorage.setItem(key,JSON.stringify(value))}catch{}
+    const field=extraField(key);if(!field)return;
+    const now=Date.now();
+    for(const storageKey of [APP_KEY,QUICK_KEY]){
+      try{
+        const x=parse(localStorage.getItem(storageKey));if(!x||typeof x!=="object"||!x.study||typeof x.study!=="object")continue;
+        if(!x.study.curriculumPractice||typeof x.study.curriculumPractice!=="object")x.study.curriculumPractice={};
+        x.study.curriculumPractice[field]=clone(value)||{};x.study.updatedAt=now;if(storageKey===QUICK_KEY)x.updatedAt=now;
+        localStorage.setItem(storageKey,JSON.stringify(x));
+      }catch{}
+    }
+  }
 
   function snapshotSafety(reason="auto"){
     try{
@@ -43,7 +67,6 @@
     }catch{}
   }
 
-  /* 서비스워커 교체/새로고침 전에 현재 교육과정 작업을 먼저 따로 보존한다. */
   snapshotSafety("preload");
 
   function forceAppFlushSoon(){
@@ -94,7 +117,7 @@
   function setBodySpans(body,text,type,spans){
     const {key}=spansFor(body,text,type),st=loadObject(bodyStoreKey(type)),v=validSpans(text,spans);
     if(v.length)st[key]=v;else delete st[key];
-    saveObject(bodyStoreKey(type),st);snapshotSafety(`${type}-blank`);scheduleEnhance();
+    saveObject(bodyStoreKey(type),st);snapshotSafety(`${type}-blank`);body.dataset[bodySigKey(type)]="";scheduleEnhance();
   }
 
   function syncNoteInputs(root=document){
@@ -123,7 +146,8 @@
 .curriculum-standard-note-strip input::placeholder,.curriculum-standard-note-strip textarea::placeholder{color:transparent!important;opacity:0!important}
 body.sj-standard-blank-edit .curriculum-standard-note-strip input,body.sj-standard-blank-edit .curriculum-standard-note-strip textarea{pointer-events:none!important;caret-color:transparent!important;opacity:1!important;-webkit-text-fill-color:currentColor!important}
 body.sj-standard-blank-edit ${STANDARD_MARK_SELECTOR},body.sj-standard-blank-edit .sj-explanation-mark,body.sj-standard-blank-edit .sj-consideration-mark{touch-action:manipulation!important;-webkit-tap-highlight-color:transparent!important}
-.curriculum-standard-explanation.sj-explanation-editing>span,.curriculum-standard-consideration.sj-consideration-editing>div:last-child{cursor:text;-webkit-user-select:text!important;user-select:text!important}
+${EXPLANATION_BODY_SELECTOR},${CONSIDERATION_BODY_SELECTOR}{touch-action:pan-y!important;-webkit-user-select:text!important;user-select:text!important}
+.curriculum-standard-explanation.sj-explanation-editing>span,.curriculum-standard-consideration.sj-consideration-editing>div:last-child{cursor:text!important;touch-action:pan-y!important;-webkit-user-select:text!important;user-select:text!important}
 .sj-explanation-mark,.sj-consideration-mark{background:rgba(238,210,73,.45);border-radius:3px;padding:0 1px;color:inherit}
 .sj-explanation-blank,.sj-consideration-blank{display:inline-block;box-sizing:border-box;min-width:4.8em;height:27px;vertical-align:middle;margin:0 2px;padding:2px 5px;border:1px solid #bfc0c5;border-radius:5px;background:#fff;font:inherit;font-size:1em;line-height:1.3;outline:none}
 .sj-explanation-blank.done,.sj-consideration-blank.done{border:2px solid var(--ui-ok,#2f7d50)!important;background:var(--ui-ok-soft,#edf8f1)!important}
@@ -170,13 +194,34 @@ body.sj-standard-blank-edit ${STANDARD_MARK_SELECTOR},body.sj-standard-blank-edi
   function addExtraSelection(body,type){
     if(!isBlankEditMode())return false;const sp=selectedRange(body);if(!sp)return false;const text=body.dataset[bodyTextKey(type)]||body.dataset[bodyOriginalKey(type)]||body.textContent||"";const found=spansFor(body,text,type);setBodySpans(body,text,type,[...found.spans,sp]);try{window.getSelection()?.removeAllRanges()}catch{};return true;
   }
+  function stylusPointer(e){
+    if(e.pointerType==="pen")return true;
+    if(e.pointerType!=="touch")return false;
+    const w=Number(e.width||0),h=Number(e.height||0),p=Number(e.pressure||0);
+    return p>0&&(w<=10||!w)&&(h<=10||!h);
+  }
+  function stylusTouch(t){
+    if(!t)return false;
+    if(String(t.touchType||"").toLowerCase()==="stylus")return true;
+    const rx=Number(t.radiusX||0),ry=Number(t.radiusY||0),force=Number(t.force||0);
+    return force>0&&(rx<=3||!rx)&&(ry<=3||!ry);
+  }
+  function updateStrokePoint(state,x,y){
+    if(!state?.body)return;const o=offsetFromPoint(state.body,x,y);if(o===null)return;state.min=Math.min(state.min,o);state.max=Math.max(state.max,o);
+  }
+  function finishStroke(state){
+    if(!state?.body||state.max<=state.min)return;const type=state.type,text=state.body.dataset[bodyTextKey(type)]||state.body.dataset[bodyOriginalKey(type)]||state.body.textContent||"",found=spansFor(state.body,text,type);setBodySpans(state.body,text,type,[...found.spans,[state.min,state.max]]);try{window.getSelection()?.removeAllRanges()}catch{}
+  }
   function bindExtraEditor(body,type){
     const boundKey=bodyBoundKey(type);if(body.dataset[boundKey]==="1")return;body.dataset[boundKey]="1";
-    body.addEventListener("pointerdown",e=>{if(!isBlankEditMode()||e.pointerType!=="pen"||e.target.closest("mark"))return;const o=offsetFromPoint(body,e.clientX,e.clientY);if(o===null)return;e.preventDefault();penState={body,type,min:o,max:o,id:e.pointerId};try{body.setPointerCapture(e.pointerId)}catch{}});
-    body.addEventListener("pointermove",e=>{if(!penState||penState.body!==body||e.pointerId!==penState.id)return;const o=offsetFromPoint(body,e.clientX,e.clientY);if(o===null)return;penState.min=Math.min(penState.min,o);penState.max=Math.max(penState.max,o)});
-    body.addEventListener("pointerup",e=>{if(!penState||penState.body!==body||e.pointerId!==penState.id)return;const p=penState;penState=null;const o=offsetFromPoint(body,e.clientX,e.clientY);if(o!==null){p.min=Math.min(p.min,o);p.max=Math.max(p.max,o)}if(p.max>p.min){const text=body.dataset[bodyTextKey(type)]||body.dataset[bodyOriginalKey(type)]||"",found=spansFor(body,text,type);setBodySpans(body,text,type,[...found.spans,[p.min,p.max]])}try{window.getSelection()?.removeAllRanges()}catch{}});
+    body.addEventListener("pointerdown",e=>{if(!isBlankEditMode()||!stylusPointer(e))return;const o=offsetFromPoint(body,e.clientX,e.clientY);if(o===null)return;e.preventDefault();penState={body,type,min:o,max:o,id:e.pointerId};try{body.setPointerCapture(e.pointerId)}catch{}} ,{passive:false});
+    body.addEventListener("pointermove",e=>{if(!penState||penState.body!==body||e.pointerId!==penState.id)return;const points=typeof e.getCoalescedEvents==="function"?e.getCoalescedEvents():[e];for(const p of points)updateStrokePoint(penState,p.clientX,p.clientY);e.preventDefault()},{passive:false});
+    body.addEventListener("pointerup",e=>{if(!penState||penState.body!==body||e.pointerId!==penState.id)return;const p=penState;penState=null;updateStrokePoint(p,e.clientX,e.clientY);finishStroke(p);e.preventDefault()},{passive:false});
+    body.addEventListener("pointercancel",()=>{penState=null},{passive:true});
+    body.addEventListener("touchstart",e=>{if(!isBlankEditMode())return;const t=[...e.changedTouches].find(stylusTouch);if(!t)return;const o=offsetFromPoint(body,t.clientX,t.clientY);if(o===null)return;touchPenState={body,type,min:o,max:o,id:t.identifier};e.preventDefault()},{passive:false});
+    body.addEventListener("touchmove",e=>{if(!touchPenState||touchPenState.body!==body)return;const t=[...e.changedTouches].find(x=>x.identifier===touchPenState.id);if(!t)return;updateStrokePoint(touchPenState,t.clientX,t.clientY);e.preventDefault()},{passive:false});
+    body.addEventListener("touchend",e=>{if(touchPenState&&touchPenState.body===body){const t=[...e.changedTouches].find(x=>x.identifier===touchPenState.id);if(t){const p=touchPenState;touchPenState=null;updateStrokePoint(p,t.clientX,t.clientY);finishStroke(p);e.preventDefault();return}}if(!isBlankEditMode())return;setTimeout(()=>addExtraSelection(body,type),220)},{passive:false});
     body.addEventListener("mouseup",()=>{if(!isBlankEditMode())return;setTimeout(()=>addExtraSelection(body,type),20)});
-    body.addEventListener("touchend",()=>{if(!isBlankEditMode())return;setTimeout(()=>addExtraSelection(body,type),220)},{passive:true});
   }
 
   function selectionBody(){
