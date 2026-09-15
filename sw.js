@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v23-consideration-scope";
+const CACHE_NAME="study-jew-pwa-v24-standard-history";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260913-4",
@@ -6,7 +6,7 @@ const HOTFIX_SRCS=[
   "./hotfix-v9.js?v=20260913-2",
   "./hotfix-v10.js?v=20260913-1",
   "./hotfix-v11.js?v=20260915-3",
-  "./hotfix-v19.js?v=20260915-1"
+  "./hotfix-v19.js?v=20260915-2"
 ];
 const HEADER_PROGRESS_STYLE='<style id="mission-progress-fit">#plannerQuickBtn{width:auto!important;min-width:38px!important;max-width:none!important;height:33px!important;padding:5px 6px!important;font-size:9px!important;line-height:1!important;white-space:nowrap!important;letter-spacing:-.15px!important;flex:0 0 auto!important}</style>';
 const STANDARD_NOTE_STYLE='<style id="standard-note-room">.curriculum-standard-note-strip{grid-template-columns:minmax(0,1.6fr) minmax(160px,.9fr)!important;align-items:start!important}.curriculum-standard-note-field{align-items:start!important}.curriculum-standard-note-field textarea{box-sizing:border-box!important;width:100%!important;min-height:31px!important;max-height:110px!important;overflow:auto!important}.curriculum-standard-note-field:first-child textarea{min-height:48px!important;resize:vertical!important;padding-top:5px!important;padding-bottom:5px!important}@media(max-width:699px){.curriculum-standard-note-strip{grid-template-columns:1fr!important}.curriculum-standard-note-field:first-child textarea{min-height:54px!important}}</style>';
