@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v20-curriculum-recovery";
+const CACHE_NAME="study-jew-pwa-v21-reschedule-today";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260913-4",
@@ -27,7 +27,8 @@ async function injectHotfix(response){
     .replace(/button\.textContent="✓";(?=\s*button\.classList\.add\("mission-complete"\))/,'button.textContent=`${x.done}/${x.total}`;')
     .replace(/const el=key==="memo"\?document\.createElement\("textarea"\):document\.createElement\("input"\);if\(el\.tagName==="INPUT"\)el\.type="text";else el\.rows=1;/g,'const el=document.createElement("textarea");el.rows=key==="content"?2:1;')
     .replace(/saveLocal\(\);scheduleCurriculumCloud\(700\)/g,'app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleCurriculumCloud(700)')
-    .replace(/saveLocal\(\);scheduleCurriculumCloud\(1300\)/g,'app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleCurriculumCloud(1300)');
+    .replace(/saveLocal\(\);scheduleCurriculumCloud\(1300\)/g,'app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleCurriculumCloud(1300)')
+    .replace('const newStart=round.start>today?round.start:plannerAddDays(today,1);','const newStart=round.start>today?round.start:today;');
   const headStyles=`${HEADER_PROGRESS_STYLE}\n${STANDARD_NOTE_STYLE}`;
   html=html.includes("</head>")?html.replace("</head>",`${headStyles}\n</head>`):headStyles+html;
   const tags=HOTFIX_SRCS.map(src=>`<script src="${src}"></script>`).join("\n");
