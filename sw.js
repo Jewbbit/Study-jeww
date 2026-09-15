@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v21-reschedule-today";
+const CACHE_NAME="study-jew-pwa-v22-overdue-today-view";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260913-4",
@@ -28,7 +28,11 @@ async function injectHotfix(response){
     .replace(/const el=key==="memo"\?document\.createElement\("textarea"\):document\.createElement\("input"\);if\(el\.tagName==="INPUT"\)el\.type="text";else el\.rows=1;/g,'const el=document.createElement("textarea");el.rows=key==="content"?2:1;')
     .replace(/saveLocal\(\);scheduleCurriculumCloud\(700\)/g,'app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleCurriculumCloud(700)')
     .replace(/saveLocal\(\);scheduleCurriculumCloud\(1300\)/g,'app.study.updatedAt=Date.now();saveStudyQuickNow();saveLocal();scheduleCurriculumCloud(1300)')
-    .replace('const newStart=round.start>today?round.start:plannerAddDays(today,1);','const newStart=round.start>today?round.start:today;');
+    .replace('function plannerMissionsForDate(round,date,{includeExcluded=false}={}){\n  return (round?.missions||[]).filter(m=>plannerMissionDisplayDate(round,m)===date&&(includeExcluded||!plannerMissionExcluded(round,m)));\n}',`function plannerMissionsForDate(round,date,{includeExcluded=false}={}){\n  return (round?.missions||[]).filter(m=>plannerMissionDisplayDate(round,m)===date&&(includeExcluded||!plannerMissionExcluded(round,m)));\n}\nfunction plannerMissionsForDayView(round,date){\n  const exact=plannerMissionsForDate(round,date);\n  if(date!==plannerToday())return exact;\n  const seen=new Set(exact);\n  const overdue=(round?.missions||[]).filter(m=>String(m.date||\"\")<date&&!plannerMissionExcluded(round,m)&&!plannerMissionDone(round,m)&&!seen.has(m));\n  overdue.sort((a,b)=>String(a.date||\"\").localeCompare(String(b.date||\"\")));\n  return [...overdue,...exact];\n}`)
+    .replace('for(const r of p.rounds)for(const m of plannerMissionsForDate(r,date))missions.push([r,m]);','for(const r of p.rounds)for(const m of plannerMissionsForDayView(r,date))missions.push([r,m]);')
+    .replace('const missions=plannerMissionsForDate(r,selected);','const missions=plannerMissionsForDayView(r,selected);')
+    .replace('const missions=plannerMissionsForDate(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;','const missions=plannerMissionsForDayView(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;')
+    .replace('if(m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);','if(selected!==today&&m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);');
   const headStyles=`${HEADER_PROGRESS_STYLE}\n${STANDARD_NOTE_STYLE}`;
   html=html.includes("</head>")?html.replace("</head>",`${headStyles}\n</head>`):headStyles+html;
   const tags=HOTFIX_SRCS.map(src=>`<script src="${src}"></script>`).join("\n");
