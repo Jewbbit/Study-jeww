@@ -79,8 +79,8 @@ main{max-width:940px;margin:auto;padding:12px 10px 90px}
     <span class="small" id="positionStat">0 / 0</span>
     <label class="autoadv"><input id="autoAdvance" type="checkbox" checked> 판정 후 자동 넘김</label>
     <div class="downloads">
-      <button id="exportSubject" type="button">현재 과목 검수 XLSX</button>
-      <button id="exportAll" type="button">전체 검수 XLSX</button>
+      <button id="exportSubject" type="button">현재 과목 전체 XLSX</button>
+      <button id="exportAll" type="button">전과목 전체 XLSX</button>
     </div>
   </div>
 </div></header>
@@ -269,7 +269,7 @@ function exportRows(subject){
     if(subject&&subjectOf(sheet)!==subject)continue;
     for(const item of sheet.items||[]){
       if(!item||!text(item.question).trim())continue;
-      const r=recFor(sheet,item);if(!r.status&&!text(r.note).trim())continue;
+      const r=recFor(sheet,item);
       rows.push({
         "과목":subjectOf(sheet),"시트명":sheet.name||"","문제ID":item.id||"","canonicalId":item.canonicalId||"","원본행":item.row||"",
         "카테고리":item.category||"","영역/구분":item.section||"","현재 문제":item.question||"","현재 정답":item.answer||"","기존 메모":item.memo||"",
@@ -280,7 +280,7 @@ function exportRows(subject){
   return rows;
 }
 function downloadRows(rows,base){
-  if(!rows.length){toast("내보낼 검수 내역이 없습니다");return}
+  if(!rows.length){toast("내보낼 문제가 없습니다");return}
   if(window.XLSX){
     const ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"검수내역");
     ws["!cols"]=[{wch:9},{wch:28},{wch:22},{wch:22},{wch:8},{wch:24},{wch:22},{wch:58},{wch:38},{wch:38},{wch:12},{wch:55},{wch:20}];
@@ -301,8 +301,8 @@ $("reviewNote").addEventListener("input",scheduleNote);
 $("prevBtn").onclick=()=>{flushNote();move(-1)};$("nextBtn").onclick=()=>{flushNote();move(1)};
 $("nextUnreviewedBtn").onclick=nextUnreviewed;$("clearStatusBtn").onclick=clearStatus;
 $("reloadBtn").onclick=()=>{flushNote();readBank();toast("로컬 문제은행을 다시 읽었습니다")};
-$("exportSubject").onclick=()=>{flushNote();downloadRows(exportRows(ui.subject),`${ui.subject||"과목"}_문제은행_검수`)};
-$("exportAll").onclick=()=>{flushNote();downloadRows(exportRows(""),"전과목_문제은행_검수")};
+$("exportSubject").onclick=()=>{flushNote();downloadRows(exportRows(ui.subject),`${ui.subject||"과목"}_문제은행_검수전체`)};
+$("exportAll").onclick=()=>{flushNote();downloadRows(exportRows(""),"전과목_문제은행_검수전체")};
 document.querySelectorAll(".status-btn").forEach(b=>b.onclick=()=>setStatus(b.dataset.status));
 
 document.addEventListener("keydown",e=>{
