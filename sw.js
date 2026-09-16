@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v28-main-stable";
+const CACHE_NAME="study-jew-pwa-v29-review-link";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260916-1",
@@ -36,6 +36,7 @@ async function injectHotfix(response){
   html=html
     .replace(/<script[^>]+src=["'][^"']*hotfix(?:-v\d+)?\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
     .replace(/<style id=["'](?:mission-progress-fit|standard-note-room|study-jew-runtime-style)["'][^>]*>[\s\S]*?<\/style>\s*/gi,"")
+    .replace('<button id="curriculumSpace" class="workspace-btn">교육과정</button>','<button id="curriculumSpace" class="workspace-btn">교육과정</button>\n      <button id="reviewSpace" class="workspace-btn" type="button" onclick="window.location.href=\'./review.html\'">검수</button>')
     .replace('const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";',`const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";
 const CURRICULUM_LOCAL_KEY=KEY+"-curriculum-local-v1";
 const CURRICULUM_CLOUD_MIN_DELAY=12000;`)
