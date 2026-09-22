@@ -2652,6 +2652,48 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 </style>
 <style>
+/* 미션 행은 회색 카드 대신 흰 목록형으로 표시 */
+#plannerView .planner-task,
+#plannerView .planner-manual,
+.mobile-mission-list .planner-task,
+.mobile-mission-list .planner-manual,
+.wide-planner-list .planner-task{
+  background:#fff!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+#plannerView .planner-task-check,
+#plannerView .planner-task-link,
+#plannerView .planner-task-exclude,
+#plannerView .planner-manual button,
+.mobile-mission-list .planner-task-check,
+.mobile-mission-list .planner-task-link,
+.mobile-mission-list .planner-task-exclude,
+.mobile-mission-list .planner-manual button{
+  appearance:none!important;
+  -webkit-appearance:none!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
+}
+#plannerView .planner-task-link,
+.mobile-mission-list .planner-task-link{
+  display:block!important;
+  width:100%!important;
+  min-width:0!important;
+  margin:0!important;
+  padding:0!important;
+  text-align:left!important;
+  color:inherit!important;
+  font:inherit!important;
+}
+.wide-planner-list .planner-task.current,
+.wide-planner-list .planner-task.current.done{
+  background:#fff!important;
+  box-shadow:inset 2px 0 0 #c8c9cd!important;
+}
+</style>
+<style>
 /* 암기판: 과목을 접어도 현재 과목의 시트 전환은 항상 남긴다 */
 #memoryHeader.collapsed .sheet-navline{
   display:flex!important;
@@ -4819,7 +4861,10 @@ function renderSubjects(){
     /* 폰/리더기에서는 iPad 오른쪽 보조패널의 '일정'과 같은 하루 미션을
        가벼운 바텀시트로 바로 연다. 넓은 화면에서는 기존 전체 플래너로 진입한다. */
     if(useCompactMissionPanel()){
-      openMobileMissionSheet(plannerToday());
+      closeMobileMissionSheet();
+      suspendQuizForWorkspaceNavigation();
+      app.study.mode="planner";app.ui.workspace="memory";saveLocalNow();renderMode();
+      if(cloudUser)plannerRefreshMissionStateOnly();
       return;
     }
     app.study.mode="planner";app.ui.workspace="memory";saveLocal();renderMode();
@@ -9174,6 +9219,22 @@ async function plannerRetryDirtyMissionStates({wait=true}={}){
   if(wait&&jobs.length)await Promise.allSettled(jobs);
   return jobs.length;
 }
+async function plannerRefreshMissionStateOnly(){
+  if(!cloudUser)return false;
+  try{
+    /* 먼저 이 기기의 미전송 체크를 올린 뒤 서버 상태를 읽는다.
+       폰→패드 전환에서 오래된 패드 상태가 먼저 덮는 일을 피한다. */
+    await plannerRetryDirtyMissionStates({wait:true});
+    await plannerWaitPendingWrites();
+    const snap=await getDocsFromServer(collection(db,"users",cloudUser.uid,"planner7MissionState"));
+    plannerApplyMissionStateRealtime(snap);
+    plannerRealtime.lastAt=Date.now();
+    return true;
+  }catch(e){
+    plannerSignalError("mission refresh",e);
+    return false;
+  }
+}
 
 function plannerFreshState(){
   return {
@@ -9803,7 +9864,10 @@ function plannerSetMissionState(round,mission,patch){
     dirty:true
   };
   p.missionState[key]=next;
-  plannerSaveLocal();
+  /* 미션 체크는 빈도가 낮고 기기 전환 직전에 가장 잃기 쉬운 상태라 즉시 로컬 확정한다.
+     이후 클라우드 전송이 실패해도 dirty 상태가 남아 다음 연결 때 재전송된다. */
+  saveStudyQuickNow();
+  saveLocalNow();
   plannerScheduleUiRender();
   if(!cloudUser)return Promise.resolve(next);
   const write=setDoc(plannerStateDoc(cloudUser.uid,round.id,mission.id),{
@@ -9977,7 +10041,7 @@ function plannerAddManual(date){
 }
 function plannerToggleManual(date,id){
   const x=(plannerStore().manual[date]||[]).find(v=>v.id===id);if(!x)return;
-  x.done=!x.done;x.updatedAt=Date.now();plannerSaveLocal();plannerScheduleUiRender();renderWidePlannerSide();
+  x.done=!x.done;x.updatedAt=Date.now();saveStudyQuickNow();saveLocalNow();plannerScheduleUiRender();renderWidePlannerSide();
   if(!document.getElementById("mobileMissionBackdrop")?.classList.contains("hidden"))renderMobileMissionSheet();
   if(cloudUser)plannerQueueWrite(setDoc(plannerManualDoc(cloudUser.uid,id),x));
 }
@@ -10609,12 +10673,38 @@ function plannerApplyPathProgressRealtime(snap){
   plannerScheduleUiRender();
   if(app.ui.workspace==="bank"&&app.ui.quizHomeMode==="path")renderQuiz();
 }
+function plannerApplyManualRealtime(snap){
+  const p=plannerStore();let changed=false;
+  const removeLocal=id=>{
+    for(const date of Object.keys(p.manual||{})){
+      const before=p.manual[date]||[],after=before.filter(x=>x.id!==id);
+      if(after.length!==before.length){changed=true;if(after.length)p.manual[date]=after;else delete p.manual[date]}
+    }
+  };
+  for(const change of snap.docChanges()){
+    const id=change.doc.id;
+    if(change.type==="removed"){removeLocal(id);continue}
+    const d=change.doc.data();if(!d?.date)continue;
+    let local=null;
+    for(const arr of Object.values(p.manual||{})){const hit=(arr||[]).find(x=>x.id===id);if(hit){local=hit;break}}
+    /* 같은 기기에서 막 누른 값이 아직 서버 echo보다 최신이면 잠깐 보존한다. */
+    if(local&&(Number(local.updatedAt)||0)>(Number(d.updatedAt)||0))continue;
+    removeLocal(id);
+    if(!Array.isArray(p.manual[d.date]))p.manual[d.date]=[];
+    p.manual[d.date].push({...d,id});
+    p.manual[d.date].sort((a,b)=>(a.updatedAt||0)-(b.updatedAt||0));
+    changed=true;
+  }
+  if(changed){plannerSaveLocal();plannerRealtime.lastAt=Date.now();plannerScheduleUiRender()}
+}
 function plannerAttachRealtime(user){
   if(!user)return;
   if(plannerChecksUnsub)try{plannerChecksUnsub()}catch{}
   if(plannerPathsUnsub)try{plannerPathsUnsub()}catch{}
+  if(plannerManualUnsub)try{plannerManualUnsub()}catch{}
   plannerChecksUnsub=onSnapshot(collection(db,"users",user.uid,"planner7MissionState"),plannerApplyMissionStateRealtime,err=>plannerSignalError("mission realtime",err));
   plannerPathsUnsub=onSnapshot(collection(db,"users",user.uid,"planner7Paths"),plannerApplyPathProgressRealtime,err=>plannerSignalError("path realtime",err));
+  plannerManualUnsub=onSnapshot(collection(db,"users",user.uid,"planner7Manual"),plannerApplyManualRealtime,err=>plannerSignalError("manual realtime",err));
 }
 async function plannerV7Init(user){
   plannerRealtime={state:"syncing",uid:user.uid.slice(-6),lastAt:0,error:"",channels:{}};
@@ -10666,9 +10756,9 @@ let plannerPanelSyncTimer=0;
 function plannerSyncAfterPanelOpen(){
   if(!cloudUser)return;
   clearTimeout(plannerPanelSyncTimer);
-  /* 패널을 누를 때마다 5개 컬렉션을 즉시 전수 동기화하면 저사양 문제가 아니라도
-     큰 데이터에서 UI가 멎어 보일 수 있다. 먼저 패널을 그린 뒤, 최근 동기화가
-     없었던 경우에만 조금 늦춰 서버 재확인을 한다. 미션/진도 완료는 realtime 구독 유지. */
+  /* 하루 미션은 가벼운 체크 컬렉션만 즉시 재확인한다.
+     전체 5개 컬렉션 동기화는 오래 비어 있었을 때만 뒤에서 수행한다. */
+  plannerRefreshMissionStateOnly();
   const stale=!plannerRealtime.lastAt||Date.now()-plannerRealtime.lastAt>180000;
   if(!stale||plannerRealtime.state==="syncing")return;
   plannerPanelSyncTimer=setTimeout(()=>{
@@ -12890,8 +12980,9 @@ document.addEventListener("visibilitychange",()=>{
   // 폰을 다시 열었을 때 2분 타이머와 무관하게 미전송 완료 체크부터 즉시 재전송한다.
   const dirty=plannerHasDirtyMissionState();
   if(dirty)plannerRetryDirtyMissionStates({wait:false});
+  plannerRefreshMissionStateOnly();
   const stale=!plannerRealtime.lastAt||Date.now()-plannerRealtime.lastAt>120000;
-  if((dirty||stale)&&!plannerRoundFormInteractionActive())plannerSyncNow({quiet:true});
+  if(stale&&!plannerRoundFormInteractionActive())plannerSyncNow({quiet:true});
 });
 
 /* 브라우저 history는 강제로 가로채지 않는다.
