@@ -2920,7 +2920,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .path-sheet-pill.out-of-round,.path-node-row.out-of-round{opacity:.42}
 .mobile-mission-backdrop{display:none}
 body.mobile-mission-open{overflow:hidden}
-@media(max-width:640px){
+@media(max-width:899px), (orientation:portrait) and (max-width:1024px){
   .typing-float-badge{display:none!important}
   .mobile-mission-backdrop:not(.hidden){
     display:flex;position:fixed;inset:0;z-index:5000;align-items:flex-end;
@@ -2953,7 +2953,7 @@ body.mobile-mission-open{overflow:hidden}
   color:#66676d!important;font-size:9.5px!important;font-weight:650!important;white-space:nowrap
 }
 .wide-planner-full:active{background:#f1f1f3!important}
-@media (min-width:700px) and (min-height:600px){
+@media (min-width:900px) and (min-height:600px) and (orientation:landscape){
   body.wide-planner-eligible main{
     padding-right:calc(clamp(230px,30vw,340px) + 26px)!important;
   }
@@ -4852,7 +4852,11 @@ function renderSubjects(){
 
   const appBackBtn=document.createElement("button");appBackBtn.id="appBackBtn";appBackBtn.className="icon app-back-btn hidden";
   appBackBtn.type="button";appBackBtn.textContent="‹";appBackBtn.title="앱 안에서 뒤로";appBackBtn.setAttribute("aria-label","앱 안에서 뒤로");
-  bindModeSwitchTap(appBackBtn,appInternalBack);
+  bindModeSwitchTap(appBackBtn,()=>{
+    const inPlanner=(app.ui.workspace||"memory")==="memory"&&app.study.mode==="planner";
+    if(useCompactMissionPanel()&&!inPlanner){openPlannerCalendarView();return}
+    appInternalBack();
+  });
   global.append(appBackBtn);
 
   const plannerBtn=document.createElement("button");plannerBtn.className="icon planner-btn";plannerBtn.id="plannerQuickBtn";plannerBtn.title="하루 미션";plannerBtn.setAttribute("aria-label","하루 미션");
@@ -4861,10 +4865,7 @@ function renderSubjects(){
     /* 폰/리더기에서는 iPad 오른쪽 보조패널의 '일정'과 같은 하루 미션을
        가벼운 바텀시트로 바로 연다. 넓은 화면에서는 기존 전체 플래너로 진입한다. */
     if(useCompactMissionPanel()){
-      closeMobileMissionSheet();
-      suspendQuizForWorkspaceNavigation();
-      app.study.mode="planner";app.ui.workspace="memory";saveLocalNow();renderMode();
-      if(cloudUser)plannerRefreshMissionStateOnly();
+      openMobileMissionSheet(plannerToday());
       return;
     }
     app.study.mode="planner";app.ui.workspace="memory";saveLocal();renderMode();
@@ -10718,12 +10719,18 @@ let widePlannerLastRenderKey="";
 let mobileMissionDate="";
 let mobileMissionMode="schedule";
 let mobileMissionOverdueLimit=24;
-function hasPermanentSidePanel(){return window.matchMedia("(min-width:700px) and (min-height:600px)").matches}
+function hasPermanentSidePanel(){return window.matchMedia("(min-width:900px) and (min-height:600px) and (orientation:landscape)").matches}
 function useCompactMissionPanel(){return !hasPermanentSidePanel()}
 function plannerDaySummary(date=plannerToday()){
   const p=plannerStore();let done=0,total=0;
   for(const round of p.rounds){
-    const missions=plannerMissionsForDate(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;
+    let missions=[...plannerMissionsForDate(round,date)];
+    if(date===plannerToday()){
+      const seen=new Set(missions);
+      const overdue=(round.missions||[]).filter(m=>String(m.date||"")<date&&!plannerMissionExcluded(round,m)&&!plannerMissionDone(round,m)&&!seen.has(m));
+      missions.push(...overdue);
+    }
+    total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;
   }
   const manual=p.manual[date]||[];total+=manual.length;done+=manual.filter(x=>x.done).length;
   return {done,total};
@@ -12482,6 +12489,15 @@ function openCurriculumWorkspace(){suspendQuizForWorkspaceNavigation();app.ui.wo
 
 
 /* mode */
+function openPlannerCalendarView(){
+  closeMobileMissionSheet();
+  suspendQuizForWorkspaceNavigation();
+  app.ui.workspace="memory";
+  app.study.mode="planner";
+  saveLocalNow();
+  renderMode();
+  if(cloudUser)plannerRefreshMissionStateOnly();
+}
 function appInternalBack(){
   closeAllMenus();
   const openModal=[...document.querySelectorAll(".modal:not(.hidden)")].find(x=>getComputedStyle(x).display!=="none");
@@ -12507,7 +12523,7 @@ function appInternalBack(){
 function updateAppBackButton(){
   const b=document.getElementById("appBackBtn");if(!b)return;
   const ws=app.ui.workspace||"memory";
-  const show=!!quizSession || ws==="bank" || ws==="curriculum" || ["songs","planner","edit"].includes(app.study.mode);
+  const show=useCompactMissionPanel() || !!quizSession || ws==="bank" || ws==="curriculum" || ["songs","planner","edit"].includes(app.study.mode);
   b.classList.toggle("hidden",!show);
 }
 let widePlannerLastWorkspace="";
