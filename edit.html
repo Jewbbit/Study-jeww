@@ -2873,15 +2873,25 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .quiz-memo-focus-top{border-bottom:1px solid #ededf0;padding-bottom:7px!important}
 .quiz-memo-settings-wrap{position:relative;flex:0 0 auto}
 .quiz-memo-settings-menu{
-  position:absolute;right:0;top:32px;z-index:50;width:126px;padding:4px;
-  border:1px solid #e3e3e6;background:#fff;box-shadow:0 7px 22px rgba(0,0,0,.10)
+  position:absolute;right:0;top:32px;z-index:50;width:210px;padding:7px;
+  border:1px solid #e3e3e6;border-radius:8px;background:#fff;box-shadow:0 7px 22px rgba(0,0,0,.10)
 }
 .quiz-memo-settings-menu.hidden{display:none!important}
 .quiz-memo-settings-menu button{
-  display:block;width:100%;border:0;background:#fff;text-align:left;
-  padding:7px 8px;font-size:11px;color:#56575c
+  border:0;background:#fff;padding:7px 8px;font-size:11px;color:#56575c;border-radius:5px
 }
 .quiz-memo-settings-menu button.active{background:#eeeeef!important;color:#25262a;font-weight:700}
+.quiz-memo-speed-title{font-size:9px;color:#929399;padding:1px 2px 6px}
+.quiz-memo-speed-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px}
+.quiz-memo-speed-grid button{width:100%;text-align:center!important;padding:7px 2px!important}
+.quiz-memo-speed-grid .manual{grid-column:span 2}
+.quiz-memo-speed-adjust{
+  display:grid;grid-template-columns:36px minmax(0,1fr) 36px;gap:4px;align-items:center;
+  margin-top:6px;padding-top:6px;border-top:1px solid #eeeeef
+}
+.quiz-memo-speed-adjust button{width:36px;height:30px;padding:0!important;text-align:center!important;font-size:16px!important}
+.quiz-memo-speed-current{text-align:center;font-size:11px;font-weight:700;color:#3e3f43}
+.quiz-inline-memo-settings{width:auto!important;min-width:32px!important;padding:0 5px!important;font-size:10px!important;font-weight:700!important}
 .quiz-memo-result{
   margin:12px 0 0;padding:0 1px 10px;border-bottom:1px solid #eeeeef;
   font-size:calc(var(--quiz-font-size) - 2px);line-height:1.5;color:#2f7d50
@@ -8067,13 +8077,48 @@ let quizMemoAdvanceTimer=null;
 function clearQuizMemoAdvanceTimer(){
   if(quizMemoAdvanceTimer){clearTimeout(quizMemoAdvanceTimer);quizMemoAdvanceTimer=null}
 }
-function quizMemoAdvanceMode(){return String(app.ui.quiz.memoAdvance||"manual")}
+function normalizeQuizMemoAdvanceMode(mode){
+  mode=String(mode??"manual");
+  if(mode==="manual")return "manual";
+  let seconds=Number(mode);
+  if(!Number.isFinite(seconds))return "manual";
+  seconds=Math.max(.2,Math.min(10,Math.round(seconds*10)/10));
+  return String(seconds);
+}
+function quizMemoAdvanceMode(){return normalizeQuizMemoAdvanceMode(app.ui.quiz.memoAdvance||"manual")}
+function quizMemoAdvanceLabel(mode=quizMemoAdvanceMode()){
+  return mode==="manual"?"직접":`${Number(mode).toFixed(Number(mode)%1?1:0)}초`;
+}
 function setQuizMemoAdvanceMode(mode){
-  mode=String(mode);
-  if(!["manual","2","3","4"].includes(mode))mode="manual";
+  mode=normalizeQuizMemoAdvanceMode(mode);
   app.ui.quiz.memoAdvance=mode;
   saveLocal();
   if(quizSession?.awaitingExplanation)renderQuizQuestion();
+}
+function adjustQuizMemoAdvance(delta){
+  const mode=quizMemoAdvanceMode();
+  const base=mode==="manual"?1:Number(mode);
+  setQuizMemoAdvanceMode(base+delta);
+  toast(`메모 자동 ${quizMemoAdvanceLabel()}`);
+}
+function buildQuizMemoSettingsMenu(){
+  const menu=document.createElement("div");menu.className="quiz-memo-settings-menu hidden";
+  const title=document.createElement("div");title.className="quiz-memo-speed-title";title.textContent="메모 자동 넘김";
+  const grid=document.createElement("div");grid.className="quiz-memo-speed-grid";
+  [["0.3","0.3"],["0.5","0.5"],["0.8","0.8"],["1","1.0"],["1.5","1.5"],["2","2.0"],["3","3.0"],["manual","직접"]].forEach(([value,label])=>{
+    const b=document.createElement("button");b.type="button";b.textContent=value==="manual"?label:label+"초";
+    if(value==="manual")b.classList.add("manual");
+    b.classList.toggle("active",quizMemoAdvanceMode()===value);
+    b.onclick=e=>{e.preventDefault();e.stopPropagation();setQuizMemoAdvanceMode(value);toast(`메모 ${value==="manual"?"직접 넘기기":`자동 ${label}초`}`)};
+    grid.append(b);
+  });
+  const adjust=document.createElement("div");adjust.className="quiz-memo-speed-adjust";
+  const minus=document.createElement("button");minus.type="button";minus.textContent="−";minus.title="0.1초 빠르게";
+  const current=document.createElement("div");current.className="quiz-memo-speed-current";current.textContent=quizMemoAdvanceMode()==="manual"?"직접":quizMemoAdvanceLabel();
+  const plus=document.createElement("button");plus.type="button";plus.textContent="＋";plus.title="0.1초 느리게";
+  minus.onclick=e=>{e.preventDefault();e.stopPropagation();adjustQuizMemoAdvance(-.1)};
+  plus.onclick=e=>{e.preventDefault();e.stopPropagation();adjustQuizMemoAdvance(.1)};
+  adjust.append(minus,current,plus);menu.append(title,grid,adjust);return menu;
 }
 function scheduleQuizMemoAdvance(){
   clearQuizMemoAdvanceTimer();
@@ -8102,13 +8147,7 @@ function renderQuizMemoScreen(area,item){
   {const sc=currentSessionScore();prog.textContent=`${quizSession.index+1}/${quizSession.items.length}   ✓ ${sc.correct}   × ${sc.wrong}`;}
   const settingsWrap=document.createElement("div");settingsWrap.className="quiz-memo-settings-wrap";
   const settings=document.createElement("button");settings.type="button";settings.className="quiz-memo-settings";settings.textContent="⚙";settings.title="메모 진행 설정";
-  const menu=document.createElement("div");menu.className="quiz-memo-settings-menu hidden";
-  [["manual","직접 넘기기"],["2","자동 2초"],["3","자동 3초"],["4","자동 4초"]].forEach(([value,label])=>{
-    const b=document.createElement("button");b.type="button";b.textContent=label;
-    b.classList.toggle("active",quizMemoAdvanceMode()===value);
-    b.onclick=e=>{e.preventDefault();e.stopPropagation();setQuizMemoAdvanceMode(value)};
-    menu.append(b);
-  });
+  const menu=buildQuizMemoSettingsMenu();
   settings.onclick=e=>{e.preventDefault();e.stopPropagation();menu.classList.toggle("hidden")};
   settingsWrap.append(settings,menu);
   top.append(tag,settingsWrap,prog);
@@ -8178,15 +8217,14 @@ function renderQuizQuestion(){
   qStar.title=st.flagReason?`헷갈림: ${st.flagReason}`:(st.flagged?"별표 해제":"별표 표시");
   qStar.onclick=()=>{st.flagged=!st.flagged;markBankStatsCloud();renderQuizQuestion()};
   if(activeQuizMode()==="choice"){
+    const memoWrap=document.createElement("div");memoWrap.className="quiz-memo-settings-wrap";
     const memoSettings=document.createElement("button");memoSettings.type="button";memoSettings.className="quiz-inline-memo-settings";
-    memoSettings.textContent="⚙";memoSettings.title=`메모 진행: ${quizMemoAdvanceMode()==="manual"?"직접":quizMemoAdvanceMode()+"초 자동"}`;
-    memoSettings.onclick=e=>{
-      e.preventDefault();e.stopPropagation();
-      const modes=["manual","2","3","4"],i=modes.indexOf(quizMemoAdvanceMode()),next=modes[(i+1)%modes.length];
-      setQuizMemoAdvanceMode(next);
-      toast(`메모 ${next==="manual"?"직접 넘기기":`자동 ${next}초`}`);
-    };
-    top.append(tag,qStar,memoSettings,prog);
+    memoSettings.textContent=quizMemoAdvanceMode()==="manual"?"수동":quizMemoAdvanceLabel();
+    memoSettings.title="메모 자동 넘김 속도";
+    const memoMenu=buildQuizMemoSettingsMenu();
+    memoSettings.onclick=e=>{e.preventDefault();e.stopPropagation();memoMenu.classList.toggle("hidden")};
+    memoWrap.append(memoSettings,memoMenu);
+    top.append(tag,qStar,memoWrap,prog);
   }else top.append(tag,qStar,prog);
   const q=document.createElement("div");q.className="question";q.textContent=(item.question||"").replace(/\s*\/\s*/g,"  /  ");
   card.append(top,q);
@@ -8536,6 +8574,10 @@ window.addEventListener("keydown",e=>{
   if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
   if(quizSession.awaitingExplanation&&(e.key==="Enter"||e.key===" "||e.code==="Space")){
     e.preventDefault();e.stopPropagation();nextQuiz(true);return;
+  }
+  if(activeQuizMode()==="choice"&&(e.key==="["||e.key==="]")){
+    e.preventDefault();e.stopPropagation();
+    adjustQuizMemoAdvance(e.key==="["?-.1:.1);return;
   }
   if(activeQuizMode()==="choice"){
     let n=null;
