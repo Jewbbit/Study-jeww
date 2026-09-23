@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>미테르 리모컨 키 테스트</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#25262a;background:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:#f7f7f8;color:#25262a}
+main{max-width:760px;margin:0 auto;padding:18px 14px 40px}
+h1{font-size:20px;margin:0 0 6px}
+.desc{font-size:12px;line-height:1.6;color:#74757a;margin-bottom:14px}
+.panel{background:#fff;border:1px solid #e3e3e6;border-radius:12px;padding:14px;margin-bottom:12px}
+.last{display:grid;grid-template-columns:92px 1fr;gap:6px 10px;font-size:13px}
+.last b{color:#777980;font-weight:650}
+.value{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+.empty{color:#a1a2a7}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}
+button{border:1px solid #dedee2;background:#fff;border-radius:8px;padding:8px 10px;font-size:12px;color:#37383d}
+button.primary{background:#2f3034;color:#fff;border-color:#2f3034}
+.status{font-size:11px;color:#6e7075;margin-top:8px}
+.grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.slot{border:1px solid #e5e5e8;background:#fff;border-radius:9px;padding:9px 7px;min-height:88px;text-align:center}
+.slot strong{display:block;font-size:13px;margin-bottom:6px}
+.slot .mapped{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10px;line-height:1.45;color:#67686e;word-break:break-all}
+.slot.waiting{outline:2px solid #777980;outline-offset:1px}
+.slot.none .mapped{color:#a35e58}
+.slot button{margin-top:7px;padding:5px 8px;font-size:10px}
+.log{max-height:320px;overflow:auto;border-top:1px solid #ececef;margin-top:10px}
+.row{display:grid;grid-template-columns:64px 1fr 1fr 56px;gap:6px;padding:7px 0;border-bottom:1px solid #f0f0f2;font-size:10.5px;align-items:center}
+.row code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;overflow-wrap:anywhere}
+.tip{font-size:11px;line-height:1.55;color:#777980}
+@media(max-width:560px){
+  .grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .grid .slot:last-child{grid-column:1/-1}
+  .row{grid-template-columns:52px 1fr 1fr}
+  .row .type{display:none}
+}
+</style>
+</head>
+<body>
+<main>
+  <h1>미테르 2세대 리모컨 키 테스트</h1>
+  <div class="desc">
+    리모컨 버튼이 웹페이지까지 어떤 <b>key / code</b>로 들어오는지만 확인하는 테스트 페이지입니다.
+    볼륨이나 재생/일시정지가 iPad에서 시스템에 먹히면 이 페이지에는 아무 이벤트도 안 뜰 수 있습니다.
+  </div>
+
+  <section class="panel">
+    <div class="last">
+      <b>마지막 key</b><div id="lastKey" class="value empty">아직 없음</div>
+      <b>마지막 code</b><div id="lastCode" class="value empty">아직 없음</div>
+      <b>이벤트</b><div id="lastType" class="value empty">아직 없음</div>
+      <b>repeat</b><div id="lastRepeat" class="value empty">-</div>
+    </div>
+    <div class="controls">
+      <button id="clearBtn">로그 지우기</button>
+      <button id="copyBtn">결과 복사</button>
+      <button id="preventBtn" class="primary">기본 동작 막기: 켜짐</button>
+    </div>
+    <div id="status" class="status">아무 버튼이나 눌러보세요.</div>
+  </section>
+
+  <section class="panel">
+    <div class="tip" style="margin-bottom:9px">
+      아래에서 실제 버튼을 하나 고른 뒤 리모컨에서 그 버튼을 누르면 자동으로 매핑됩니다.
+      4초 동안 키 이벤트가 안 오면 “브라우저 감지 안 됨”으로 표시됩니다.
+    </div>
+    <div class="grid">
+      <div class="slot" data-physical="위"><strong>↑ 위</strong><div class="mapped">미측정</div><button>테스트</button></div>
+      <div class="slot" data-physical="아래"><strong>↓ 아래</strong><div class="mapped">미측정</div><button>테스트</button></div>
+      <div class="slot" data-physical="왼쪽"><strong>← 왼쪽</strong><div class="mapped">미측정</div><button>테스트</button></div>
+      <div class="slot" data-physical="오른쪽"><strong>→ 오른쪽</strong><div class="mapped">미측정</div><button>테스트</button></div>
+      <div class="slot" data-physical="가운데"><strong>● 가운데</strong><div class="mapped">미측정</div><button>테스트</button></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <strong style="font-size:13px">실시간 이벤트 로그</strong>
+    <div class="log" id="log"></div>
+  </section>
+</main>
+<script>
+(()=>{
+  const logEl=document.getElementById("log");
+  const state={prevent:true,rows:[],waiting:null,timer:0,mapping:{}};
+  const esc=s=>String(s??"");
+  function stamp(){const d=new Date();return d.toLocaleTimeString("ko-KR",{hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"})}
+  function renderLast(e){
+    const vals=[["lastKey",e.key],["lastCode",e.code],["lastType",e.type],["lastRepeat",String(!!e.repeat)]];
+    vals.forEach(([id,v])=>{const el=document.getElementById(id);el.textContent=v||"(빈값)";el.classList.remove("empty")});
+  }
+  function addLog(e){
+    state.rows.unshift({time:stamp(),type:e.type,key:e.key||"",code:e.code||"",repeat:!!e.repeat});
+    state.rows=state.rows.slice(0,80);
+    logEl.innerHTML="";
+    for(const r of state.rows){
+      const row=document.createElement("div");row.className="row";
+      row.innerHTML='<code>'+esc(r.time)+'</code><code>'+esc(r.key||"(empty)")+'</code><code>'+esc(r.code||"(empty)")+'</code><span class="type">'+esc(r.type)+(r.repeat?" · repeat":"")+'</span>';
+      logEl.append(row);
+    }
+  }
+  function finishMapping(result){
+    if(!state.waiting)return;
+    clearTimeout(state.timer);
+    const slot=document.querySelector('.slot[data-physical="'+CSS.escape(state.waiting)+'"]');
+    if(slot){
+      slot.classList.remove("waiting");
+      const m=slot.querySelector(".mapped");
+      if(result){
+        slot.classList.remove("none");
+        m.textContent='key='+result.key+'\ncode='+result.code;
+        state.mapping[state.waiting]={key:result.key,code:result.code};
+      }else{
+        slot.classList.add("none");
+        m.textContent="브라우저 감지 안 됨";
+        state.mapping[state.waiting]={key:"",code:"",none:true};
+      }
+    }
+    state.waiting=null;
+    document.getElementById("status").textContent=result?"매핑 완료. 다른 버튼도 테스트해보세요.":"키 이벤트가 안 왔습니다. 시스템 버튼일 가능성이 큽니다.";
+  }
+  function startMapping(name){
+    if(state.waiting)finishMapping(null);
+    state.waiting=name;
+    document.querySelectorAll(".slot").forEach(x=>x.classList.remove("waiting"));
+    const slot=document.querySelector('.slot[data-physical="'+CSS.escape(name)+'"]');
+    slot?.classList.add("waiting");
+    document.getElementById("status").textContent=name+" 버튼을 지금 눌러주세요…";
+    state.timer=setTimeout(()=>finishMapping(null),4000);
+  }
+  document.querySelectorAll(".slot button").forEach(btn=>btn.addEventListener("click",()=>startMapping(btn.closest(".slot").dataset.physical)));
+  window.addEventListener("keydown",e=>{
+    renderLast(e);addLog(e);
+    if(state.waiting&&!e.repeat)finishMapping({key:e.key||"",code:e.code||""});
+    if(state.prevent){e.preventDefault();e.stopPropagation()}
+  },true);
+  window.addEventListener("keyup",e=>{
+    renderLast(e);addLog(e);
+    if(state.prevent){e.preventDefault();e.stopPropagation()}
+  },true);
+  document.getElementById("clearBtn").onclick=()=>{state.rows=[];logEl.innerHTML="";document.getElementById("status").textContent="로그를 지웠습니다."};
+  document.getElementById("preventBtn").onclick=()=>{
+    state.prevent=!state.prevent;
+    const b=document.getElementById("preventBtn");
+    b.textContent="기본 동작 막기: "+(state.prevent?"켜짐":"꺼짐");
+    b.classList.toggle("primary",state.prevent);
+  };
+  document.getElementById("copyBtn").onclick=async()=>{
+    const lines=["미테르 리모컨 테스트 결과"];
+    for(const name of ["위","아래","왼쪽","오른쪽","가운데"]){
+      const m=state.mapping[name];
+      lines.push(name+": "+(!m?"미측정":m.none?"브라우저 감지 안 됨":("key="+m.key+", code="+m.code)));
+    }
+    lines.push("",...state.rows.slice(0,20).map(r=>r.time+" "+r.type+" key="+r.key+" code="+r.code+(r.repeat?" repeat":"")));
+    try{await navigator.clipboard.writeText(lines.join("\n"));document.getElementById("status").textContent="결과를 복사했습니다."}
+    catch{document.getElementById("status").textContent="복사 권한이 없어서 화면 결과를 그대로 보내주세요."}
+  };
+})();
+</script>
+</body>
+</html>
