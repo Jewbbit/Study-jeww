@@ -8544,12 +8544,12 @@ window.addEventListener("keydown",e=>{
     let n=null;
     if(["1","2","3","4"].includes(e.key))n=Number(e.key);
     else if(e.key==="5")n=3;
-    else if(e.key==="6")n=4;
-    else if(e.key==="."||e.code==="NumpadDecimal"||e.code==="Decimal")n=1;
+    else if(e.key==="6")n=1;
+    else if(e.key==="."||e.code==="NumpadDecimal"||e.code==="Decimal")n=4;
     else if(/^Digit[1-4]$/.test(e.code||""))n=Number(e.code.slice(-1));
     else if(/^Numpad[1-4]$/.test(e.code||""))n=Number(e.code.slice(-1));
     else if(e.code==="Digit5"||e.code==="Numpad5")n=3;
-    else if(e.code==="Digit6"||e.code==="Numpad6")n=4;
+    else if(e.code==="Digit6"||e.code==="Numpad6")n=1;
     if(n){e.preventDefault();e.stopPropagation();selectChoice(n-1);return}
   }
   if((e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")&&(quizSession.answered||quizSession.showAnswer)){
