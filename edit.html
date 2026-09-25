@@ -2471,10 +2471,34 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .round-preset-head .modal-title{padding:0}
 .round-preset-subtitle{font-size:10px;color:#8a8b91;margin-top:2px}
 .round-preset-close{flex:0 0 auto}
-.round-preset-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;padding:10px 14px 6px}
+.round-preset-top{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;padding:10px 14px 6px;position:relative;z-index:8}
 .round-preset-top select,.round-preset-top button,.round-preset-name{
   height:34px;border:1px solid #dedee3;background:#fff;border-radius:8px;padding:0 9px;font-size:11px;color:#44454a
 }
+.round-preset-picker{position:relative;min-width:0}
+.round-preset-native-fallback{display:none!important}
+.round-preset-picker-button{
+  width:100%;display:flex!important;align-items:center;justify-content:space-between;gap:8px;
+  text-align:left;min-width:0;cursor:pointer
+}
+.round-preset-picker-button>span:first-child{
+  min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
+}
+.round-preset-picker-arrow{flex:0 0 auto;color:#8c8d93;font-size:13px;transition:transform .14s ease}
+.round-preset-picker-button[aria-expanded="true"] .round-preset-picker-arrow{transform:rotate(180deg)}
+.round-preset-menu{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:1000;
+  max-height:min(42vh,280px);overflow:auto;padding:4px;
+  border:1px solid #dedee3;border-radius:9px;background:#fff;
+  box-shadow:0 10px 28px rgba(0,0,0,.14);overscroll-behavior:contain
+}
+.round-preset-menu.hidden{display:none!important}
+.round-preset-menu button{
+  width:100%;height:auto!important;min-height:34px!important;border:0!important;background:transparent!important;
+  border-radius:6px!important;padding:7px 8px!important;text-align:left;font-size:11px!important;color:#44454a!important
+}
+.round-preset-menu button:hover,.round-preset-menu button:focus-visible{background:#f4f4f6!important;outline:none}
+.round-preset-menu button.active{background:#eeeeF1!important;font-weight:700}
 .round-preset-name{margin:0 14px 8px;width:calc(100% - 28px);box-sizing:border-box}
 .round-preset-section{padding:8px 14px;border-top:1px solid #f0f0f2}
 .round-preset-section-head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
@@ -3919,7 +3943,13 @@ body.mobile-mission-open{overflow:hidden}
     </div>
 
     <div class="round-preset-top">
-      <select id="roundPresetSelect" aria-label="저장된 프리셋"></select>
+      <div class="round-preset-picker" id="roundPresetPicker">
+        <select id="roundPresetSelect" class="round-preset-native-fallback" aria-label="저장된 프리셋" tabindex="-1"></select>
+        <button id="roundPresetPickerButton" class="round-preset-picker-button" type="button" aria-haspopup="listbox" aria-expanded="false">
+          <span id="roundPresetPickerLabel">새 프리셋</span><span class="round-preset-picker-arrow" aria-hidden="true">⌄</span>
+        </button>
+        <div id="roundPresetMenu" class="round-preset-menu hidden" role="listbox" aria-label="저장된 프리셋 목록"></div>
+      </div>
       <button id="roundPresetNew" type="button">새 프리셋</button>
     </div>
 
@@ -9179,13 +9209,30 @@ function roundPresetEditorRefresh(){
   const allBtn=document.getElementById("roundPresetAll"),noneBtn=document.getElementById("roundPresetNone");
 
   const previous=roundPresetEditorState.id||"";
+  const pickerLabel=document.getElementById("roundPresetPickerLabel");
+  const pickerMenu=document.getElementById("roundPresetMenu");
   select.innerHTML="";
   const first=document.createElement("option");first.value="";first.textContent="새 프리셋";select.append(first);
-  for(const p of store.items.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"))){
+  const sortedPresets=store.items.slice().sort((a,b)=>String(a.name).localeCompare(String(b.name),"ko"));
+  for(const p of sortedPresets){
     const o=document.createElement("option");o.value=p.id;o.textContent=p.name;select.append(o);
   }
   select.value=previous;
   const active=store.items.find(x=>x.id===previous);
+  if(pickerLabel)pickerLabel.textContent=active?.name||"새 프리셋";
+  if(pickerMenu){
+    pickerMenu.innerHTML="";
+    const addChoice=(id,label)=>{
+      const b=document.createElement("button");b.type="button";b.dataset.presetId=id;
+      b.textContent=label;b.setAttribute("role","option");
+      b.setAttribute("aria-selected",String(id===previous));
+      b.classList.toggle("active",id===previous);
+      b.onclick=e=>{e.preventDefault();e.stopPropagation();roundPresetChoose(id)};
+      pickerMenu.append(b);
+    };
+    addChoice("","새 프리셋");
+    sortedPresets.forEach(p=>addChoice(p.id,p.name));
+  }
   if(document.activeElement!==name)name.value=active?.name||name.value||"";
   del.disabled=!active;
 
@@ -13308,10 +13355,21 @@ document.getElementById("studyExcelFiles").onchange=async e=>{const files=[...e.
 document.getElementById("bankExcelFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";if(files.length){try{await importBankFiles(files)}catch(err){console.error(err);bankImportBusy=false;alert("문제은행을 가져오는 중 오류가 났습니다. 다시 시도해 주세요.")}}};
 document.getElementById("bankBulkUpdateFiles").onchange=async e=>{const files=[...e.target.files];e.target.value="";if(files.length){try{await prepareBankBulkUpdate(files)}catch(err){console.error(err);bankBulkUpdateBusy=false;alert("업데이트 미리보기를 만드는 중 오류가 났습니다. 다시 시도해 주세요.")}}};
 
-document.getElementById("roundPresetClose").onclick=closeRoundPresetManager;
-document.getElementById("roundPresetModal").onclick=e=>{if(e.target.id==="roundPresetModal")closeRoundPresetManager()};
-document.getElementById("roundPresetSelect").onchange=e=>{
-  const preset=plannerScopePresetStore().items.find(x=>x.id===e.target.value);
+function roundPresetClosePicker(){
+  const menu=document.getElementById("roundPresetMenu"),button=document.getElementById("roundPresetPickerButton");
+  menu?.classList.add("hidden");
+  button?.setAttribute("aria-expanded","false");
+}
+function roundPresetTogglePicker(){
+  const menu=document.getElementById("roundPresetMenu"),button=document.getElementById("roundPresetPickerButton");
+  if(!menu||!button)return;
+  const opening=menu.classList.contains("hidden");
+  menu.classList.toggle("hidden",!opening);
+  button.setAttribute("aria-expanded",String(opening));
+  if(opening)requestAnimationFrame(()=>menu.querySelector("button.active,button")?.focus({preventScroll:true}));
+}
+function roundPresetChoose(id){
+  const preset=plannerScopePresetStore().items.find(x=>x.id===id);
   if(preset){
     roundPresetEditorLoad(preset);
     document.getElementById("roundPresetName").value=preset.name;
@@ -13319,9 +13377,22 @@ document.getElementById("roundPresetSelect").onchange=e=>{
     roundPresetEditorResetFromCurrentBank();
     document.getElementById("roundPresetName").value=app.ui.quiz.subject&&app.ui.quiz.subject!=="all"?`${plannerSubjectDisplayName(app.ui.quiz.subject)} 기본`:"";
   }
+  roundPresetClosePicker();
   roundPresetEditorRefresh();
+}
+document.getElementById("roundPresetClose").onclick=closeRoundPresetManager;
+document.getElementById("roundPresetModal").onclick=e=>{
+  if(e.target.id==="roundPresetModal"){roundPresetClosePicker();closeRoundPresetManager();return}
+  if(!e.target.closest?.("#roundPresetPicker"))roundPresetClosePicker();
 };
+document.getElementById("roundPresetPickerButton").onclick=e=>{e.preventDefault();e.stopPropagation();roundPresetTogglePicker()};
+document.getElementById("roundPresetPickerButton").onkeydown=e=>{
+  if(e.key==="ArrowDown"||e.key==="Enter"||e.key===" "){e.preventDefault();roundPresetTogglePicker()}
+  else if(e.key==="Escape"){e.preventDefault();roundPresetClosePicker()}
+};
+document.getElementById("roundPresetSelect").onchange=e=>roundPresetChoose(e.target.value);
 document.getElementById("roundPresetNew").onclick=()=>{
+  roundPresetClosePicker();
   const keepSubject=roundPresetEditorState.activeSubjectKey||roundPresetDefaultSubjectKey();
   roundPresetEditorResetFromCurrentBank();
   roundPresetEditorState.activeSubjectKey=keepSubject;
