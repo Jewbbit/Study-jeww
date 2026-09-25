@@ -4083,6 +4083,7 @@ const KEY="study-jew-v4";
 const STUDY_DRAFT_KEY=KEY+"-study-drafts";
 const STUDY_EDIT_KEY=KEY+"-study-edit";
 const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";
+const ROUND_PRESET_LOCAL_KEY=KEY+"-round-presets-v2";
 const uid=()=>crypto.randomUUID?.()||("id_"+Date.now()+"_"+Math.random().toString(36).slice(2));
 const studyRow=()=>({id:uid(),type:"item",category:"",correct:"",memo:"",color:"",user:"",flagged:false,flagCount:0,last:"",revealed:false});
 const sectionRow=()=>({id:uid(),type:"section",title:"",level:"sub",color:"",memorize:false,user:"",last:"",revealed:false});
@@ -6693,6 +6694,11 @@ function replaceBankVersionReferences(oldId,newId){
       p.updatedAt=Date.now();studyChanged=true;
     }
   });
+  if(studyChanged){
+    const presetStore=plannerScopePresetStore();
+    presetStore.updatedAt=Date.now();
+    plannerPersistScopePresetLocal(presetStore,{cloud:false});
+  }
   if(plannerRoundDraft?.bankSheetIds instanceof Set&&plannerRoundDraft.bankSheetIds.has(oldId)){
     plannerRoundDraft.bankSheetIds.delete(oldId);plannerRoundDraft.bankSheetIds.add(newId);
   }
@@ -8962,12 +8968,90 @@ function plannerScopeCatalog(){
   }
   return {memory,bank};
 }
-function plannerScopePresetStore(){
-  let s=app.study.roundScopePresets;
-  if(!s||typeof s!=="object")s=app.study.roundScopePresets={version:1,items:[]};
+let plannerRoundPresetIdbCache=null;
+let plannerRoundPresetIdbLoadStarted=false;
+function plannerNormalizeScopePresetStore(raw){
+  const s=(raw&&typeof raw==="object"&&!Array.isArray(raw))?JSON.parse(JSON.stringify(raw)):{version:2,items:[]};
   if(!Array.isArray(s.items))s.items=[];
   s.items=s.items.filter(x=>x&&x.id&&x.name&&Array.isArray(x.memorySheetIds)&&Array.isArray(x.bankSheetIds));
+  s.version=Math.max(2,Number(s.version)||0);
+  s.updatedAt=Math.max(Number(s.updatedAt)||0,...s.items.map(x=>Math.max(Number(x.updatedAt)||0,Number(x.createdAt)||0)),0);
   return s;
+}
+function plannerScopePresetStamp(raw){
+  if(!raw||typeof raw!=="object")return 0;
+  const items=Array.isArray(raw.items)?raw.items:[];
+  return Math.max(Number(raw.updatedAt)||0,...items.map(x=>Math.max(Number(x.updatedAt)||0,Number(x.createdAt)||0)),0);
+}
+function plannerReadScopePresetLocal(){
+  try{
+    const raw=JSON.parse(localStorage.getItem(ROUND_PRESET_LOCAL_KEY)||"null");
+    return raw?plannerNormalizeScopePresetStore(raw):null;
+  }catch(e){console.warn("round preset local read failed",e);return null}
+}
+async function plannerWriteScopePresetIdb(store){
+  try{
+    const db=await openBankCacheDb();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(BANK_CACHE_STORE,"readwrite");
+      tx.objectStore(BANK_CACHE_STORE).put(plannerNormalizeScopePresetStore(store),"roundScopePresetsV2");
+      tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error);
+    });
+    db.close();
+  }catch(e){console.warn("round preset idb save failed",e)}
+}
+async function plannerLoadScopePresetIdb(){
+  if(plannerRoundPresetIdbLoadStarted)return;
+  plannerRoundPresetIdbLoadStarted=true;
+  try{
+    const db=await openBankCacheDb();
+    const cached=await new Promise((resolve,reject)=>{
+      const tx=db.transaction(BANK_CACHE_STORE,"readonly");
+      const req=tx.objectStore(BANK_CACHE_STORE).get("roundScopePresetsV2");
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+    });
+    db.close();
+    if(!cached)return;
+    plannerRoundPresetIdbCache=plannerNormalizeScopePresetStore(cached);
+    const current=plannerNormalizeScopePresetStore(app.study?.roundScopePresets);
+    if(plannerScopePresetStamp(plannerRoundPresetIdbCache)>plannerScopePresetStamp(current)){
+      app.study.roundScopePresets=JSON.parse(JSON.stringify(plannerRoundPresetIdbCache));
+      try{localStorage.setItem(ROUND_PRESET_LOCAL_KEY,JSON.stringify(app.study.roundScopePresets))}catch{}
+      if(!document.getElementById("roundPresetModal")?.classList.contains("hidden"))roundPresetEditorRefresh();
+    }
+  }catch(e){console.warn("round preset idb load failed",e)}
+}
+function plannerReadBestScopePresetSnapshot(){
+  const candidates=[
+    plannerNormalizeScopePresetStore(app.study?.roundScopePresets),
+    plannerReadScopePresetLocal(),
+    plannerRoundPresetIdbCache?plannerNormalizeScopePresetStore(plannerRoundPresetIdbCache):null
+  ].filter(Boolean);
+  if(!candidates.length)return null;
+  candidates.sort((a,b)=>plannerScopePresetStamp(b)-plannerScopePresetStamp(a));
+  return JSON.parse(JSON.stringify(candidates[0]));
+}
+function plannerPersistScopePresetLocal(store,{cloud=true}={}){
+  const normalized=plannerNormalizeScopePresetStore(store);
+  plannerRoundPresetIdbCache=JSON.parse(JSON.stringify(normalized));
+  try{localStorage.setItem(ROUND_PRESET_LOCAL_KEY,JSON.stringify(normalized))}
+  catch(e){console.warn("round preset local save failed",e)}
+  plannerWriteScopePresetIdb(normalized);
+  if(cloud)markStudyCloud();
+  return normalized;
+}
+function plannerScopePresetStore(){
+  plannerLoadScopePresetIdb();
+  const appStore=plannerNormalizeScopePresetStore(app.study?.roundScopePresets);
+  const localStore=plannerReadScopePresetLocal();
+  const idbStore=plannerRoundPresetIdbCache?plannerNormalizeScopePresetStore(plannerRoundPresetIdbCache):null;
+  let best=appStore;
+  for(const candidate of [localStore,idbStore]){
+    if(candidate&&plannerScopePresetStamp(candidate)>plannerScopePresetStamp(best))best=candidate;
+  }
+  app.study.roundScopePresets=best;
+  return app.study.roundScopePresets;
 }
 function plannerSubjectDisplayName(value){
   return String(value||"기타")
@@ -9012,18 +9096,22 @@ function plannerSaveScopePreset(name,draft,catalog=plannerScopeCatalog()){
   const existing=store.items.find(x=>x.name===name);
   if(existing){
     existing.memorySheetIds=data.memorySheetIds;existing.bankSheetIds=data.bankSheetIds;existing.updatedAt=now;
-    markStudyCloud();
+    store.updatedAt=now;
+    plannerPersistScopePresetLocal(store);
     return existing;
   }
   const preset={id:`preset_${uid()}`,name,...data,createdAt:now,updatedAt:now};
-  store.items.push(preset);
-  markStudyCloud();
+  store.items.push(preset);store.updatedAt=now;
+  plannerPersistScopePresetLocal(store);
   return preset;
 }
 function plannerDeleteScopePreset(id){
   const store=plannerScopePresetStore(),before=store.items.length;
   store.items=store.items.filter(x=>x.id!==id);
-  if(store.items.length!==before)markStudyCloud();
+  if(store.items.length!==before){
+    store.updatedAt=Date.now();
+    plannerPersistScopePresetLocal(store);
+  }
   return store.items.length!==before;
 }
 let roundPresetEditorState={id:"",activeSubjectKey:"",memorySheetIds:new Set(),bankSheetIds:new Set()};
@@ -9190,8 +9278,9 @@ function saveRoundPresetFromEditor(){
     target.memorySheetIds=[...roundPresetEditorState.memorySheetIds];
     target.bankSheetIds=[...roundPresetEditorState.bankSheetIds];
     target.updatedAt=Date.now();
+    store.updatedAt=target.updatedAt;
     roundPresetEditorState.id=target.id;
-    markStudyCloud();
+    plannerPersistScopePresetLocal(store);
     roundPresetEditorRefresh();
     toast("프리셋 저장됨");
     return;
@@ -12773,6 +12862,12 @@ function cloudStudyPayload(){
   return copy;
 }
 function mergeCloudStudy(remote){
+  /* 회독 프리셋은 작은 독립 저장소에도 보관한다.
+     study/state의 늦은 스냅샷이 도착해도 방금 만든 프리셋을 되돌리지 않도록
+     merge 전에 이 기기의 최신 프리셋 스냅샷을 잡아 둔다. */
+  const localRoundPresets=typeof plannerReadBestScopePresetSnapshot==="function"
+    ?plannerReadBestScopePresetSnapshot()
+    :(app.study?.roundScopePresets||null);
   const localPlanner=app.study.planner;
   const localTransient=new Map();
   app.study.subjects.forEach(s=>s.sheets.forEach(sh=>sh.rows.forEach(r=>{localTransient.set(r.id,{user:r.user||"",last:r.last||"",revealed:!!r.revealed})})));
@@ -12784,6 +12879,14 @@ function mergeCloudStudy(remote){
   incoming.mode=localMode;
   incoming.planner=localPlanner;
   app.study=incoming;cleanup();
+  if(localRoundPresets&&typeof plannerScopePresetStamp==="function"){
+    const incomingStamp=plannerScopePresetStamp(app.study.roundScopePresets);
+    const localStamp=plannerScopePresetStamp(localRoundPresets);
+    if(localStamp>incomingStamp){
+      app.study.roundScopePresets=JSON.parse(JSON.stringify(localRoundPresets));
+      if(typeof plannerPersistScopePresetLocal==="function")plannerPersistScopePresetLocal(app.study.roundScopePresets,{cloud:false});
+    }
+  }
   if(typeof invalidateCurriculumDerived==="function")invalidateCurriculumDerived();
   saveLocal();
 }
