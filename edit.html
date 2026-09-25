@@ -2527,10 +2527,14 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 .round-preset-current-subject strong{font-size:12px;color:#2f3034}
 .round-preset-current-subject span{margin-left:auto;font-size:9.5px;color:#8b8c92}
-.round-preset-mini-actions{display:flex;gap:5px;margin-top:7px}
+.round-preset-mini-actions{display:flex;gap:5px;margin-top:7px;flex-wrap:wrap}
 .round-preset-mini-actions button{
   border:1px solid #e2e2e6;background:#fff;border-radius:7px;padding:5px 8px;font-size:9.5px;color:#6d6e73
 }
+.round-preset-global-actions #roundPresetClearAll{color:#9b5555;border-color:#eadada}
+.round-preset-kind-actions{margin-top:5px}
+.round-preset-kind-actions button{background:#fafafa}
+.round-preset-mini-actions button:disabled{opacity:.38}
 .round-preset-lists{overflow:auto;padding:0 14px 10px;overscroll-behavior:contain}
 .round-preset-group{border-top:1px solid #efeff2;padding:8px 0 5px}
 .round-preset-group:first-child{border-top:0}
@@ -2561,6 +2565,18 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   .round-preset-name{margin:0 11px 7px;width:calc(100% - 22px)}
   .round-preset-section,.round-preset-lists{padding-left:11px;padding-right:11px}
   .round-preset-footer{padding:8px 11px 11px}
+  .round-preset-subjects{
+    flex-wrap:wrap;overflow-x:visible;gap:5px;padding-bottom:1px;
+    max-height:116px;overflow-y:auto;align-content:flex-start
+  }
+  .round-preset-subjects button{
+    flex:0 0 auto;max-width:100%;padding:5px 8px;font-size:9.5px
+  }
+  .round-preset-mini-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px}
+  .round-preset-mini-actions button{
+    min-width:0;white-space:normal;line-height:1.25;min-height:30px;padding:5px 6px
+  }
+  .round-preset-global-actions #roundPresetClearAll{grid-column:1 / -1}
 }
 .planner-preset-panel{padding:6px 0 7px;border-top:1px solid #f0f0f2}
 .planner-preset-label{font-size:9px;font-weight:700;color:#777980;margin:0 0 4px}
@@ -3961,9 +3977,14 @@ body.mobile-mission-open{overflow:hidden}
         <span id="roundPresetCount"></span>
       </div>
       <div id="roundPresetSubjectChips" class="round-preset-subjects"></div>
-      <div class="round-preset-mini-actions">
+      <div class="round-preset-mini-actions round-preset-global-actions">
+        <button id="roundPresetClearAll" type="button">전체 해제</button>
         <button id="roundPresetAll" type="button">이 과목 전체 선택</button>
         <button id="roundPresetNone" type="button">이 과목 전체 해제</button>
+      </div>
+      <div class="round-preset-mini-actions round-preset-kind-actions">
+        <button id="roundPresetMemoryAll" type="button">암기판만 전체 선택</button>
+        <button id="roundPresetBankAll" type="button">문제은행만 전체 선택</button>
       </div>
     </div>
 
@@ -9199,6 +9220,17 @@ function roundPresetEditorSetSubjectAll(subject,selected){
     else roundPresetEditorState.bankSheetIds.delete(id);
   }
 }
+function roundPresetEditorSetSubjectKind(subject,kind,selected){
+  if(!subject||!(kind==="memory"||kind==="bank"))return;
+  const set=kind==="memory"?roundPresetEditorState.memorySheetIds:roundPresetEditorState.bankSheetIds;
+  for(const id of subject[kind]||[]){
+    if(selected)set.add(id);else set.delete(id);
+  }
+}
+function roundPresetEditorClearAll(){
+  roundPresetEditorState.memorySheetIds.clear();
+  roundPresetEditorState.bankSheetIds.clear();
+}
 function roundPresetEditorRefresh(){
   const modal=document.getElementById("roundPresetModal");if(!modal||modal.classList.contains("hidden"))return;
   const catalog=roundPresetEditorCatalog(),subjects=plannerScopeSubjects(catalog),store=plannerScopePresetStore();
@@ -9207,6 +9239,8 @@ function roundPresetEditorRefresh(){
   const chips=document.getElementById("roundPresetSubjectChips"),lists=document.getElementById("roundPresetLists");
   const count=document.getElementById("roundPresetCount"),del=document.getElementById("roundPresetDelete");
   const allBtn=document.getElementById("roundPresetAll"),noneBtn=document.getElementById("roundPresetNone");
+  const clearAllBtn=document.getElementById("roundPresetClearAll");
+  const memoryAllBtn=document.getElementById("roundPresetMemoryAll"),bankAllBtn=document.getElementById("roundPresetBankAll");
 
   const previous=roundPresetEditorState.id||"";
   const pickerLabel=document.getElementById("roundPresetPickerLabel");
@@ -9259,12 +9293,17 @@ function roundPresetEditorRefresh(){
   count.textContent=`전체 ${selectedTotal}/${catalog.memory.length+catalog.bank.length} 시트`;
 
   lists.innerHTML="";
+  if(clearAllBtn)clearAllBtn.disabled=selectedTotal===0;
   if(!activeSubject){
     lists.innerHTML='<div class="bank-empty">편집할 과목이 없습니다.</div>';
     allBtn.disabled=true;noneBtn.disabled=true;
+    if(memoryAllBtn)memoryAllBtn.disabled=true;
+    if(bankAllBtn)bankAllBtn.disabled=true;
     return;
   }
   allBtn.disabled=false;noneBtn.disabled=false;
+  if(memoryAllBtn)memoryAllBtn.disabled=!activeSubject.memory.length;
+  if(bankAllBtn)bankAllBtn.disabled=!activeSubject.bank.length;
 
   const memoryItems=catalog.memory.filter(x=>activeSubject.memory.includes(x.id));
   const bankItems=catalog.bank.filter(x=>activeSubject.bank.includes(x.id));
@@ -13400,6 +13439,10 @@ document.getElementById("roundPresetNew").onclick=()=>{
   roundPresetEditorRefresh();
   document.getElementById("roundPresetName").focus();
 };
+document.getElementById("roundPresetClearAll").onclick=()=>{
+  roundPresetEditorClearAll();
+  roundPresetEditorRefresh();
+};
 document.getElementById("roundPresetAll").onclick=()=>{
   const subject=roundPresetEnsureActiveSubject();
   if(subject)roundPresetEditorSetSubjectAll(subject,true);
@@ -13408,6 +13451,16 @@ document.getElementById("roundPresetAll").onclick=()=>{
 document.getElementById("roundPresetNone").onclick=()=>{
   const subject=roundPresetEnsureActiveSubject();
   if(subject)roundPresetEditorSetSubjectAll(subject,false);
+  roundPresetEditorRefresh();
+};
+document.getElementById("roundPresetMemoryAll").onclick=()=>{
+  const subject=roundPresetEnsureActiveSubject();
+  if(subject)roundPresetEditorSetSubjectKind(subject,"memory",true);
+  roundPresetEditorRefresh();
+};
+document.getElementById("roundPresetBankAll").onclick=()=>{
+  const subject=roundPresetEnsureActiveSubject();
+  if(subject)roundPresetEditorSetSubjectKind(subject,"bank",true);
   roundPresetEditorRefresh();
 };
 document.getElementById("roundPresetSave").onclick=saveRoundPresetFromEditor;
