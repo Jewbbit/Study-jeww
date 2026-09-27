@@ -1,6 +1,6 @@
 (()=>{
   "use strict";
-  const VERSION="2026-09-16-consideration-scope-v3";
+  const VERSION="2026-09-28-consideration-scope-v4";
   if(window.__studyJewConsiderationScope===VERSION)return;
   window.__studyJewConsiderationScope=VERSION;
 
@@ -27,4 +27,15 @@
   }
   document.addEventListener("pointerdown",handle,{capture:true,passive:true});
   document.addEventListener("focusin",handle,true);
+
+  const style=document.createElement("style");
+  style.id="mobile-workspace-header-simplify";
+  style.textContent=`
+    @media(max-width:640px){
+      #curriculumSpace,#reviewSpace{display:none!important}
+      .workspace-switch{flex:0 0 auto!important;max-width:none!important}
+      .workspace-switch .workspace-btn{padding-left:10px!important;padding-right:10px!important}
+    }
+  `;
+  document.head.append(style);
 })();
