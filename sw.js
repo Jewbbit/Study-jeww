@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v29-review-link";
+const CACHE_NAME="study-jew-pwa-v30-round-mission-resume";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260916-1",
@@ -38,6 +38,7 @@ async function injectHotfix(response){
     .replace(/<style id=["'](?:mission-progress-fit|standard-note-room|study-jew-runtime-style)["'][^>]*>[\s\S]*?<\/style>\s*/gi,"")
     .replace('<button id="curriculumSpace" class="workspace-btn">교육과정</button>','<button id="curriculumSpace" class="workspace-btn">교육과정</button>\n      <button id="reviewSpace" class="workspace-btn" type="button" onclick="window.location.href=\'./review.html\'">검수</button>')
     .replace('const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";',`const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";
+const ROUND_BANK_SESSION_KEY=KEY+"-round-bank-sessions-v1";
 const CURRICULUM_LOCAL_KEY=KEY+"-curriculum-local-v1";
 const CURRICULUM_CLOUD_MIN_DELAY=12000;`)
     .replace('}catch(e){console.warn("study quick restore failed",e)}',`}catch(e){console.warn("study quick restore failed",e)}
@@ -92,6 +93,78 @@ function syncStandardExtraBlanksOutOfStudy(){
 restoreCurriculumLocalNow();
 window.sjCurriculumLocalStatus=()=>{const x=curriculumLocalRead(),cp=x?.curriculumPractice||app.study?.curriculumPractice||{};return {local:!!x,updatedAt:Number(x?.updatedAt)||0,considerationAssignments:Object.keys(cp.considerationAssignments||{}).length,standardBlanks:Object.keys(cp.standardBlankOverrides||{}).length,standardNotes:Object.keys(cp.standardNotes||{}).length}};
 window.sjSaveCurriculumStandardEdits=()=>{syncStandardExtraBlanksIntoStudy();saveCurriculumLocalNow("manual-save");markStudyCloud();return true};`)
+    .replace('let roundWrongSessionSaveTimer=0;',`let roundWrongSessionSaveTimer=0;
+function roundBankMissionSessionRead(){
+  try{
+    const x=JSON.parse(localStorage.getItem(ROUND_BANK_SESSION_KEY)||"null");
+    return x&&typeof x==="object"&&x.sessions&&typeof x.sessions==="object"?x:{version:1,sessions:{}};
+  }catch{return {version:1,sessions:{}}}
+}
+function roundBankMissionSessionWrite(store){
+  try{localStorage.setItem(ROUND_BANK_SESSION_KEY,JSON.stringify(store));return true}
+  catch(e){console.warn("round bank session save failed",e);return false}
+}
+function roundBankMissionSessionId(roundId,missionId){return `${roundId}::${missionId}`}
+function roundBankMissionSessionGet(roundId,missionId){
+  return roundBankMissionSessionRead().sessions[roundBankMissionSessionId(roundId,missionId)]||null;
+}
+function saveRoundBankMissionSessionNow(snapshot){
+  const adv=quizSession?.adventure,roundId=quizSession?.plannerRoundId||adv?.roundId||"",missionId=adv?.missionId||"";
+  if(!adv||!roundId||!missionId||!adv.sessionKey||!snapshot)return false;
+  const store=roundBankMissionSessionRead(),savedAt=Date.now(),key=roundBankMissionSessionId(roundId,missionId);
+  store.sessions[key]={roundId,missionId,sheetId:adv.sheetId,order:adv.order||quizSession.quizOrder||"sequence",sessionKey:adv.sessionKey,savedAt,snapshot:{...snapshot,savedAt}};
+  return roundBankMissionSessionWrite(store);
+}
+function clearRoundBankMissionSession(roundId,missionId){
+  if(!roundId||!missionId)return;
+  const store=roundBankMissionSessionRead(),key=roundBankMissionSessionId(roundId,missionId);
+  if(!store.sessions[key])return;
+  delete store.sessions[key];
+  try{if(Object.keys(store.sessions).length)localStorage.setItem(ROUND_BANK_SESSION_KEY,JSON.stringify(store));else localStorage.removeItem(ROUND_BANK_SESSION_KEY)}catch(e){console.warn("round bank session clear failed",e)}
+}`)
+    .replace(/function saveQuizSessionLocal\(\)\{[\s\S]*?\n\}\nfunction suspendQuizForWorkspaceNavigation\(\)\{/,`function saveQuizSessionLocal(){
+  if(!quizSession){delete app.ui.quizDraft;saveLocal();return}
+  const snapshot=quizSessionSnapshot();
+  app.ui.quizDraft=snapshot;
+  if(quizSession.adventure){
+    const adv=quizSession.adventure;
+    const cfg=adventureConfig(adv.sheetId,{quiet:true,order:adv.order||quizSession.quizOrder});
+    if(cfg){
+      if(!cfg.activeSessions||typeof cfg.activeSessions!=="object")cfg.activeSessions={};
+      cfg.activeSessions[adv.sessionKey]=snapshot;
+      cfg.lastTouchedAt=Date.now();
+      const state=adventureSheetState(adv.sheetId);
+      state.activeOrder=cfg.order;state.lastOrder=cfg.order;
+    }
+    if(quizSession.plannerRoundId&&adv.missionId)saveRoundBankMissionSessionNow(snapshot);
+  }
+  if(quizSession.roundWrongReview&&quizSession.plannerRoundId){
+    const round=plannerRoundById(quizSession.plannerRoundId);
+    if(round){
+      round.wrongReviewSession={...snapshot,savedAt:Date.now()};
+      round.wrongReviewDone=false;
+      clearTimeout(roundWrongSessionSaveTimer);
+      roundWrongSessionSaveTimer=setTimeout(()=>plannerSaveRound(round),900);
+    }
+  }
+  saveLocal();
+}
+function suspendQuizForWorkspaceNavigation(){`)
+    .replace('const sessionKey=`round:${round.id}:${mission.id}`,saved=cfg.activeSessions?.[sessionKey];\n  if(saved&&adventureSessionFromSnapshot(saved))return;',`const sessionKey=\`round:${round.id}:${mission.id}\`,saved=cfg.activeSessions?.[sessionKey];
+  const localSaved=roundBankMissionSessionGet(round.id,mission.id);
+  const resume=(localSaved?.snapshot&&Number(localSaved.savedAt||0)>=Number(saved?.savedAt||0))?localSaved.snapshot:saved;
+  if(resume&&adventureSessionFromSnapshot(resume)){
+    if(localSaved?.snapshot){
+      if(!cfg.activeSessions||typeof cfg.activeSessions!=="object")cfg.activeSessions={};
+      cfg.activeSessions[sessionKey]=localSaved.snapshot;
+      cfg.lastTouchedAt=Math.max(Number(cfg.lastTouchedAt)||0,Number(localSaved.savedAt)||Date.now());
+      markAdventureCloud();
+    }
+    return;
+  }`)
+    .replace('delete cfg.activeSessions?.[adv.sessionKey];','delete cfg.activeSessions?.[adv.sessionKey];\n  if(adv.roundId&&adv.missionId)clearRoundBankMissionSession(adv.roundId,adv.missionId);')
+    .replace('window.addEventListener("pagehide",()=>{flushTypingSave();if(bankCacheSaveTimer)writeBankCacheNow()});','window.addEventListener("pagehide",()=>{if(quizSession?.plannerRoundId&&quizSession?.adventure?.missionId)saveQuizSessionLocal();flushTypingSave();if(bankCacheSaveTimer)writeBankCacheNow()});')
+    .replace('document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushTypingSave()});','document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){if(quizSession?.plannerRoundId&&quizSession?.adventure?.missionId)saveQuizSessionLocal();flushTypingSave()}});')
     .replace('function mergeCloudStudy(remote){\n  const localPlanner=app.study.planner;','function mergeCloudStudy(remote){\n  const localCurriculum=curriculumLocalRead();\n  const localPlanner=app.study.planner;')
     .replace('app.study=incoming;cleanup();\n  if(typeof invalidateCurriculumDerived==="function")invalidateCurriculumDerived();',`app.study=incoming;cleanup();
   if(localCurriculum?.curriculumPractice){const localCp=curriculumLocalMaterialize(localCurriculum);if(localCp)app.study.curriculumPractice=localCp}
