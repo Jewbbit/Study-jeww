@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v29-review-link";
+const CACHE_NAME="study-jew-pwa-v30-round-mission-sync";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260916-1",
@@ -134,7 +134,10 @@ function plannerMissionsForDayView(round,date){
     .replace('for(const r of p.rounds)for(const m of plannerMissionsForDate(r,date))missions.push([r,m]);','for(const r of p.rounds)for(const m of plannerMissionsForDayView(r,date))missions.push([r,m]);')
     .replace('const missions=plannerMissionsForDate(r,selected);','const missions=plannerMissionsForDayView(r,selected);')
     .replace('const missions=plannerMissionsForDate(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;','const missions=plannerMissionsForDayView(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;')
-    .replace('if(m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);','if(selected!==today&&m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);');
+    .replace('if(m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);','if(selected!==today&&m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);')
+    .replace('      roundWrongSessionSaveTimer=setTimeout(()=>plannerSaveRound(round),900);\n    }\n  }\n  saveLocal();\n}\nfunction suspendQuizForWorkspaceNavigation(){','      roundWrongSessionSaveTimer=setTimeout(()=>plannerSaveRound(round),900);\n    }\n  }\n  if(quizSession?.adventure?.missionId&&quizSession?.plannerRoundId)markAdventureCloud();else saveLocal();\n}\nfunction suspendQuizForWorkspaceNavigation(){')
+    .replace('window.addEventListener("pagehide",()=>{flushTypingSave();if(bankCacheSaveTimer)writeBankCacheNow()});','window.addEventListener("pagehide",()=>{if(quizSession?.adventure?.missionId&&quizSession?.plannerRoundId){saveQuizSessionLocal();saveLocalNow()}flushTypingSave();if(bankCacheSaveTimer)writeBankCacheNow()});')
+    .replace('document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")flushTypingSave()});','document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"){if(quizSession?.adventure?.missionId&&quizSession?.plannerRoundId){saveQuizSessionLocal();saveLocalNow()}flushTypingSave()}});');
 
   html=html.includes("</head>")?html.replace("</head>",`${APP_STYLE}\n</head>`):APP_STYLE+html;
   const tags=HOTFIX_SRCS.map(src=>`<script src="${src}"></script>`).join("\n");
