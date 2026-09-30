@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v29-review-link";
+const CACHE_NAME="study-jew-pwa-v30-quiz-durable";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260916-1",
@@ -38,6 +38,9 @@ async function injectHotfix(response){
     .replace(/<style id=["'](?:mission-progress-fit|standard-note-room|study-jew-runtime-style)["'][^>]*>[\s\S]*?<\/style>\s*/gi,"")
     .replace('<button id="curriculumSpace" class="workspace-btn">교육과정</button>','<button id="curriculumSpace" class="workspace-btn">교육과정</button>\n      <button id="reviewSpace" class="workspace-btn" type="button" onclick="window.location.href=\'./review.html\'">검수</button>')
     .replace('const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";',`const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";
+const BANK_STATS_PATCH_KEY=KEY+"-bank-stats-patches-v1";
+const BANK_STATS_DIRTY_KEY=KEY+"-bank-stats-dirty-v1";
+const BANK_ADVENTURE_QUICK_KEY=KEY+"-bank-adventure-quick-v1";
 const CURRICULUM_LOCAL_KEY=KEY+"-curriculum-local-v1";
 const CURRICULUM_CLOUD_MIN_DELAY=12000;`)
     .replace('}catch(e){console.warn("study quick restore failed",e)}',`}catch(e){console.warn("study quick restore failed",e)}
@@ -92,6 +95,163 @@ function syncStandardExtraBlanksOutOfStudy(){
 restoreCurriculumLocalNow();
 window.sjCurriculumLocalStatus=()=>{const x=curriculumLocalRead(),cp=x?.curriculumPractice||app.study?.curriculumPractice||{};return {local:!!x,updatedAt:Number(x?.updatedAt)||0,considerationAssignments:Object.keys(cp.considerationAssignments||{}).length,standardBlanks:Object.keys(cp.standardBlankOverrides||{}).length,standardNotes:Object.keys(cp.standardNotes||{}).length}};
 window.sjSaveCurriculumStandardEdits=()=>{syncStandardExtraBlanksIntoStudy();saveCurriculumLocalNow("manual-save");markStudyCloud();return true};`)
+    .replace(`try{
+  const quickBankStats=JSON.parse(localStorage.getItem(BANK_STATS_QUICK_KEY)||"null");
+  if(quickBankStats?.stats&&(Number(quickBankStats.updatedAt)||0)>=(Number(app.bank?.statsUpdatedAt)||0)){
+    app.bank.stats=quickBankStats.stats;
+    app.bank.statsUpdatedAt=Number(quickBankStats.updatedAt)||0;
+  }
+}catch(e){console.warn("bank stats quick restore failed",e)}`,`try{
+  const quickBankStats=JSON.parse(localStorage.getItem(BANK_STATS_QUICK_KEY)||"null");
+  if(quickBankStats?.stats&&(Number(quickBankStats.updatedAt)||0)>=(Number(app.bank?.statsUpdatedAt)||0)){
+    app.bank.stats=quickBankStats.stats;
+    app.bank.statsUpdatedAt=Number(quickBankStats.updatedAt)||0;
+  }
+}catch(e){console.warn("bank stats quick restore failed",e)}
+try{
+  const pending=JSON.parse(localStorage.getItem(BANK_STATS_PATCH_KEY)||"null");
+  if(pending?.items&&typeof pending.items==="object"){
+    for(const [id,entry] of Object.entries(pending.items))if(entry?.stat&&typeof entry.stat==="object")app.bank.stats[id]=entry.stat;
+    app.bank.statsUpdatedAt=Math.max(Number(app.bank.statsUpdatedAt)||0,Number(pending.updatedAt)||0);
+  }
+}catch(e){console.warn("bank stats patch restore failed",e)}
+try{
+  const pendingAdventure=JSON.parse(localStorage.getItem(BANK_ADVENTURE_QUICK_KEY)||"null");
+  if(pendingAdventure?.adventure&&typeof pendingAdventure.adventure==="object"&&(pendingAdventure.dirty||(Number(pendingAdventure.updatedAt)||0)>=(Number(app.bank.statsUpdatedAt)||0))){
+    app.ui.quizAdventure=pendingAdventure.adventure;
+    app.bank.statsUpdatedAt=Math.max(Number(app.bank.statsUpdatedAt)||0,Number(pendingAdventure.updatedAt)||0);
+  }
+}catch(e){console.warn("bank adventure quick restore failed",e)}`)
+    .replace(`function saveBankStatsQuickNow(){
+  clearTimeout(bankStatsQuickTimer);bankStatsQuickTimer=null;
+  try{localStorage.setItem(BANK_STATS_QUICK_KEY,JSON.stringify({stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt||Date.now()}))}
+  catch(e){console.warn("bank stats quick save failed",e)}
+}
+function scheduleBankStatsQuickSave(){
+  clearTimeout(bankStatsQuickTimer);
+  bankStatsQuickTimer=setTimeout(saveBankStatsQuickNow,650);
+}`,`function saveBankStatsQuickNow(){
+  clearTimeout(bankStatsQuickTimer);bankStatsQuickTimer=null;
+  try{
+    localStorage.setItem(BANK_STATS_QUICK_KEY,JSON.stringify({stats:app.bank.stats,updatedAt:app.bank.statsUpdatedAt||Date.now()}));
+    localStorage.removeItem(BANK_STATS_PATCH_KEY);
+  }catch(e){console.warn("bank stats quick save failed",e)}
+}
+function scheduleBankStatsQuickSave(){
+  clearTimeout(bankStatsQuickTimer);
+  bankStatsQuickTimer=setTimeout(saveBankStatsQuickNow,650);
+}
+function bankStatsPatchEnvelope(){
+  try{const x=JSON.parse(localStorage.getItem(BANK_STATS_PATCH_KEY)||"null");return x&&typeof x==="object"?x:{updatedAt:0,items:{}}}catch{return {updatedAt:0,items:{}}}
+}
+function saveBankStatPatchNow(itemOrId){
+  const id=typeof itemOrId==="string"?itemOrId:(itemOrId?.id||canonicalProblemId(itemOrId));
+  if(!id||!app.bank.stats?.[id])return;
+  const env=bankStatsPatchEnvelope();if(!env.items||typeof env.items!=="object")env.items={};
+  env.updatedAt=Number(app.bank.statsUpdatedAt)||Date.now();
+  env.items[id]={stat:JSON.parse(JSON.stringify(app.bank.stats[id])),updatedAt:env.updatedAt};
+  try{localStorage.setItem(BANK_STATS_PATCH_KEY,JSON.stringify(env))}catch(e){console.warn("bank stats patch save failed",e)}
+}
+function saveBankAdventureQuickNow(dirty=true){
+  try{localStorage.setItem(BANK_ADVENTURE_QUICK_KEY,JSON.stringify({adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt||Date.now(),dirty:!!dirty}))}
+  catch(e){console.warn("bank adventure quick save failed",e)}
+}
+function bankStatsDirtyRead(){
+  try{const x=JSON.parse(localStorage.getItem(BANK_STATS_DIRTY_KEY)||"null");return x&&typeof x==="object"?x:null}catch{return null}
+}
+function bankStatsMarkDirty(updatedAt=app.bank.statsUpdatedAt||Date.now()){
+  const prev=bankStatsDirtyRead(),at=Math.max(Number(prev?.updatedAt)||0,Number(updatedAt)||Date.now());
+  try{localStorage.setItem(BANK_STATS_DIRTY_KEY,JSON.stringify({updatedAt:at}))}catch(e){console.warn("bank stats dirty save failed",e)}
+  return at;
+}
+function bankStatsHasDirty(){
+  if(Number(bankStatsDirtyRead()?.updatedAt)||0)return true;
+  try{const p=JSON.parse(localStorage.getItem(BANK_STATS_PATCH_KEY)||"null");if(p?.items&&Object.keys(p.items).length)return true}catch{}
+  try{const a=JSON.parse(localStorage.getItem(BANK_ADVENTURE_QUICK_KEY)||"null");if(a?.dirty)return true}catch{}
+  return false;
+}
+function bankStatsClearDirtyIf(sentAt){
+  const cur=bankStatsDirtyRead();
+  if(!cur||Number(cur.updatedAt||0)<=Number(sentAt||0))try{localStorage.removeItem(BANK_STATS_DIRTY_KEY)}catch{}
+}`)
+    .replace('function markBankStatsCloud(){app.bank.statsUpdatedAt=Date.now();scheduleBankStatsQuickSave();scheduleBankStatsCloud()}',`function markBankStatsCloud(itemOrId=null){
+  app.bank.statsUpdatedAt=Date.now();
+  if(itemOrId)saveBankStatPatchNow(itemOrId);else saveBankStatsQuickNow();
+  bankStatsMarkDirty(app.bank.statsUpdatedAt);
+  scheduleBankStatsQuickSave();
+  scheduleBankStatsCloud();
+}`)
+    .replace('  markBankStatsCloud();\n}\nfunction clearWrong(item){const st=getStat(item);st.needsReview=false;markBankStatsCloud();renderQuiz()}',`  markBankStatsCloud(item);
+}
+function clearWrong(item){const st=getStat(item);st.needsReview=false;markBankStatsCloud(item);renderQuiz()}`)
+    .replace('qStar.onclick=()=>{st.flagged=!st.flagged;markBankStatsCloud();renderQuizQuestion()};','qStar.onclick=()=>{st.flagged=!st.flagged;markBankStatsCloud(item);renderQuizQuestion()};')
+    .replace('st.flagReason=v.trim();markBankStatsCloud();renderQuizQuestion()','st.flagReason=v.trim();markBankStatsCloud(item);renderQuizQuestion()')
+    .replace(`function scheduleBankStatsCloud(){
+  if(!cloudUser||applyingRemote)return;
+  clearTimeout(statsTimer);
+  // 폰/리더기에서는 연속 답변 사이의 대형 stats 문서 직렬화를 묶어서 처리한다.
+  const delay=window.matchMedia("(max-width:699px)").matches?1500:700;
+  statsTimer=setTimeout(async()=>{
+    try{await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt||Date.now()});updateSync("✓",true)}
+    catch(e){console.error(e);updateSync("!",false)}
+  },delay);
+}`,`function scheduleBankStatsCloud({immediate=false}={}){
+  if(applyingRemote)return;
+  if(!cloudUser){bankStatsMarkDirty(app.bank.statsUpdatedAt||Date.now());return}
+  clearTimeout(statsTimer);
+  const delay=immediate?0:(window.matchMedia("(max-width:699px)").matches?1500:700);
+  statsTimer=setTimeout(async()=>{
+    statsTimer=null;
+    if(!cloudUser||applyingRemote){bankStatsMarkDirty(app.bank.statsUpdatedAt||Date.now());return}
+    const sentAt=Number(app.bank.statsUpdatedAt)||Date.now();
+    const sentStats=JSON.parse(JSON.stringify(app.bank.stats||{}));
+    const sentAdventure=JSON.parse(JSON.stringify(app.ui.quizAdventure||{activeSheetId:"",configs:{}}));
+    bankStatsMarkDirty(sentAt);
+    try{
+      await setDoc(bankStatsDoc(cloudUser.uid),{stats:sentStats,adventure:sentAdventure,updatedAt:sentAt});
+      const currentAt=Number(app.bank.statsUpdatedAt)||0,dirtyAt=Number(bankStatsDirtyRead()?.updatedAt)||0;
+      if(currentAt<=sentAt&&dirtyAt<=sentAt){
+        saveBankStatsQuickNow();saveBankAdventureQuickNow(false);bankStatsClearDirtyIf(sentAt);updateSync("✓",true);
+      }else{
+        updateSync("…",true);scheduleBankStatsCloud({immediate:true});
+      }
+    }catch(e){
+      console.error(e);bankStatsMarkDirty(Math.max(sentAt,Number(app.bank.statsUpdatedAt)||0));updateSync("!",false)
+    }
+  },delay);
+}`)
+    .replace(`function markAdventureStructureDirty(){
+  adventureStructureDirty=true;
+  saveLocal();
+  if(bankStatsHydrated&&cloudUser&&!applyingRemote)flushAdventureStructureCloud();
+}`,`function markAdventureStructureDirty(){
+  adventureStructureDirty=true;
+  app.bank.statsUpdatedAt=Date.now();
+  saveBankAdventureQuickNow(true);bankStatsMarkDirty(app.bank.statsUpdatedAt);saveLocal();
+  if(bankStatsHydrated&&cloudUser&&!applyingRemote)flushAdventureStructureCloud();
+}`)
+    .replace(`function flushAdventureStructureCloud(){
+  if(!adventureStructureDirty||!bankStatsHydrated||!cloudUser||applyingRemote)return false;
+  adventureStructureDirty=false;
+  app.bank.statsUpdatedAt=Date.now();
+  saveLocal();
+  scheduleBankStatsCloud();
+  return true;
+}`,`function flushAdventureStructureCloud(){
+  if(!adventureStructureDirty||!bankStatsHydrated||!cloudUser||applyingRemote)return false;
+  adventureStructureDirty=false;
+  app.bank.statsUpdatedAt=Date.now();
+  saveBankAdventureQuickNow(true);bankStatsMarkDirty(app.bank.statsUpdatedAt);saveLocal();
+  scheduleBankStatsCloud();
+  return true;
+}`)
+    .replace(`function markAdventureCloud(){
+  app.bank.statsUpdatedAt=Date.now();
+  saveLocal();scheduleBankStatsCloud();
+}`,`function markAdventureCloud(){
+  app.bank.statsUpdatedAt=Date.now();
+  saveBankAdventureQuickNow(true);bankStatsMarkDirty(app.bank.statsUpdatedAt);saveLocal();scheduleBankStatsCloud();
+}`)
     .replace('function mergeCloudStudy(remote){\n  const localPlanner=app.study.planner;','function mergeCloudStudy(remote){\n  const localCurriculum=curriculumLocalRead();\n  const localPlanner=app.study.planner;')
     .replace('app.study=incoming;cleanup();\n  if(typeof invalidateCurriculumDerived==="function")invalidateCurriculumDerived();',`app.study=incoming;cleanup();
   if(localCurriculum?.curriculumPractice){const localCp=curriculumLocalMaterialize(localCurriculum);if(localCp)app.study.curriculumPractice=localCp}
@@ -134,7 +294,34 @@ function plannerMissionsForDayView(round,date){
     .replace('for(const r of p.rounds)for(const m of plannerMissionsForDate(r,date))missions.push([r,m]);','for(const r of p.rounds)for(const m of plannerMissionsForDayView(r,date))missions.push([r,m]);')
     .replace('const missions=plannerMissionsForDate(r,selected);','const missions=plannerMissionsForDayView(r,selected);')
     .replace('const missions=plannerMissionsForDate(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;','const missions=plannerMissionsForDayView(round,date);total+=missions.length;done+=missions.filter(m=>plannerMissionDone(round,m)).length;')
-    .replace('if(m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);','if(selected!==today&&m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);');
+    .replace('if(m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);','if(selected!==today&&m.date<today&&!plannerMissionExcluded(r,m)&&!plannerMissionDone(r,m))overdue.push([r,m]);')
+    .replace('const localStatsWereNewer=(app.bank.statsUpdatedAt||0)>remoteStatsAt;\n    if(stat.exists()){',`const localStatsWereNewer=(app.bank.statsUpdatedAt||0)>remoteStatsAt;
+    const localStatsDirty=bankStatsHasDirty();
+    if(localStatsDirty&&remoteStatsAt>=(app.bank.statsUpdatedAt||0)){
+      app.bank.statsUpdatedAt=Math.max(Date.now(),remoteStatsAt+1);bankStatsMarkDirty(app.bank.statsUpdatedAt);
+    }
+    if(stat.exists()){`)
+    .replace('if((d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){\n        app.bank.stats=d.stats||{};',`if(!localStatsDirty&&(d.updatedAt||0)>(app.bank.statsUpdatedAt||0)){
+        app.bank.stats=d.stats||{};`)
+    .replace('app.bank.statsUpdatedAt=d.updatedAt||0;saveBankStatsQuickNow();saveLocal();renderQuiz();','app.bank.statsUpdatedAt=d.updatedAt||0;saveBankStatsQuickNow();saveBankAdventureQuickNow(false);bankStatsClearDirtyIf(d.updatedAt||0);saveLocal();renderQuiz();')
+    .replace('if(!flushAdventureStructureCloud()&&(localStatsWereNewer||!stat.exists()))scheduleBankStatsCloud();','if(!flushAdventureStructureCloud()&&(localStatsDirty||localStatsWereNewer||!stat.exists()))scheduleBankStatsCloud({immediate:localStatsDirty});')
+    .replace('// 같은 기기에서 방금 보낸 stats snapshot(동일 timestamp)은 화면을 다시 그리지 않는다.\n      if((d.updatedAt||0)<=(app.bank.statsUpdatedAt||0))return;\n      applyingRemote=true;',`// 같은 기기에서 방금 보낸 stats snapshot(동일 timestamp)은 화면을 다시 그리지 않는다.
+      if((d.updatedAt||0)<=(app.bank.statsUpdatedAt||0))return;
+      if(bankStatsHasDirty()){scheduleBankStatsCloud({immediate:true});return}
+      applyingRemote=true;`)
+    .replace('app.bank.statsUpdatedAt=d.updatedAt||Date.now();saveBankStatsQuickNow();saveLocal();','app.bank.statsUpdatedAt=d.updatedAt||Date.now();saveBankStatsQuickNow();saveBankAdventureQuickNow(false);bankStatsClearDirtyIf(d.updatedAt||0);saveLocal();')
+    .replace('    },err=>console.error("bank stats realtime",err));\n\n    updateSync("✓",true);\n  }catch(e){',`    },err=>console.error("bank stats realtime",err));
+
+    if(bankStatsHasDirty()){updateSync("…",true);scheduleBankStatsCloud({immediate:true})}
+    else updateSync("✓",true);
+  }catch(e){`)
+    .replace('window.addEventListener("online",()=>{\n  if(!cloudUser)return;\n  plannerRetryDirtyMissionStates({wait:false});',`window.addEventListener("online",()=>{
+  if(!cloudUser)return;
+  if(bankStatsHasDirty())scheduleBankStatsCloud({immediate:true});
+  plannerRetryDirtyMissionStates({wait:false});`)
+    .replace('  // 폰을 다시 열었을 때 2분 타이머와 무관하게 미전송 완료 체크부터 즉시 재전송한다.\n  const dirty=plannerHasDirtyMissionState();',`  if(bankStatsHasDirty())scheduleBankStatsCloud({immediate:true});
+  // 폰을 다시 열었을 때 2분 타이머와 무관하게 미전송 완료 체크부터 즉시 재전송한다.
+  const dirty=plannerHasDirtyMissionState();`);
 
   html=html.includes("</head>")?html.replace("</head>",`${APP_STYLE}\n</head>`):APP_STYLE+html;
   const tags=HOTFIX_SRCS.map(src=>`<script src="${src}"></script>`).join("\n");
