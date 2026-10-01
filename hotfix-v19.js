@@ -42,7 +42,7 @@
 
 (()=>{
   "use strict";
-  const VERSION="2026-10-01-quiz-keymap-v2";
+  const VERSION="2026-10-01-quiz-keymap-v3";
   if(window.__studyJewQuizKeymap===VERSION)return;
   window.__studyJewQuizKeymap=VERSION;
 
@@ -62,6 +62,14 @@
     annotateQuizSet();
   }
 
+  function clickChoice(index){
+    const buttons=[...document.querySelectorAll("#quizView .choices .choice")].filter(b=>b.offsetParent!==null&&!b.disabled);
+    const target=buttons[index];
+    if(!target)return false;
+    target.click();
+    return true;
+  }
+
   window.addEventListener("keydown",e=>{
     if(typeof app==="undefined"||app?.ui?.workspace!=="bank"||app?.ui?.bankMode!=="quiz")return;
     const tag=document.activeElement?.tagName;
@@ -72,16 +80,14 @@
       if(next){e.preventDefault();e.stopImmediatePropagation();next.click();return}
     }
 
-    if(typeof quizSession==="undefined"||!quizSession)return;
-    if(quizSession.awaitingExplanation||quizSession.answered||quizSession.showAnswer||!Array.isArray(quizSession.choices))return;
-
     let choiceIndex=-1;
     if(e.key==="6"||e.code==="Digit6"||e.code==="Numpad6")choiceIndex=1;
     else if(e.key==="9"||e.code==="Digit9"||e.code==="Numpad9")choiceIndex=0;
     else return;
 
-    e.preventDefault();
-    e.stopImmediatePropagation();
-    if(typeof selectChoice==="function")selectChoice(choiceIndex);
+    if(clickChoice(choiceIndex)){
+      e.preventDefault();
+      e.stopImmediatePropagation();
+    }
   },true);
 })();
