@@ -1,0 +1,89 @@
+name: Apply clean quiz core patch
+on:
+  push:
+    branches: [cleanup-quiz-core]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cleanup-quiz-core
+      - name: Patch core and clean runtime files
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('edit.html'); s=p.read_text(encoding='utf-8')
+          old='''window.addEventListener("keydown",e=>{\n  if(app.ui.workspace!=="bank"||app.ui.bankMode!=="quiz"||!quizSession)return;\n  const tag=document.activeElement?.tagName;\n  if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;'''
+          new='''window.addEventListener("keydown",e=>{\n  if(app.ui.workspace!=="bank"||app.ui.bankMode!=="quiz")return;\n  const tag=document.activeElement?.tagName;\n  if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;\n  if(!quizSession){\n    if(app.ui.quizHomeMode==="path"&&(e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")){\n      const next=document.querySelector("#quizArea .path-node.current:not(:disabled)")||document.querySelector("#quizArea .path-node.in-progress:not(:disabled)");\n      if(next){e.preventDefault();e.stopPropagation();next.click()}\n    }\n    return;\n  }'''
+          if old not in s: raise SystemExit('quiz keydown header not found')
+          s=s.replace(old,new,1)
+          old='else if(e.key==="6")n=1;'; new='else if(e.key==="9")n=1;\n    else if(e.key==="6")n=2;'
+          if old not in s: raise SystemExit('key 6 mapping not found')
+          s=s.replace(old,new,1)
+          old='else if(e.code==="Digit6"||e.code==="Numpad6")n=1;'; new='else if(e.code==="Digit9"||e.code==="Numpad9")n=1;\n    else if(e.code==="Digit6"||e.code==="Numpad6")n=2;'
+          if old not in s: raise SystemExit('Digit6 mapping not found')
+          s=s.replace(old,new,1)
+          helper='''function quizSheetDisplayName(item){\n  const name=String(item?.sheetName||"");\n  const adv=quizSession?.adventure;\n  const setIndex=Number(adv?.setIndex);\n  if(!adv||adv.review||!Number.isInteger(setIndex)||setIndex<0)return name;\n  return `${name} · ${setIndex+1}세트`;\n}\n'''
+          anchor='function renderQuizMemoScreen(area,item){'
+          if 'function quizSheetDisplayName(item)' not in s:
+              if anchor not in s: raise SystemExit('memo render anchor missing')
+              s=s.replace(anchor,helper+anchor,1)
+          target='sheetMeta.textContent=item.sheetName||"";'
+          if s.count(target)<2: raise SystemExit('sheet label render missing')
+          s=s.replace(target,'sheetMeta.textContent=quizSheetDisplayName(item);')
+          p.write_text(s,encoding='utf-8')
+
+          hp=Path('hotfix-v19.js'); h=hp.read_text(encoding='utf-8'); marker='const VERSION="2026-10-01-quiz-keymap-v2";'
+          if marker in h:
+              pos=h.index(marker); start=h.rfind('(()=>{',0,pos)
+              if start<0: raise SystemExit('temporary quiz hotfix start missing')
+              h=h[:start].rstrip()+'\n'
+          hp.write_text(h,encoding='utf-8')
+
+          runtime=Path('runtime'); runtime.mkdir(exist_ok=True)
+          moves={'hotfix-v6.js':'curriculum-blanks.js','hotfix-v9.js':'curriculum-enter.js','hotfix-v11.js':'curriculum-notes.js','hotfix-v19.js':'curriculum-ui.js'}
+          for src,dst in moves.items():
+              sp=Path(src)
+              if not sp.exists(): raise SystemExit(f'{src} missing')
+              (runtime/dst).write_text(sp.read_text(encoding='utf-8'),encoding='utf-8'); sp.unlink()
+
+          sw=Path('sw.js'); w=sw.read_text(encoding='utf-8')
+          lines=[]
+          for line in w.splitlines(True):
+              if '.replace(/else if\\(e\\.key===' in line: continue
+              if '.replace(/else if\\(e\\.code===' in line: continue
+              lines.append(line)
+          w=''.join(lines)
+          w=re.sub(r'const HOTFIX_SRCS=\[.*?\];','''const HOTFIX_SRCS=[\n  "./runtime/curriculum-blanks.js?v=20261001-1",\n  "./runtime/curriculum-enter.js?v=20261001-1",\n  "./runtime/curriculum-notes.js?v=20261001-1",\n  "./runtime/curriculum-ui.js?v=20261001-1"\n];''',w,count=1,flags=re.S)
+          w=re.sub(r'const CACHE_NAME="[^"]+";','const CACHE_NAME="study-jew-pwa-v33-core-quiz";',w,count=1)
+          sw.write_text(w,encoding='utf-8')
+          Path('.github/workflows/clean-quiz-core.yml').unlink(missing_ok=True)
+      - name: Verify patch
+        shell: python
+        run: |
+          from pathlib import Path
+          s=Path('edit.html').read_text(encoding='utf-8'); w=Path('sw.js').read_text(encoding='utf-8')
+          assert 'else if(e.key==="9")n=1;' in s
+          assert 'else if(e.key==="6")n=2;' in s
+          assert 'else if(e.code==="Digit9"||e.code==="Numpad9")n=1;' in s
+          assert 'else if(e.code==="Digit6"||e.code==="Numpad6")n=2;' in s
+          assert 'function quizSheetDisplayName(item)' in s
+          assert s.count('sheetMeta.textContent=quizSheetDisplayName(item);')>=2
+          assert '#quizArea .path-node.current:not(:disabled)' in s
+          assert 'quiz-keymap-v2' not in Path('runtime/curriculum-ui.js').read_text(encoding='utf-8')
+          assert 'runtime/curriculum-ui.js' in w
+          assert '.replace(/else if\\(e\\.key===' not in w
+          assert '.replace(/else if\\(e\\.code===' not in w
+          for f in ['hotfix-v6.js','hotfix-v9.js','hotfix-v11.js','hotfix-v19.js']: assert not Path(f).exists()
+      - name: Commit clean core patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Move quiz controls into core and organize runtime patches"
+          git push origin cleanup-quiz-core
