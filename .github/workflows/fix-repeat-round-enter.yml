@@ -2,12 +2,11 @@ name: Fix repeat round Enter
 on:
   push:
     branches: [main]
-    paths: ['.github/workflows/fix-repeat-round-enter.yml']
 permissions:
   contents: write
 jobs:
   patch:
-    if: github.actor != 'github-actions[bot]'
+    if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,16 +15,16 @@ jobs:
         run: |
           from pathlib import Path
           import re
-          p=Path('edit.html')
-          s=p.read_text(encoding='utf-8')
-          old='''  if(!quizSession){
+          p = Path('edit.html')
+          s = p.read_text(encoding='utf-8')
+          old = '''  if(!quizSession){
     if(app.ui.quizHomeMode==="path"&&(e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")){
       const next=document.querySelector("#quizArea .path-node.current:not(:disabled)")||document.querySelector("#quizArea .path-node.in-progress:not(:disabled)");
       if(next){e.preventDefault();e.stopPropagation();next.click()}
     }
     return;
   }'''
-          new='''  if(!quizSession){
+          new = '''  if(!quizSession){
     if(app.ui.quizHomeMode==="path"&&(e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")){
       const sheetId=adventureStore().activeSheetId||"";
       const round=activeProgressRound();
@@ -44,22 +43,22 @@ jobs:
     }
     return;
   }'''
-          if old not in s: raise SystemExit('Enter handler anchor missing')
-          s=s.replace(old,new,1)
-          p.write_text(s,encoding='utf-8')
-          sw=Path('sw.js')
-          w=sw.read_text(encoding='utf-8')
-          w=re.sub(r'const CACHE_NAME="[^"]+";','const CACHE_NAME="study-jew-pwa-v36-repeat-round-enter";',w,count=1)
-          sw.write_text(w,encoding='utf-8')
+          if old not in s:
+              raise SystemExit('Enter handler anchor missing')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          sw = Path('sw.js')
+          w = sw.read_text(encoding='utf-8')
+          w = re.sub(r'const CACHE_NAME="[^"]+";', 'const CACHE_NAME="study-jew-pwa-v36-repeat-round-enter";', w, count=1)
+          sw.write_text(w, encoding='utf-8')
           Path('.github/workflows/fix-repeat-round-enter.yml').unlink(missing_ok=True)
       - name: Verify
         shell: python
         run: |
           from pathlib import Path
-          s=Path('edit.html').read_text(encoding='utf-8')
+          s = Path('edit.html').read_text(encoding='utf-8')
           assert 'const nextMission=missions.find(m=>!plannerMissionDone(round,m));' in s
           assert 'startAdventureRoundMission(round,nextMission);return;' in s
-          assert 'path-node.current:not(:disabled)' in s
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
