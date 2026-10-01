@@ -1,0 +1,113 @@
+name: Fix mobile progress round picker
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/fix-mobile-progress-round-picker.yml']
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch mobile progress UI
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('edit.html')
+          s=p.read_text(encoding='utf-8')
+
+          old='''  return useCompactMissionPanel()?(current||unfinished||selected||latest||null):(selected||current||unfinished||latest||null);'''
+          new='''  return useCompactMissionPanel()?(selected||current||unfinished||latest||null):(selected||current||unfinished||latest||null);'''
+          if old not in s: raise SystemExit('progress round priority target missing')
+          s=s.replace(old,new,1)
+
+          old='''  if(mobileMissionMode==="progress"){
+    if(title)title.textContent="진도";
+    nav?.classList.add("hidden");
+    label.textContent="";label.title="";
+    renderWidePlannerProgress(list,count);
+    updatePlannerQuickButton();
+    return;
+  }'''
+          new='''  if(mobileMissionMode==="progress"){
+    if(title)title.textContent="진도";
+    nav?.classList.add("hidden");
+    label.textContent="";label.title="";
+    const rounds=[...plannerStore().rounds].sort((a,b)=>String(b.start||"").localeCompare(String(a.start||""))||(b.createdAt||0)-(a.createdAt||0));
+    const active=widePlannerProgressRound();
+    if(rounds.length>1){
+      const picker=document.createElement("div");picker.className="mobile-progress-round-picker";
+      const sel=document.createElement("select");sel.setAttribute("aria-label","진도 회독 선택");
+      for(const r of rounds){
+        const o=document.createElement("option");o.value=r.id;
+        const prog=plannerRoundProgress(r);o.textContent=`${r.name} · ${prog.done}/${prog.total}`;
+        sel.append(o);
+      }
+      if(active&&[...sel.options].some(o=>o.value===active.id))sel.value=active.id;
+      sel.onchange=()=>{app.ui.activePlannerRoundId=sel.value;saveLocal();renderMobileMissionSheet()};
+      picker.append(sel);list.append(picker);
+    }
+    renderWidePlannerProgress(list,count);
+    updatePlannerQuickButton();
+    return;
+  }'''
+          if old not in s: raise SystemExit('mobile progress render target missing')
+          s=s.replace(old,new,1)
+
+          old='''  rows.forEach(({sheet,order,prog})=>{
+    const row=document.createElement("button");row.type="button";row.className="wide-progress-row";
+    if(prog.done>=prog.total)row.classList.add("done");
+    if(adventureStore().activeSheetId===sheet.id&&app.ui.workspace==="bank"&&app.ui.quizHomeMode==="path")row.classList.add("current");'''
+          new='''  const currentSheetId=adventureStore().activeSheetId||"";
+  rows.forEach(({sheet,order,prog})=>{
+    const row=document.createElement("button");row.type="button";row.className="wide-progress-row";
+    if(prog.done>=prog.total)row.classList.add("done");
+    if(currentSheetId===sheet.id)row.classList.add("current");'''
+          if old not in s: raise SystemExit('progress row current target missing')
+          s=s.replace(old,new,1)
+
+          old='''    row.onclick=()=>widePlannerWarpProgress(round,sheet.id,order);
+    list.append(row);
+  });
+}'''
+          new='''    row.onclick=()=>widePlannerWarpProgress(round,sheet.id,order);
+    list.append(row);
+  });
+  if(list.id==="mobileMissionList"&&currentSheetId){
+    requestAnimationFrame(()=>list.querySelector(".wide-progress-row.current")?.scrollIntoView({block:"center",behavior:"auto"}));
+  }
+}'''
+          if old not in s: raise SystemExit('progress loop end target missing')
+          s=s.replace(old,new,1)
+
+          style_anchor='''@media(max-width:640px){'''
+          css='''.mobile-progress-round-picker{position:sticky;top:0;z-index:2;background:#fff;padding:4px 0 8px}.mobile-progress-round-picker select{width:100%;border:1px solid var(--line);background:#fff;border-radius:10px;padding:9px 10px;font-size:13px;font-weight:650}\n'''
+          if css.strip() not in s:
+            if style_anchor not in s: raise SystemExit('mobile css anchor missing')
+            s=s.replace(style_anchor,style_anchor+'\n  '+css,1)
+          p.write_text(s,encoding='utf-8')
+
+          sw=Path('sw.js');w=sw.read_text(encoding='utf-8')
+          w=re.sub(r'const CACHE_NAME="[^"]+";','const CACHE_NAME="study-jew-pwa-v35-mobile-progress-picker";',w,count=1)
+          sw.write_text(w,encoding='utf-8')
+          Path('.github/workflows/fix-mobile-progress-round-picker.yml').unlink(missing_ok=True)
+      - name: Verify
+        shell: python
+        run: |
+          from pathlib import Path
+          s=Path('edit.html').read_text(encoding='utf-8')
+          assert 'useCompactMissionPanel()?(selected||current||unfinished||latest||null)' in s
+          assert 'mobile-progress-round-picker' in s
+          assert '진도 회독 선택' in s
+          assert 'const currentSheetId=adventureStore().activeSheetId||"";' in s
+          assert 'scrollIntoView({block:"center",behavior:"auto"})' in s
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Improve mobile progress round selection"
+          git push origin main
