@@ -153,7 +153,7 @@ td input:focus,td textarea:focus{background:#f7f7f9}
 .empty{height:20px}
 
 /* tablet */
-@media(min-width:641px) and (max-width:1100px){
+@media(orientation:landscape) and (max-width:1100px){
   main{max-width:none;padding:8px 8px 38px}
   .navline{padding:6px 8px}
   .chip{padding:6px 10px}
@@ -164,7 +164,7 @@ td input:focus,td textarea:focus{background:#f7f7f9}
   .section-title{padding-top:5px}
 }
 /* phone */
-@media(max-width:640px){
+@media (orientation:portrait){
   main{padding:8px 7px 74px}
   .navline{padding:6px 7px}
   .chip{padding:6px 9px}
@@ -213,7 +213,7 @@ td input:focus,td textarea:focus{background:#f7f7f9}
 .quiz-inline-edit input,.quiz-inline-edit textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}
 .quiz-inline-edit textarea{min-height:70px;resize:vertical}
 .mini-note{font-size:11px;color:var(--sub)}
-@media(max-width:640px){
+@media (orientation:portrait){
   .workspace-btn{padding:6px 10px}
   .bank-edit-table,.bank-edit-table tbody,.bank-edit-table tr,.bank-edit-table td{display:block;width:100%}
   .bank-edit-table thead{display:none}
@@ -233,7 +233,7 @@ td input:focus,td textarea:focus{background:#f7f7f9}
 .quiz-running #bankControlsWrap{display:none!important}
 .quiz-running #bankEditBtn{display:none}
 .header-toggle{border:0;background:var(--card);border-radius:9px;padding:6px 8px;font-size:11px;color:#666;white-space:nowrap}
-@media(max-width:640px){.summary-btn{font-size:12px}.header-toggle{padding:5px 7px}}
+@media (orientation:portrait){.summary-btn{font-size:12px}.header-toggle{padding:5px 7px}}
 
 
 /* 문제풀이 가독성 */
@@ -300,13 +300,13 @@ td input:focus,td textarea:focus{background:#f7f7f9}
 .quiz-answer{font-size:16px;padding:12px 13px}
 .write-answer{font-size:15px;line-height:1.6;padding:12px 13px}
 .answer-panel{font-size:14px;line-height:1.65;padding:12px 13px}
-@media(min-width:641px) and (max-width:1100px){
+@media(orientation:landscape) and (max-width:1100px){
   #quizArea{max-width:900px}
   .question-card{padding:17px 18px}
   .question{font-size:19px;line-height:1.62;padding:13px 14px;margin-bottom:15px}
   .choice{font-size:15px;padding:11px 12px}
 }
-@media(max-width:640px){
+@media (orientation:portrait){
   #quizArea{max-width:none}
   .question-card{padding:13px 12px}
   .question{font-size:17px;line-height:1.62;padding:12px 11px;margin:3px 0 13px}
@@ -352,7 +352,7 @@ body{font-weight:400;letter-spacing:-.01em}
 .bank-edit-table td{vertical-align:top}
 .bank-question{font-weight:500}
 .bank-answer{font-weight:500}
-@media(max-width:640px){
+@media (orientation:portrait){
   .bank-edit-table textarea{font-size:14px;line-height:1.55}
 }
 
@@ -403,13 +403,13 @@ body{font-weight:400;letter-spacing:-.01em}
 }
 #studyView .section-title{padding:4px 2px 2px}
 #studyView .section-study-head{margin-top:2px}
-@media(min-width:641px) and (max-width:1100px){
+@media(orientation:landscape) and (max-width:1100px){
   #studyView .card{padding:5px 7px}
   #studyView .answer{padding:5px 7px;min-height:30px}
   #studyView .answer-action{padding:5px 6px;min-height:30px}
   #studyView .clear-answer{height:30px;min-height:30px}
 }
-@media(max-width:640px){
+@media (orientation:portrait){
   #studyView .answer-line{
     display:grid;
     grid-template-columns:minmax(0,1fr) auto auto 30px;
@@ -506,7 +506,7 @@ body.quiz-running #bankToolbar,.quiz-running #bankModebar,.quiz-running .workspa
 .bank-toolbar-row{gap:6px!important}
 .bank-toolbar-row select{min-width:0}
 .account-menu{font-size:12px}
-@media(max-width:640px){
+@media (orientation:portrait){
   .quiz-setup-panel{padding:8px}
   .area-checks{gap:7px 10px}
   .compact-options{display:grid;grid-template-columns:1fr 1fr}
@@ -521,7 +521,7 @@ body.quiz-running #bankToolbar,.quiz-running #bankModebar,.quiz-running .workspa
 #bankControlsWrap{max-width:760px;margin:0 auto}
 #bankToolbar{border:0!important;background:transparent!important}
 .study-head{border-bottom-color:#f0f0f2!important}
-@media(max-width:640px){
+@media (orientation:portrait){
   #quizView{padding-left:6px!important;padding-right:6px!important}
   .quiz-setup-summary{padding-left:6px;padding-right:6px}
 }
@@ -623,7 +623,7 @@ header{box-shadow:none!important;border-bottom:1px solid #ededf0!important}
 .menu button{font-size:12px}
 #subjects,#sheets{scrollbar-width:none}
 
-@media(max-width:640px){
+@media (orientation:portrait){
   header{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.97);backdrop-filter:blur(10px)}
   .navline{padding:5px 7px!important}
   #memoryHeader .navline{align-items:flex-start}
@@ -652,7 +652,7 @@ header{box-shadow:none!important;border-bottom:1px solid #ededf0!important}
 }
 
 
-@media(max-width:640px){
+@media (orientation:portrait){
   body.quiz-running main{padding-bottom:64px!important}
   body.quiz-running .quiz-actions{
     position:sticky;bottom:0;z-index:25;
@@ -664,7 +664,7 @@ header{box-shadow:none!important;border-bottom:1px solid #ededf0!important}
 }
 
 
-@media(max-width:640px){
+@media (orientation:portrait){
   #studyView .study-head .sheet-title{display:none}
   #studyView .study-head{justify-content:flex-end}
 }
@@ -697,7 +697,7 @@ header{box-shadow:none!important;border-bottom:1px solid #ededf0!important}
   padding-left:6px;
   padding-right:6px;
 }
-@media(max-width:640px){
+@media (orientation:portrait){
   #studyView{
     margin-left:0!important;
     margin-right:0!important;
@@ -949,7 +949,7 @@ main{background:#fff}
 }
 
 /* phone */
-@media(max-width:640px){
+@media (orientation:portrait){
   main{padding:4px 6px 24px!important}
   #studyView{padding-left:6px!important;padding-right:6px!important}
   .memory-toolbar{margin-left:2px!important;margin-right:2px!important}
@@ -965,7 +965,7 @@ main{background:#fff}
 
 
 /* final corrections */
-@media(max-width:640px){
+@media (orientation:portrait){
   #editView th:nth-child(1),#editView td:nth-child(1){width:23%!important}
   #editView th:nth-child(2),#editView td:nth-child(2){width:49%!important}
   #editView th:nth-child(3),#editView td:nth-child(3){width:20%!important}
@@ -1015,7 +1015,7 @@ body[data-study-density="normal"] .study-row{padding-top:8px!important;padding-b
 body[data-study-density="normal"] .section-study-head{margin-top:14px!important;margin-bottom:4px!important}
 body[data-study-density="normal"] .answer-line{gap:4px!important}
 
-@media(max-width:640px){
+@media (orientation:portrait){
   .settings-modal{max-height:88dvh;overflow:auto}
 }
 
@@ -1122,7 +1122,7 @@ main{
   min-width:0!important;
   height:32px!important;min-height:32px!important;max-height:32px!important;
 }
-@media(max-width:640px){
+@media (orientation:portrait){
   main{
     padding-left:12px!important;
     padding-right:12px!important;
@@ -1326,7 +1326,7 @@ main{
 .quiz-actions button{min-height:calc(var(--quiz-choice-h) * .74)!important}
 
 /* tablet: use its width instead of showing a phone-sized column */
-@media (min-width:641px) and (max-width:1024px){
+@media (orientation:landscape) and (max-width:1024px){
   main{padding:18px 24px 56px!important}
   #memoryModebar,#studyView,#editView{max-width:940px!important}
   #quizView,#bankEditView{max-width:980px!important}
@@ -1338,7 +1338,7 @@ main{
 }
 
 /* phone: no horizontal squeeze; editor stacks and memo becomes full width */
-@media(max-width:640px){
+@media (orientation:portrait){
   main{padding:10px 12px 74px!important}
   #memoryModebar,#studyView,#editView,#quizView,#bankEditView{max-width:none!important}
   .answer-line,.answer-line:not(:has(.memo-inline)){
@@ -1442,7 +1442,7 @@ main{
 }
 
 /* tablet / desktop: keep only page-edge breathing room, not a centered narrow column */
-@media (min-width:641px){
+@media (orientation:landscape){
   main{
     padding-left:22px!important;
     padding-right:22px!important;
@@ -1512,7 +1512,7 @@ main{
 .slot-overwrite-choice strong{font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .slot-overwrite-choice span{font-size:9.5px;color:#888}
 .slot-overwrite-choice em{grid-row:1/3;grid-column:2;font-style:normal;font-size:9px;color:#555;align-self:center}
-@media(max-width:640px){
+@media (orientation:portrait){
   .resume-list{margin:10px 0 5px}
   .resume-subject-group{grid-template-columns:58px minmax(0,1fr);gap:5px}
   .resume-slot-main{display:grid;gap:2px;padding:7px}
@@ -1654,7 +1654,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 /* 진짜 좁은 화면에서만 편집 폼을 카드형으로 전환한다.
    iPad Split View/좁은 데스크톱은 태블릿 레이아웃을 유지한다. */
-@media (max-width:640px){
+@media (orientation:portrait){
   main{
     padding-left:10px!important;
     padding-right:10px!important;
@@ -1916,7 +1916,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .path-sheet-pill-progress i{display:block;height:100%;background:#65a878}
 .path-sheet-pill.done{border-color:#9fc6aa;background:#f4faf6}
 .path-sheet-pill.active-progress{box-shadow:inset 0 0 0 1px #b8a9d7!important}
-@media(max-width:640px){
+@media (orientation:portrait){
   .path-subject-row{grid-template-columns:50px minmax(0,1fr);gap:6px}
   .path-subject-name{font-size:10.5px}
   .path-sheet-pill{width:88px;min-height:42px;padding:6px 7px 9px}
@@ -1934,7 +1934,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .sheet-song-toolbar .study-song-hint{
   max-width:100%!important;font-size:9.5px!important;padding:3px 2px!important
 }
-@media(max-width:640px){
+@media (orientation:portrait){
   .sheet-song-toolbar{max-width:34vw;margin-left:2px;padding-left:4px}
   .sheet-song-toolbar .study-song-hint{font-size:9px!important}
 }
@@ -1959,7 +1959,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 
 
 
-@media(max-width:640px){
+@media (orientation:portrait){
   #songMapView .more,
   #songMapView .song-more,
   #songMapView button[aria-label*="메뉴"]{
@@ -1973,7 +1973,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 
 
 /* 폰: 접힌 상태에서도 같은 과목의 시트 줄만 남김 */
-@media(max-width:640px){
+@media (orientation:portrait){
   #memoryHeader.collapsed:not(.hidden){
     display:block!important
   }
@@ -2014,7 +2014,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 }
 
 
-@media(max-width:640px){
+@media (orientation:portrait){
   #songMapView .song-card .more,
   #songMapView .song-card button:last-child,
   #songMapView .song-card-actions button,
@@ -2026,7 +2026,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 
 
 /* 폰 편집: 카테고리·정답·메모 입력칸은 가로폭 끝까지 */
-@media(max-width:640px){
+@media (orientation:portrait){
   #editView tr:not(.section-row){
     padding-left:7px!important;
     padding-right:7px!important;
@@ -2137,7 +2137,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   min-height:auto!important;font-size:10px!important;color:#777980!important
 }
 #typingPracticeBtn.active{font-weight:700}
-@media(max-width:640px){
+@media (orientation:portrait){
   .typing-record-bar{gap:4px}
   .typing-record-main{font-size:9px;gap:4px}
   .typing-record-main strong{font-size:10px}
@@ -2217,7 +2217,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .planner-btn{font-size:11px!important;line-height:1!important;padding:5px 6px!important;min-width:auto!important}
 .planner-today-title strong{font-size:13px!important;line-height:1.2}
 
-@media(max-width:640px){
+@media (orientation:portrait){
   #plannerView{padding-left:3px;padding-right:3px}
   .planner-day{min-height:48px;padding:3px}
   .planner-day-meta{font-size:8px}
@@ -2255,7 +2255,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .planner-sync-status{font-size:9.5px!important;color:#777980!important;white-space:nowrap}
 .planner-sync-status[data-state="live"]{color:#4d6b58!important}
 .planner-sync-status[data-state="error"]{color:#a65b55!important}
-@media(max-width:640px){.planner-sync-status{font-size:9px!important;max-width:150px;overflow:hidden;text-overflow:ellipsis}}
+@media (orientation:portrait){.planner-sync-status{font-size:9px!important;max-width:150px;overflow:hidden;text-overflow:ellipsis}}
 </style>
 <style>
 .planner-sync-status{font-size:9.5px!important;color:#73757a!important;white-space:nowrap}
@@ -2275,7 +2275,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .planner-excluded-row span{flex:1;min-width:0}
 .planner-excluded-row button{font-size:10px;padding:3px 6px}
 .planner-overdue-date{display:block!important;color:#999!important;font-size:9px!important;margin-bottom:2px}
-@media(max-width:640px){
+@media (orientation:portrait){
   .planner-v7-overview-row{font-size:11px}
   .planner-v7-overview-row small{font-size:9px}
   .planner-sync-status{font-size:9px!important;max-width:145px;overflow:hidden;text-overflow:ellipsis}
@@ -2558,7 +2558,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   padding:6px 9px!important;font-size:10px!important;color:#55565b!important
 }
 .planner-preset-manage-hint{font-size:8.8px;color:#929399;margin-top:4px}
-@media(max-width:640px){
+@media (orientation:portrait){
   .round-preset-modal{width:calc(100vw - 12px);max-height:91vh;border-radius:14px}
   .round-preset-head{padding:11px 11px 7px}
   .round-preset-top{padding:8px 11px 5px}
@@ -2658,7 +2658,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 </style>
 <style>
 /* 진짜 폰 폭에서만 미션 UI를 압축 */
-@media(max-width:640px){
+@media (orientation:portrait){
   #plannerQuickBtn{
     min-width:34px!important;max-width:48px!important;
     padding:5px 5px!important;font-size:10.5px!important;font-weight:700!important;
@@ -2949,7 +2949,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
   margin-top:auto;padding:9px 2px 2px;border-top:1px solid #eeeeef;
   text-align:center;font-size:10px;color:#96979d
 }
-@media(max-width:640px){
+@media (orientation:portrait){
   .quiz-memo-focus-text{padding-top:18px;font-size:var(--quiz-font-size)}
 }
 </style>
@@ -2975,7 +2975,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .path-sheet-pill.out-of-round,.path-node-row.out-of-round{opacity:.42}
 .mobile-mission-backdrop{display:none}
 body.mobile-mission-open{overflow:hidden}
-@media(max-width:899px), (orientation:portrait) and (max-width:1024px){
+@media (orientation:portrait){
   .typing-float-badge{display:none!important}
   .mobile-mission-backdrop:not(.hidden){
     display:flex;position:fixed;inset:0;z-index:5000;align-items:flex-end;
@@ -3008,7 +3008,7 @@ body.mobile-mission-open{overflow:hidden}
   color:#66676d!important;font-size:9.5px!important;font-weight:650!important;white-space:nowrap
 }
 .wide-planner-full:active{background:#f1f1f3!important}
-@media (min-width:900px) and (min-height:600px) and (orientation:landscape){
+@media (orientation:landscape){
   body.wide-planner-eligible main{
     padding-right:calc(clamp(230px,30vw,340px) + 26px)!important;
   }
@@ -3076,7 +3076,7 @@ body.mobile-mission-open{overflow:hidden}
 <style>
 /* 2026-09 phone typing + planner form stability */
 .typing-practice-row{content-visibility:visible!important;contain:none!important}
-@media(max-width:640px){
+@media (orientation:portrait){
   .typing-record-bar{position:static!important;top:auto!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
 }
 .planner-round-form:focus-within{outline:1px solid #ededf0;outline-offset:3px}
@@ -3093,7 +3093,7 @@ body.mobile-mission-open{overflow:hidden}
 .settings-data-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
 .settings-data-row button{border:1px solid #dedee1;background:#fff;border-radius:7px;padding:8px 9px;font-size:11px}
 .planner-task.round-wrong .planner-task-text>span{font-weight:750}
-@media(max-width:640px){.quiz-history-card{min-height:calc(100dvh - 84px)!important}}
+@media (orientation:portrait){.quiz-history-card{min-height:calc(100dvh - 84px)!important}}
 </style>
 
 <style>
@@ -3127,7 +3127,7 @@ body.mobile-mission-open{overflow:hidden}
 .version-history-info strong{font-size:11.5px}
 .version-history-info small{font-size:9px;color:#8a8b90}
 .version-history-note{font-size:9.5px;color:#7f8085;line-height:1.45;padding:7px 2px 2px}
-@media(max-width:640px){
+@media (orientation:portrait){
   .bulk-update-modal{padding:10px!important;max-height:92dvh}
   .bulk-update-table-wrap{margin-left:-2px;margin-right:-2px}
 }
@@ -3285,11 +3285,11 @@ body.mobile-mission-open{overflow:hidden}
 .thumb-keypad.collapsed{width:110px!important;height:42px!important;right:auto!important;bottom:auto!important}
 .thumb-keypad.collapsed .thumb-keypad-head,.thumb-keypad.collapsed .thumb-keypad-stage{display:none}
 .thumb-keypad.collapsed .thumb-keypad-tab{display:block}
-@media(max-width:699px){.thumb-keypad{display:none!important}}
+@media(orientation:portrait){.thumb-keypad{display:none!important}}
 </style>
 <style>
 /* 2026-09-09 오른쪽 보조패널: 진도 워프 + 빈 탭 */
-@media (min-width:700px) and (min-height:600px){
+@media (orientation:landscape){
   .wide-planner-tabs button{padding-left:6px!important;padding-right:6px!important}
   .wide-planner-tabs .wide-planner-blank-tab{width:24px!important;min-width:24px!important;padding:0!important}
   .wide-planner-head>span{max-width:54px!important;overflow:hidden!important;text-overflow:ellipsis!important}
@@ -3332,14 +3332,14 @@ body.mobile-mission-open{overflow:hidden}
 .mobile-mission-list .wide-progress-track{display:block;height:4px;margin-top:7px;background:#ececef;border-radius:999px;overflow:hidden}
 .mobile-mission-list .wide-progress-track i{display:block;height:100%;background:#777980;border-radius:999px}
 .mobile-mission-list .wide-progress-row.current .wide-progress-track i{background:#4f7a61}
-@media(max-width:699px), (monochrome){
+@media(orientation:portrait), (monochrome){
   header,.quiz-actions{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
   .song-jump-flash{animation:none!important}
 }
 </style>
 
 <style id="phone-performance-fix-style">
-@media(max-width:699px){
+@media(orientation:portrait){
   .mobile-mission-more{
     display:block;width:100%;min-height:38px;margin:6px 0 10px;border:1px solid #e1e1e4;border-radius:7px;
     background:#f7f7f8;color:#55565b;font-size:11px;font-weight:650
@@ -3409,7 +3409,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-source-editor-actions button{border:1px solid #d9d9dd;background:#fff;border-radius:6px;padding:7px 9px;font-size:10.5px;color:#4f5055}
 .curriculum-edit-help{font-size:9.5px;color:#85868c;line-height:1.5;margin-top:5px}
 .curriculum-loading{padding:36px 12px;text-align:center;color:#77787e;font-size:12px}
-@media(max-width:640px){
+@media (orientation:portrait){
   #curriculumModebar{gap:4px;margin-bottom:2px!important}
   #curriculumModebar select{flex:1 1 120px;max-width:none;font-size:11px}
   #curriculumModebar button{padding:5px 7px}
@@ -3441,7 +3441,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-selection-row button:disabled{opacity:.42}
 .curriculum-edit-panel{position:sticky;bottom:6px;z-index:18;background:rgba(250,250,250,.97)!important;backdrop-filter:none!important}
 .curriculum-blank-chips{max-height:92px;overflow:auto}
-@media(max-width:640px){
+@media (orientation:portrait){
   .curriculum-passage{font-size:var(--curriculum-font-size,16px)!important;line-height:2.05!important;padding:12px 1px 14px!important}
   .curriculum-passage.editing{padding:13px 10px!important}
   .curriculum-selection-row{grid-template-columns:1fr}
@@ -3469,7 +3469,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-bookmark-jump strong{display:block;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .curriculum-bookmark-jump span{display:block;margin-top:2px;font-size:9px;color:#8a8b90;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .curriculum-bookmark-row>button:not(.curriculum-bookmark-jump){border:1px solid #e0e0e3;background:#fff;border-radius:6px;padding:5px 7px;font-size:10px;color:#67686e}
-@media(max-width:699px){.curriculum-bookmark-panel{right:max(8px,env(safe-area-inset-right));bottom:62px;width:min(340px,calc(100vw - 16px));max-height:54vh}}
+@media(orientation:portrait){.curriculum-bookmark-panel{right:max(8px,env(safe-area-inset-right));bottom:62px;width:min(340px,calc(100vw - 16px));max-height:54vh}}
 @media(monochrome){.curriculum-bookmark-btn.active{background:#111!important;color:#fff!important}.curriculum-bookmark-panel{box-shadow:none!important;border:1px solid #111!important}}
 
 /* Apple Pencil 형광펜 + 스크롤 중에도 바로 전환할 수 있는 책자형 도구 */
@@ -3487,7 +3487,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-float-tools .curriculum-float-source.hidden{display:none!important}
 .curriculum-float-tools.side-docked{display:none!important}
 .curriculum-float-hint{font-size:9.5px;color:#74757b;padding:0 4px;white-space:nowrap}
-@media(max-width:640px){
+@media (orientation:portrait){
   .curriculum-float-tools{right:max(8px,env(safe-area-inset-right));bottom:max(8px,env(safe-area-inset-bottom));padding:4px;gap:3px}
   .curriculum-float-tools button{min-height:40px;padding:7px 9px;font-size:11px}
   .curriculum-float-hint{display:none}
@@ -3543,7 +3543,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-outline-row{display:block;width:100%;border:0;border-bottom:1px solid #f1f1f3;background:transparent;text-align:left;padding:7px 7px 7px calc(7px + var(--outline-indent,0px));color:#3f4045;font-size:10.5px;line-height:1.45}
 .curriculum-outline-row:last-child{border-bottom:0}.curriculum-outline-row.current{background:#f4f4f6;font-weight:750}.curriculum-outline-row .ol-sub{display:block;margin-top:2px;font-size:8.5px;color:#9a9ba0}
 .curriculum-outline-empty{padding:18px 8px;text-align:center;font-size:10.5px;color:#88898e}
-@media(max-width:699px){
+@media(orientation:portrait){
   .curriculum-context{top:47px;padding:6px 7px;grid-template-columns:minmax(0,1fr) auto}
   .curriculum-context-path{gap:3px}.curriculum-context-crumb{font-size:9.8px}.curriculum-context-crumb b{display:none}.curriculum-context-subject{font-size:9px;padding:2px 5px}
   .curriculum-context-actions button{min-height:34px;padding:5px 7px;font-size:10px}
@@ -3613,7 +3613,7 @@ body.mobile-mission-open{overflow:hidden}
 @media(monochrome){.curriculum-table-tools{background:#fff!important;border-color:#111!important}.curriculum-table-tools button{border-color:#111!important}.curriculum-table-label{color:#000!important}.curriculum-table-wrap.cell-editing td{box-shadow:inset 0 0 0 1px #111!important}}
 .curriculum-passage.editing .curriculum-table-wrap{border-color:#cfd0d4}
 .curriculum-passage.editing .curriculum-table td{user-select:text;-webkit-user-select:text}
-@media(max-width:699px){
+@media(orientation:portrait){
   /* Global phone CSS turns generic tables into stacked cards. Curriculum tables must stay real tables. */
   .curriculum-table-wrap{display:block!important;width:100%!important;max-width:100%!important;overflow-x:auto!important;overflow-y:hidden!important;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;margin:11px 0 13px!important;padding:0!important;touch-action:pan-x pan-y}
   .curriculum-table{display:table!important;width:100%!important;max-width:none!important;table-layout:fixed!important;font-size:.72em!important;line-height:1.42!important;border-collapse:collapse!important}
@@ -3652,7 +3652,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-table-label-editor:empty::before{content:attr(data-placeholder);color:#a0a1a6;pointer-events:none}
 .curriculum-direct-edit-note{margin:4px 0 8px;padding:8px 9px;border-left:3px solid #b8b9bd;background:#fff;font-size:10.5px;line-height:1.55;color:#66676d}
 .curriculum-page-actions button.active{background:#25262a!important;color:#fff!important;border-color:#25262a!important}
-@media(max-width:699px){
+@media(orientation:portrait){
   .curriculum-passage.source-editing .curriculum-inline-source-editor{outline-color:#e0e0e3}
   .curriculum-table-label-editor{min-height:38px;font-size:13px}
 }
@@ -3676,7 +3676,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-visual-lightbox img{display:block;max-width:96vw;max-height:88vh;width:auto;height:auto;object-fit:contain;background:#fff}
 .curriculum-visual-lightbox-caption{max-width:min(860px,92vw);font-size:11px;line-height:1.45;color:#fff;text-align:center}
 .curriculum-visual-lightbox-close{position:absolute;right:0;top:-42px;width:36px;height:36px;border:1px solid rgba(255,255,255,.6);border-radius:999px;background:rgba(0,0,0,.35);color:#fff;font-size:22px;line-height:1}
-@media(max-width:699px){
+@media(orientation:portrait){
   .curriculum-visual{margin:12px 0 14px;padding:7px 6px 6px;border-radius:8px}
   .curriculum-visual img{max-height:68vh}
   .curriculum-visual figcaption{font-size:9.5px}
@@ -3715,7 +3715,7 @@ body.mobile-mission-open{overflow:hidden}
 .curriculum-standards-considerations>strong{display:block;margin-bottom:9px;font-size:.82em;color:#44454a}
 .curriculum-standards-considerations p{margin:0 0 10px;font-size:.84em;line-height:1.76;white-space:pre-wrap;word-break:keep-all}
 .curriculum-standards-empty{padding:42px 12px;text-align:center;color:#7d7e83;font-size:.85em}
-@media(max-width:640px){
+@media (orientation:portrait){
  .curriculum-standards-group{padding:16px 1px 20px}
  .curriculum-standard-main{grid-template-columns:1fr;gap:2px}
  .curriculum-standard-code{font-size:.74em}
@@ -8418,7 +8418,7 @@ function saveThumbKeypadState(){
   try{localStorage.setItem(THUMB_KEYPAD_STORAGE_KEY,JSON.stringify(thumbKeypadState()))}catch{}
 }
 function thumbKeypadShouldShow(){
-  return window.innerWidth>=700
+  return window.innerWidth>window.innerHeight
     &&app.ui.workspace==="bank"
     &&(app.ui.bankMode||"quiz")==="quiz"
     &&!!quizSession
@@ -10967,7 +10967,7 @@ let widePlannerLastRenderKey="";
 let mobileMissionDate="";
 let mobileMissionMode="schedule";
 let mobileMissionOverdueLimit=24;
-function hasPermanentSidePanel(){return window.matchMedia("(min-width:900px) and (min-height:600px) and (orientation:landscape)").matches}
+function hasPermanentSidePanel(){return window.innerWidth>window.innerHeight}
 function useCompactMissionPanel(){return !hasPermanentSidePanel()}
 function plannerDaySummary(date=plannerToday()){
   const p=plannerStore();let done=0,total=0;
@@ -12226,7 +12226,7 @@ function appendCurriculumTable(parent,item,meta,mode,spans,state){
   if(mode==="source")wrap.classList.add("source-editing");
   const table=document.createElement("table");table.className="curriculum-table";
   const cols=Math.max(1,Number(meta.cols)||Math.max(1,...(meta.rows||[]).map(r=>(r||[]).length)));
-  const compactTable=window.matchMedia?.("(max-width:699px)")?.matches;
+  const compactTable=window.matchMedia?.("(orientation:portrait)")?.matches;
   table.style.minWidth=`${compactTable?Math.max(640,cols*120):Math.max(720,cols*150)}px`;
   if(Array.isArray(meta.colWidths)&&meta.colWidths.length===cols){const cg=document.createElement("colgroup");for(const w of meta.colWidths){const col=document.createElement("col");col.style.width=`${Math.max(.1,Number(w)||0)}%`;cg.append(col)}table.append(cg)}
   const tbody=document.createElement("tbody");
@@ -13122,7 +13122,7 @@ function scheduleBankStatsCloud(){
   if(!cloudUser||applyingRemote)return;
   clearTimeout(statsTimer);
   // 폰/리더기에서는 연속 답변 사이의 대형 stats 문서 직렬화를 묶어서 처리한다.
-  const delay=window.matchMedia("(max-width:699px)").matches?1500:700;
+  const delay=window.matchMedia("(orientation:portrait)").matches?1500:700;
   statsTimer=setTimeout(async()=>{
     try{await setDoc(bankStatsDoc(cloudUser.uid),{stats:app.bank.stats,adventure:app.ui.quizAdventure||{activeSheetId:"",configs:{}},updatedAt:app.bank.statsUpdatedAt||Date.now()});updateSync("✓",true)}
     catch(e){console.error(e);updateSync("!",false)}
@@ -13764,7 +13764,7 @@ render();
   const style=document.createElement('style');
   style.id='sj-curriculum-direct-v10';
   style.textContent=`
-@media(min-width:700px) and (min-height:600px){
+@media(orientation:landscape){
   #widePlannerSide .wide-planner-inner,#widePlannerList{overflow-x:hidden!important;overscroll-behavior-x:none!important}
   #widePlannerList .planner-task,#widePlannerList .planner-task-link,#widePlannerList .planner-task-check,#widePlannerList .planner-task-exclude{touch-action:pan-y!important}
   #widePlannerList .planner-task{left:0!important;right:auto!important;translate:0 0!important;max-width:100%!important}
@@ -13799,7 +13799,7 @@ body.sj-content-system #curriculumContext,body.sj-content-system .curriculum-sta
 .sj-content-root .curriculum-table tr{display:table-row!important;position:static!important;padding:0!important;border:0!important;border-radius:0!important;background:transparent!important}
 .sj-content-root .curriculum-table td{display:table-cell!important;width:auto!important;min-width:0!important;max-width:none!important;vertical-align:middle!important;white-space:normal!important;word-break:keep-all!important;overflow-wrap:break-word!important}
 .sj-content-empty{padding:30px 12px;text-align:center;color:#7d7e83;font-size:.8em}
-@media(max-width:699px){.sj-content-root .curriculum-table{min-width:680px!important}.sj-content-head{top:0}.sj-standard-side-tools{grid-template-columns:1fr}}
+@media(orientation:portrait){.sj-content-root .curriculum-table{min-width:680px!important}.sj-content-head{top:0}.sj-standard-side-tools{grid-template-columns:1fr}}
 @media(monochrome){.sj-standard-side-tools button.active,.sj-standard-side-order button.active,.sj-content-system-btn.active{background:#111!important;color:#fff!important;border-color:#111!important}}
 `;
   document.head.append(style);
@@ -13927,7 +13927,7 @@ body.sj-content-system #curriculumContext,body.sj-content-system .curriculum-sta
 .curriculum-standard-consideration-head b{font-size:.9em;color:#66676c}
 .curriculum-standard-consideration-select{margin-left:auto;max-width:150px;border:1px solid #dedee2;background:#fff;border-radius:5px;padding:3px 5px;font:inherit;font-size:.78em;color:#6b6c71}
 .curriculum-standards-considerations .curriculum-standard-consideration{margin-left:0;background:#fff}
-@media(max-width:699px){
+@media(orientation:portrait){
  .curriculum-standards-v2-toolbar{top:0;gap:4px;padding-left:1px;padding-right:1px}
  .curriculum-standards-v2-toolbar button{padding:6px 7px;font-size:.65em}
  .curriculum-standards-v2-toolbar .hint{flex-basis:100%;margin-left:0}

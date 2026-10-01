@@ -1,10 +1,10 @@
-const CACHE_NAME="study-jew-pwa-v36-repeat-round-enter";
+const CACHE_NAME="study-jew-pwa-v37-orientation-layout";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./runtime/curriculum-blanks.js?v=20261001-1",
   "./runtime/curriculum-enter.js?v=20261001-1",
   "./runtime/curriculum-notes.js?v=20261001-1",
-  "./runtime/curriculum-ui.js?v=20261001-1",
+  "./runtime/curriculum-ui.js?v=20261001-2",
   "./runtime/quiz-path.js?v=20261001-1"
 ];
 
