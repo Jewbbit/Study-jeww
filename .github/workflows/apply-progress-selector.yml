@@ -1,0 +1,66 @@
+name: Apply compact progress selector
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch progress selectors
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          p=Path('edit.html')
+          s=p.read_text(encoding='utf-8')
+          old='const rounds=[...plannerStore().rounds].sort((a,b)=>String(a.start||"").localeCompare(String(b.start||"")));'
+          new='const rounds=[...plannerStore().rounds].sort((a,b)=>(Number(b.createdAt)||0)-(Number(a.createdAt)||0)||String(b.start||"").localeCompare(String(a.start||"")));'
+          if old not in s: raise SystemExit('full progress sort target missing')
+          s=s.replace(old,new,1)
+          old='function widePlannerProgressRound(){\n  const p=plannerStore(),today=plannerToday();'
+          new='function widePlannerProgressRound(){\n  const p=plannerStore(),today=plannerToday();\n  if(app.ui.activePlannerRoundId==="__cumulative__")return null;'
+          if old not in s: raise SystemExit('wide progress round target missing')
+          s=s.replace(old,new,1)
+          old='return useCompactMissionPanel()?(current||unfinished||selected||latest||null):(selected||current||unfinished||latest||null);'
+          if old not in s: raise SystemExit('wide progress priority target missing')
+          s=s.replace(old,'return selected||current||unfinished||latest||null;',1)
+          old='function widePlannerWarpProgress(round,sheetId,order="sequence"){\n  const sheet=adventureSheet(sheetId);\n  if(!round||!sheet)return toast("현재 회독의 진도 길을 찾지 못했습니다");\n  closeMobileMissionSheet();\n  suspendQuizForWorkspaceNavigation();\n  app.ui.activePlannerRoundId=round.id;'
+          new='function widePlannerWarpProgress(round,sheetId,order="sequence"){\n  const sheet=adventureSheet(sheetId);\n  if(!sheet)return toast("현재 진도 길을 찾지 못했습니다");\n  closeMobileMissionSheet();\n  suspendQuizForWorkspaceNavigation();\n  app.ui.activePlannerRoundId=round?.id||"__cumulative__";'
+          if old not in s: raise SystemExit('wide progress warp target missing')
+          s=s.replace(old,new,1)
+          repl=Path('.patches/mobile-progress-function.txt').read_text(encoding='utf-8').rstrip()
+          pattern=r'function renderWidePlannerProgress\(list,count\)\{[\s\S]*?\n\}\nfunction renderWidePlannerCurriculum\(list,count\)\{'
+          s,n=re.subn(pattern,repl+'\nfunction renderWidePlannerCurriculum(list,count){',s,count=1)
+          if n!=1: raise SystemExit('wide progress renderer target missing')
+          css='.progress-round-select{border:1px solid #dedee2;background:#fff;border-radius:6px;padding:5px 7px;font-size:10.5px;color:#505157;max-width:150px}'
+          if css not in s: raise SystemExit('progress selector css target missing')
+          s=s.replace(css,css+'\n.wide-progress-round-picker{display:flex;margin:0 0 7px}.wide-progress-round-picker .progress-round-select{width:100%;max-width:none}',1)
+          p.write_text(s,encoding='utf-8')
+          sw=Path('sw.js')
+          w=sw.read_text(encoding='utf-8')
+          w=re.sub(r'const CACHE_NAME="[^"]+";','const CACHE_NAME="study-jew-pwa-v35-progress-round-selector";',w,count=1)
+          sw.write_text(w,encoding='utf-8')
+          Path('.patches/mobile-progress-function.txt').unlink(missing_ok=True)
+          Path('.github/workflows/fix-mobile-progress-round-picker.yml').unlink(missing_ok=True)
+          Path('.github/workflows/apply-progress-selector.yml').unlink(missing_ok=True)
+      - name: Verify
+        shell: python
+        run: |
+          from pathlib import Path
+          s=Path('edit.html').read_text(encoding='utf-8')
+          assert 'wide-progress-round-picker' in s
+          assert 'cumulativeOption.textContent="누적 진도"' in s
+          assert '(Number(b.createdAt)||0)-(Number(a.createdAt)||0)' in s
+          assert 'app.ui.activePlannerRoundId==="__cumulative__"' in s
+          assert 'scrollIntoView({block:"center",behavior:"auto"})' in s
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add round selector to compact progress panels"
+          git push origin main
