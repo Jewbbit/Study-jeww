@@ -8202,12 +8202,19 @@ function scheduleQuizMemoAdvance(){
     nextQuiz(true);
   },seconds*1000);
 }
+function quizSheetDisplayName(item){
+  const name=String(item?.sheetName||"");
+  const adv=quizSession?.adventure;
+  const setIndex=Number(adv?.setIndex);
+  if(!adv||adv.review||!Number.isInteger(setIndex)||setIndex<0)return name;
+  return `${name} · ${setIndex+1}세트`;
+}
 function renderQuizMemoScreen(area,item){
   clearQuizMemoAdvanceTimer();
   const card=document.createElement("div");card.className="question-card quiz-memo-focus";
   const top=document.createElement("div");top.className="q-top quiz-memo-focus-top";
   const tag=document.createElement("div");tag.className="q-tag";
-  const sheetMeta=document.createElement("div");sheetMeta.className="quiz-sheet-name";sheetMeta.textContent=item.sheetName||"";
+  const sheetMeta=document.createElement("div");sheetMeta.className="quiz-sheet-name";sheetMeta.textContent=quizSheetDisplayName(item);
   const categoryMeta=document.createElement("div");categoryMeta.className="quiz-category";categoryMeta.textContent=item.category||item.section||"";
   tag.append(sheetMeta,categoryMeta);
   const prog=document.createElement("div");prog.className="q-progress";
@@ -8274,7 +8281,7 @@ function renderQuizQuestion(){
   progressTrack.append(progressFill);card.append(progressTrack);
   const top=document.createElement("div");top.className="q-top";
   const tag=document.createElement("div");tag.className="q-tag";
-  const sheetMeta=document.createElement("div");sheetMeta.className="quiz-sheet-name";sheetMeta.textContent=item.sheetName||"";
+  const sheetMeta=document.createElement("div");sheetMeta.className="quiz-sheet-name";sheetMeta.textContent=quizSheetDisplayName(item);
   const categoryMeta=document.createElement("div");categoryMeta.className="quiz-category";categoryMeta.textContent=item.category||item.section||"";
   tag.append(sheetMeta,categoryMeta);
   const prog=document.createElement("div");prog.className="q-progress";
@@ -8635,9 +8642,16 @@ function checkSubjective(input){
   quizSession.answered=true;quizSession.showAnswer=!ok;recordQuiz(item,ok);saveQuizSessionLocal();renderQuizQuestion();
 }
 window.addEventListener("keydown",e=>{
-  if(app.ui.workspace!=="bank"||app.ui.bankMode!=="quiz"||!quizSession)return;
+  if(app.ui.workspace!=="bank"||app.ui.bankMode!=="quiz")return;
   const tag=document.activeElement?.tagName;
   if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
+  if(!quizSession){
+    if(app.ui.quizHomeMode==="path"&&(e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")){
+      const next=document.querySelector("#quizArea .path-node.current:not(:disabled)")||document.querySelector("#quizArea .path-node.in-progress:not(:disabled)");
+      if(next){e.preventDefault();e.stopPropagation();next.click()}
+    }
+    return;
+  }
   if(quizSession.awaitingExplanation&&(e.key==="Enter"||e.key===" "||e.code==="Space")){
     e.preventDefault();e.stopPropagation();nextQuiz(true);return;
   }
@@ -8645,12 +8659,14 @@ window.addEventListener("keydown",e=>{
     let n=null;
     if(["1","2","3","4"].includes(e.key))n=Number(e.key);
     else if(e.key==="5")n=3;
-    else if(e.key==="6")n=1;
+    else if(e.key==="9")n=1;
+    else if(e.key==="6")n=2;
     else if(e.key==="."||e.code==="NumpadDecimal"||e.code==="Decimal")n=4;
     else if(/^Digit[1-4]$/.test(e.code||""))n=Number(e.code.slice(-1));
     else if(/^Numpad[1-4]$/.test(e.code||""))n=Number(e.code.slice(-1));
     else if(e.code==="Digit5"||e.code==="Numpad5")n=3;
-    else if(e.code==="Digit6"||e.code==="Numpad6")n=1;
+    else if(e.code==="Digit9"||e.code==="Numpad9")n=1;
+    else if(e.code==="Digit6"||e.code==="Numpad6")n=2;
     if(n){e.preventDefault();e.stopPropagation();selectChoice(n-1);return}
   }
   if((e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")&&(quizSession.answered||quizSession.showAnswer)){

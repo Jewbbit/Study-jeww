@@ -1,10 +1,10 @@
-const CACHE_NAME="study-jew-pwa-v32-keymap-v3";
+const CACHE_NAME="study-jew-pwa-v33-core-quiz";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
-  "./hotfix-v6.js?v=20260916-1",
-  "./hotfix-v9.js?v=20260913-2",
-  "./hotfix-v11.js?v=20260915-3",
-  "./hotfix-v19.js?v=20261001-3"
+  "./runtime/curriculum-blanks.js?v=20261001-1",
+  "./runtime/curriculum-enter.js?v=20261001-1",
+  "./runtime/curriculum-notes.js?v=20261001-1",
+  "./runtime/curriculum-ui.js?v=20261001-1"
 ];
 
 const APP_STYLE=`<style id="study-jew-runtime-style">
@@ -36,8 +36,6 @@ async function injectHotfix(response){
   html=html
     .replace(/<script[^>]+src=["'][^"']*hotfix(?:-v\d+)?\.js[^"']*["'][^>]*><\/script>\s*/gi,"")
     .replace(/<style id=["'](?:mission-progress-fit|standard-note-room|study-jew-runtime-style)["'][^>]*>[\s\S]*?<\/style>\s*/gi,"")
-    .replace(/else if\(e\.key==="6"\)n=1;/g,'else if(e.key==="9")n=1;\n    else if(e.key==="6")n=2;')
-    .replace(/else if\(e\.code==="Digit6"\|\|e\.code==="Numpad6"\)n=1;/g,'else if(e.code==="Digit9"||e.code==="Numpad9")n=1;\n    else if(e.code==="Digit6"||e.code==="Numpad6")n=2;')
     .replace('<button id="curriculumSpace" class="workspace-btn">교육과정</button>','<button id="curriculumSpace" class="workspace-btn">교육과정</button>\n      <button id="reviewSpace" class="workspace-btn" type="button" onclick="window.location.href=\'./review.html\'">검수</button>')
     .replace('const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";',`const BANK_STATS_QUICK_KEY=KEY+"-bank-stats-quick";
 const CURRICULUM_LOCAL_KEY=KEY+"-curriculum-local-v1";
