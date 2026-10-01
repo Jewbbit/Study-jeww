@@ -1,6 +1,6 @@
 (()=>{
   "use strict";
-  const VERSION="2026-09-28-consideration-scope-v4";
+  const VERSION="2026-10-01-orientation-layout-v1";
   if(window.__studyJewConsiderationScope===VERSION)return;
   window.__studyJewConsiderationScope=VERSION;
 
@@ -31,7 +31,7 @@
   const style=document.createElement("style");
   style.id="mobile-workspace-header-simplify";
   style.textContent=`
-    @media(max-width:640px){
+    @media(orientation:portrait){
       #curriculumSpace,#reviewSpace{display:none!important}
       .workspace-switch{flex:0 0 auto!important;max-width:none!important}
       .workspace-switch .workspace-btn{padding-left:10px!important;padding-right:10px!important}
