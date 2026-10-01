@@ -42,14 +42,37 @@
 
 (()=>{
   "use strict";
-  const VERSION="2026-10-01-quiz-keymap-v1";
+  const VERSION="2026-10-01-quiz-keymap-v2";
   if(window.__studyJewQuizKeymap===VERSION)return;
   window.__studyJewQuizKeymap=VERSION;
 
+  function annotateQuizSet(){
+    if(typeof quizSession==="undefined"||!quizSession?.adventure||quizSession.adventure.review)return;
+    const setIndex=Number(quizSession.adventure.setIndex);
+    if(!Number.isInteger(setIndex)||setIndex<0)return;
+    const el=document.querySelector("#quizView .quiz-sheet-name");
+    if(!el||el.dataset.sjSetLabel==="1")return;
+    el.dataset.sjSetLabel="1";
+    el.textContent=`${el.textContent||""} · ${setIndex+1}세트`;
+  }
+
+  const quizView=document.getElementById("quizView");
+  if(quizView){
+    new MutationObserver(()=>annotateQuizSet()).observe(quizView,{childList:true,subtree:true});
+    annotateQuizSet();
+  }
+
   window.addEventListener("keydown",e=>{
-    if(typeof app==="undefined"||app?.ui?.workspace!=="bank"||app?.ui?.bankMode!=="quiz"||typeof quizSession==="undefined"||!quizSession)return;
+    if(typeof app==="undefined"||app?.ui?.workspace!=="bank"||app?.ui?.bankMode!=="quiz")return;
     const tag=document.activeElement?.tagName;
     if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
+
+    if((typeof quizSession==="undefined"||!quizSession)&&app?.ui?.quizHomeMode==="path"&&(e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")){
+      const next=document.querySelector("#quizView .path-node.current:not(:disabled)")||document.querySelector("#quizView .path-node.in-progress:not(:disabled)");
+      if(next){e.preventDefault();e.stopImmediatePropagation();next.click();return}
+    }
+
+    if(typeof quizSession==="undefined"||!quizSession)return;
     if(quizSession.awaitingExplanation||quizSession.answered||quizSession.showAnswer||!Array.isArray(quizSession.choices))return;
 
     let choiceIndex=-1;
