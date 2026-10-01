@@ -1,13 +1,12 @@
 name: Mobile progress round selector
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 permissions:
   contents: write
 jobs:
   patch:
-    if: ${{ github.actor != 'github-actions[bot]' }}
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -16,136 +15,37 @@ jobs:
         run: |
           from pathlib import Path
           import re
-
           p=Path('edit.html')
           s=p.read_text(encoding='utf-8')
-
           old='const rounds=[...plannerStore().rounds].sort((a,b)=>String(a.start||"").localeCompare(String(b.start||"")));'
           new='const rounds=[...plannerStore().rounds].sort((a,b)=>(Number(b.createdAt)||0)-(Number(a.createdAt)||0)||String(b.start||"").localeCompare(String(a.start||"")));'
-          if old not in s:
-              raise SystemExit('full progress round sort target missing')
+          if old not in s: raise SystemExit('full progress sort target missing')
           s=s.replace(old,new,1)
-
-          old='''function widePlannerProgressRound(){
-  const p=plannerStore(),today=plannerToday();
-  const selected=p.rounds.find(r=>r.id===app.ui.activePlannerRoundId);'''
-          new='''function widePlannerProgressRound(){
-  const p=plannerStore(),today=plannerToday();
-  if(app.ui.activePlannerRoundId==="__cumulative__")return null;
-  const selected=p.rounds.find(r=>r.id===app.ui.activePlannerRoundId);'''
-          if old not in s:
-              raise SystemExit('wide progress round header target missing')
+          old='function widePlannerProgressRound(){\n  const p=plannerStore(),today=plannerToday();'
+          new='function widePlannerProgressRound(){\n  const p=plannerStore(),today=plannerToday();\n  if(app.ui.activePlannerRoundId==="__cumulative__")return null;'
+          if old not in s: raise SystemExit('wide progress round target missing')
           s=s.replace(old,new,1)
-          s=s.replace('return useCompactMissionPanel()?(current||unfinished||selected||latest||null):(selected||current||unfinished||latest||null);','return selected||current||unfinished||latest||null;',1)
-
-          old='''function widePlannerWarpProgress(round,sheetId,order="sequence"){
-  const sheet=adventureSheet(sheetId);
-  if(!round||!sheet)return toast("현재 회독의 진도 길을 찾지 못했습니다");
-  closeMobileMissionSheet();
-  suspendQuizForWorkspaceNavigation();
-  app.ui.activePlannerRoundId=round.id;'''
-          new='''function widePlannerWarpProgress(round,sheetId,order="sequence"){
-  const sheet=adventureSheet(sheetId);
-  if(!sheet)return toast("현재 진도 길을 찾지 못했습니다");
-  closeMobileMissionSheet();
-  suspendQuizForWorkspaceNavigation();
-  app.ui.activePlannerRoundId=round?.id||"__cumulative__";'''
-          if old not in s:
-              raise SystemExit('wide progress warp target missing')
+          old='return useCompactMissionPanel()?(current||unfinished||selected||latest||null):(selected||current||unfinished||latest||null);'
+          if old not in s: raise SystemExit('wide progress priority target missing')
+          s=s.replace(old,'return selected||current||unfinished||latest||null;',1)
+          old='function widePlannerWarpProgress(round,sheetId,order="sequence"){\n  const sheet=adventureSheet(sheetId);\n  if(!round||!sheet)return toast("현재 회독의 진도 길을 찾지 못했습니다");\n  closeMobileMissionSheet();\n  suspendQuizForWorkspaceNavigation();\n  app.ui.activePlannerRoundId=round.id;'
+          new='function widePlannerWarpProgress(round,sheetId,order="sequence"){\n  const sheet=adventureSheet(sheetId);\n  if(!sheet)return toast("현재 진도 길을 찾지 못했습니다");\n  closeMobileMissionSheet();\n  suspendQuizForWorkspaceNavigation();\n  app.ui.activePlannerRoundId=round?.id||"__cumulative__";'
+          if old not in s: raise SystemExit('wide progress warp target missing')
           s=s.replace(old,new,1)
-
+          repl=Path('.patches/mobile-progress-function.txt').read_text(encoding='utf-8').rstrip()
           pattern=r'function renderWidePlannerProgress\(list,count\)\{[\s\S]*?\n\}\nfunction renderWidePlannerCurriculum\(list,count\)\{'
-          repl='''function renderWidePlannerProgress(list,count){
-  const p=plannerStore(),round=widePlannerProgressRound(),cumulative=app.ui.activePlannerRoundId==="__cumulative__";
-  const picker=document.createElement("div");picker.className="wide-progress-round-picker";
-  const select=document.createElement("select");select.className="progress-round-select";select.setAttribute("aria-label","진도로 볼 회독");
-  const cumulativeOption=document.createElement("option");cumulativeOption.value="__cumulative__";cumulativeOption.textContent="누적 진도";select.append(cumulativeOption);
-  const rounds=[...p.rounds].sort((a,b)=>(Number(b.createdAt)||0)-(Number(a.createdAt)||0)||String(b.start||"").localeCompare(String(a.start||"")));
-  rounds.forEach(r=>{const o=document.createElement("option");o.value=r.id;const prog=plannerRoundProgress(r);o.textContent=`${r.name||"회독"} · ${prog.done}/${prog.total}`;select.append(o)});
-  select.value=cumulative?"__cumulative__":round?.id||"__cumulative__";
-  select.onchange=()=>{
-    app.ui.activePlannerRoundId=select.value;saveLocal();
-    if(list.id==="mobileMissionList")renderMobileMissionSheet();else renderWidePlannerSide();
-  };
-  picker.append(select);list.append(picker);
-
-  if(!round&&!cumulative){
-    count.textContent="";
-    const empty=document.createElement("div");empty.className="wide-planner-empty";
-    empty.textContent="표시할 회독이 없습니다.";list.append(empty);return;
-  }
-
-  const rows=[];
-  if(cumulative){
-    activeBankSheets().forEach((sheet,index)=>{
-      const state=adventureSheetState(sheet.id);
-      const order=(state.lastOrder||state.activeOrder||"sequence")==="random"?"random":"sequence";
-      const prog=adventureProgress(adventureConfig(sheet.id,{quiet:true,order}));
-      if(!prog.total)return;
-      rows.push({sheet,index,order,prog});
-    });
-  }else{
-    plannerRoundBankSheetIds(round).forEach((sheetId,index)=>{
-      const sheet=adventureSheet(sheetId);if(!sheet)return;
-      const missions=(round.missions||[]).filter(m=>m.kind==="bankPath"&&m.sheetId===sheetId&&!plannerMissionExcluded(round,m));
-      const order=(missions[0]?.order||adventureSheetState(sheetId).activeOrder||"sequence")==="random"?"random":"sequence";
-      const prog=roundPathProgress(round,sheetId,order);
-      if(!prog.total)return;
-      rows.push({sheet,index,order,prog});
-    });
-  }
-
-  const allDone=rows.reduce((n,x)=>n+x.prog.done,0),allTotal=rows.reduce((n,x)=>n+x.prog.total,0);
-  count.textContent=rows.length?`${rows.length}시트`:"";
-  const head=document.createElement("div");head.className="wide-progress-round-head";
-  const name=document.createElement("strong");name.textContent=cumulative?"누적 진도":round.name||"이번 회독";
-  const meta=document.createElement("span");meta.textContent=`${allDone}/${allTotal}세트`;
-  head.append(name,meta);list.append(head);
-  if(!rows.length){
-    const empty=document.createElement("div");empty.className="wide-planner-empty";
-    empty.textContent=cumulative?"표시할 문제은행 진도가 없습니다.":"이번 회독에 활성화된 문제은행 진도가 없습니다.";list.append(empty);return;
-  }
-
-  const currentSheetId=adventureStore().activeSheetId||"";
-  rows.forEach(({sheet,order,prog})=>{
-    const row=document.createElement("button");row.type="button";row.className="wide-progress-row";
-    if(prog.done>=prog.total)row.classList.add("done");
-    if(currentSheetId===sheet.id)row.classList.add("current");
-    const meta=bankSheetMeta(sheet);
-    const top=document.createElement("span");top.className="wide-progress-row-top";
-    const title=document.createElement("strong");title.textContent=meta.area||sheet.name;
-    const pct=document.createElement("b");pct.textContent=`${prog.pct}%`;
-    top.append(title,pct);
-    const sub=document.createElement("span");sub.className="wide-progress-row-sub";
-    sub.textContent=`${meta.subject||"문제은행"} · ${prog.done}/${prog.total}세트 · ${order==="random"?"랜덤":"순서"}`;
-    const track=document.createElement("span");track.className="wide-progress-track";
-    const fill=document.createElement("i");fill.style.width=`${prog.pct}%`;track.append(fill);
-    row.append(top,sub,track);
-    row.onclick=()=>widePlannerWarpProgress(cumulative?null:round,sheet.id,order);
-    list.append(row);
-  });
-  if(list.id==="mobileMissionList"&&currentSheetId){
-    requestAnimationFrame(()=>list.querySelector(".wide-progress-row.current")?.scrollIntoView({block:"center",behavior:"auto"}));
-  }
-}
-function renderWidePlannerCurriculum(list,count){'''
-          s,n=re.subn(pattern,repl,s,count=1)
-          if n!=1:
-              raise SystemExit('renderWidePlannerProgress replacement failed')
-
-          css_old='.progress-round-select{border:1px solid #dedee2;background:#fff;border-radius:6px;padding:5px 7px;font-size:10.5px;color:#505157;max-width:150px}'
-          css_new=css_old+'\n.wide-progress-round-picker{display:flex;margin:0 0 7px}.wide-progress-round-picker .progress-round-select{width:100%;max-width:none}'
-          if css_old not in s:
-              raise SystemExit('progress selector css target missing')
-          s=s.replace(css_old,css_new,1)
+          s,n=re.subn(pattern,repl+'\nfunction renderWidePlannerCurriculum(list,count){',s,count=1)
+          if n!=1: raise SystemExit('wide progress renderer target missing')
+          css='.progress-round-select{border:1px solid #dedee2;background:#fff;border-radius:6px;padding:5px 7px;font-size:10.5px;color:#505157;max-width:150px}'
+          if css not in s: raise SystemExit('progress selector css target missing')
+          s=s.replace(css,css+'\n.wide-progress-round-picker{display:flex;margin:0 0 7px}.wide-progress-round-picker .progress-round-select{width:100%;max-width:none}',1)
           p.write_text(s,encoding='utf-8')
-
           sw=Path('sw.js')
           w=sw.read_text(encoding='utf-8')
           w=re.sub(r'const CACHE_NAME="[^"]+";','const CACHE_NAME="study-jew-pwa-v35-progress-round-selector";',w,count=1)
           sw.write_text(w,encoding='utf-8')
+          Path('.patches/mobile-progress-function.txt').unlink(missing_ok=True)
           Path('.github/workflows/fix-mobile-progress-round-picker.yml').unlink(missing_ok=True)
-
       - name: Verify
         shell: python
         run: |
@@ -155,8 +55,7 @@ function renderWidePlannerCurriculum(list,count){'''
           assert 'cumulativeOption.textContent="누적 진도"' in s
           assert '(Number(b.createdAt)||0)-(Number(a.createdAt)||0)' in s
           assert 'app.ui.activePlannerRoundId==="__cumulative__"' in s
-          assert 'requestAnimationFrame(()=>list.querySelector(".wide-progress-row.current")?.scrollIntoView' in s
-
+          assert 'scrollIntoView({block:"center",behavior:"auto"})' in s
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
