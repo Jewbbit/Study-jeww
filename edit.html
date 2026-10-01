@@ -2970,6 +2970,7 @@ button,.chip,.icon,.study-action,.edit-more,.section-more,.workspace-btn,.font-c
 .progress-round-head{display:flex;align-items:center;gap:8px}
 .progress-round-head>span{flex:1}
 .progress-round-select{border:1px solid #dedee2;background:#fff;border-radius:6px;padding:5px 7px;font-size:10.5px;color:#505157;max-width:150px}
+.wide-progress-round-picker{display:flex;margin:0 0 7px}.wide-progress-round-picker .progress-round-select{width:100%;max-width:none}
 .path-progress-summary small{font-size:9px;color:#777980;margin-left:4px;font-weight:650}
 .path-sheet-pill.out-of-round,.path-node-row.out-of-round{opacity:.42}
 .mobile-mission-backdrop{display:none}
@@ -7894,7 +7895,7 @@ function buildProgressRoundHeader(area,label="진도 학습"){
   const title=document.createElement("span");title.textContent=label;
   const select=document.createElement("select");select.className="progress-round-select";select.setAttribute("aria-label","진도로 볼 회독");
   const cumulative=document.createElement("option");cumulative.value="__cumulative__";cumulative.textContent="누적 진도";select.append(cumulative);
-  const rounds=[...plannerStore().rounds].sort((a,b)=>String(a.start||"").localeCompare(String(b.start||"")));
+  const rounds=[...plannerStore().rounds].sort((a,b)=>(Number(b.createdAt)||0)-(Number(a.createdAt)||0)||String(b.start||"").localeCompare(String(a.start||"")));
   rounds.forEach(r=>{const o=document.createElement("option");o.value=r.id;o.textContent=r.name||"회독";select.append(o)});
   const round=activeProgressRound();select.value=round?.id||"__cumulative__";
   select.onchange=()=>setActiveProgressRound(select.value);
@@ -11106,54 +11107,76 @@ function renderWidePlannerSongs(list,count){
 }
 function widePlannerProgressRound(){
   const p=plannerStore(),today=plannerToday();
+  if(app.ui.activePlannerRoundId==="__cumulative__")return null;
   const selected=p.rounds.find(r=>r.id===app.ui.activePlannerRoundId);
   const current=[...p.rounds].filter(r=>r.start<=today&&today<=(r.reviewDate||r.end)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
   const unfinished=[...p.rounds].filter(r=>plannerRoundProgress(r).remaining>0).sort((a,b)=>String(b.start||"").localeCompare(String(a.start||""))||(b.createdAt||0)-(a.createdAt||0))[0];
   const latest=[...p.rounds].sort((a,b)=>String(b.start||"").localeCompare(String(a.start||""))||(b.createdAt||0)-(a.createdAt||0))[0];
-  return useCompactMissionPanel()?(current||unfinished||selected||latest||null):(selected||current||unfinished||latest||null);
+  return selected||current||unfinished||latest||null;
 }
 function widePlannerWarpProgress(round,sheetId,order="sequence"){
   const sheet=adventureSheet(sheetId);
-  if(!round||!sheet)return toast("현재 회독의 진도 길을 찾지 못했습니다");
+  if(!sheet)return toast("현재 진도 길을 찾지 못했습니다");
   closeMobileMissionSheet();
   suspendQuizForWorkspaceNavigation();
-  app.ui.activePlannerRoundId=round.id;
+  app.ui.activePlannerRoundId=round?.id||"__cumulative__";
   setAdventureOrder(sheetId,order||"sequence");
   adventureStore().activeSheetId=sheetId;
   app.ui.workspace="bank";app.ui.bankMode="quiz";app.ui.quizHomeMode="path";
   saveLocalNow();renderMode();renderWidePlannerSide();
 }
 function renderWidePlannerProgress(list,count){
-  const round=widePlannerProgressRound();
-  if(!round){
+  const p=plannerStore(),round=widePlannerProgressRound(),cumulative=app.ui.activePlannerRoundId==="__cumulative__";
+  const picker=document.createElement("div");picker.className="wide-progress-round-picker";
+  const select=document.createElement("select");select.className="progress-round-select";select.setAttribute("aria-label","진도로 볼 회독");
+  const cumulativeOption=document.createElement("option");cumulativeOption.value="__cumulative__";cumulativeOption.textContent="누적 진도";select.append(cumulativeOption);
+  const rounds=[...p.rounds].sort((a,b)=>(Number(b.createdAt)||0)-(Number(a.createdAt)||0)||String(b.start||"").localeCompare(String(a.start||"")));
+  rounds.forEach(r=>{const o=document.createElement("option");o.value=r.id;const prog=plannerRoundProgress(r);o.textContent=`${r.name||"회독"} · ${prog.done}/${prog.total}`;select.append(o)});
+  select.value=cumulative?"__cumulative__":round?.id||"__cumulative__";
+  select.onchange=()=>{app.ui.activePlannerRoundId=select.value;saveLocal();if(list.id==="mobileMissionList")renderMobileMissionSheet();else renderWidePlannerSide()};
+  picker.append(select);list.append(picker);
+
+  if(!round&&!cumulative){
     count.textContent="";
-    const empty=document.createElement("div");empty.className="wide-planner-empty";
-    empty.textContent="표시할 회독이 없습니다.";list.append(empty);return;
+    const empty=document.createElement("div");empty.className="wide-planner-empty";empty.textContent="표시할 회독이 없습니다.";list.append(empty);return;
   }
-  const ids=plannerRoundBankSheetIds(round);
+
   const rows=[];
-  ids.forEach((sheetId,index)=>{
-    const sheet=adventureSheet(sheetId);if(!sheet)return;
-    const missions=(round.missions||[]).filter(m=>m.kind==="bankPath"&&m.sheetId===sheetId&&!plannerMissionExcluded(round,m));
-    const order=(missions[0]?.order||adventureSheetState(sheetId).activeOrder||"sequence")==="random"?"random":"sequence";
-    const prog=roundPathProgress(round,sheetId,order);
-    if(!prog.total)return;
-    rows.push({sheet,index,order,prog});
-  });
+  if(cumulative){
+    activeBankSheets().forEach((sheet,index)=>{
+      const state=adventureSheetState(sheet.id);
+      const order=(state.lastOrder||state.activeOrder||"sequence")==="random"?"random":"sequence";
+      const prog=adventureProgress(adventureConfig(sheet.id,{quiet:true,order}));
+      if(!prog.total)return;
+      rows.push({sheet,index,order,prog});
+    });
+  }else{
+    plannerRoundBankSheetIds(round).forEach((sheetId,index)=>{
+      const sheet=adventureSheet(sheetId);if(!sheet)return;
+      const missions=(round.missions||[]).filter(m=>m.kind==="bankPath"&&m.sheetId===sheetId&&!plannerMissionExcluded(round,m));
+      const order=(missions[0]?.order||adventureSheetState(sheetId).activeOrder||"sequence")==="random"?"random":"sequence";
+      const prog=roundPathProgress(round,sheetId,order);
+      if(!prog.total)return;
+      rows.push({sheet,index,order,prog});
+    });
+  }
+
   const allDone=rows.reduce((n,x)=>n+x.prog.done,0),allTotal=rows.reduce((n,x)=>n+x.prog.total,0);
   count.textContent=rows.length?`${rows.length}시트`:"";
   const head=document.createElement("div");head.className="wide-progress-round-head";
-  const name=document.createElement("strong");name.textContent=round.name||"이번 회독";
+  const name=document.createElement("strong");name.textContent=cumulative?"누적 진도":round.name||"이번 회독";
   const meta=document.createElement("span");meta.textContent=`${allDone}/${allTotal}세트`;
   head.append(name,meta);list.append(head);
   if(!rows.length){
     const empty=document.createElement("div");empty.className="wide-planner-empty";
-    empty.textContent="이번 회독에 활성화된 문제은행 진도가 없습니다.";list.append(empty);return;
+    empty.textContent=cumulative?"표시할 문제은행 진도가 없습니다.":"이번 회독에 활성화된 문제은행 진도가 없습니다.";list.append(empty);return;
   }
+
+  const currentSheetId=adventureStore().activeSheetId||"";
   rows.forEach(({sheet,order,prog})=>{
     const row=document.createElement("button");row.type="button";row.className="wide-progress-row";
     if(prog.done>=prog.total)row.classList.add("done");
-    if(adventureStore().activeSheetId===sheet.id&&app.ui.workspace==="bank"&&app.ui.quizHomeMode==="path")row.classList.add("current");
+    if(currentSheetId===sheet.id)row.classList.add("current");
     const meta=bankSheetMeta(sheet);
     const top=document.createElement("span");top.className="wide-progress-row-top";
     const title=document.createElement("strong");title.textContent=meta.area||sheet.name;
@@ -11164,9 +11187,12 @@ function renderWidePlannerProgress(list,count){
     const track=document.createElement("span");track.className="wide-progress-track";
     const fill=document.createElement("i");fill.style.width=`${prog.pct}%`;track.append(fill);
     row.append(top,sub,track);
-    row.onclick=()=>widePlannerWarpProgress(round,sheet.id,order);
+    row.onclick=()=>widePlannerWarpProgress(cumulative?null:round,sheet.id,order);
     list.append(row);
   });
+  if(list.id==="mobileMissionList"&&currentSheetId){
+    requestAnimationFrame(()=>list.querySelector(".wide-progress-row.current")?.scrollIntoView({block:"center",behavior:"auto"}));
+  }
 }
 function renderWidePlannerCurriculum(list,count){
   if(!curriculumData){
