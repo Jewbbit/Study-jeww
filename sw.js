@@ -1,10 +1,10 @@
-const CACHE_NAME="study-jew-pwa-v30-round-mission-sync";
+const CACHE_NAME="study-jew-pwa-v31-quiz-hotfix";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./hotfix-v6.js?v=20260916-1",
   "./hotfix-v9.js?v=20260913-2",
   "./hotfix-v11.js?v=20260915-3",
-  "./hotfix-v19.js?v=20260916-1"
+  "./hotfix-v19.js?v=20261001-2"
 ];
 
 const APP_STYLE=`<style id="study-jew-runtime-style">
