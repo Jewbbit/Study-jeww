@@ -1,4 +1,4 @@
-const CACHE_NAME="study-jew-pwa-v33-core-quiz";
+const CACHE_NAME="study-jew-pwa-v34-zero-key";
 const FALLBACK_URL="./edit.html";
 const HOTFIX_SRCS=[
   "./runtime/curriculum-blanks.js?v=20261001-1",
