@@ -64,3 +64,4 @@ jobs:
           git add -A
           git commit -m "Add round selector to compact progress panels"
           git push origin main
+# trigger
