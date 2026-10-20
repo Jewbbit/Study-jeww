@@ -3724,6 +3724,16 @@ body.mobile-mission-open{overflow:hidden}
 }
 </style>
 
+<style>
+/* 뽀개기: 일정 목록의 과목별 표시 정렬 (계획 데이터에는 영향 없음) */
+.planner-subject-sort-bar{display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:5px 0 6px;margin-bottom:2px;border-bottom:1px solid #efeff1}
+.planner-subject-sort-bar span{margin-right:3px;font-size:10px;color:#88898e}
+.planner-subject-sort-bar button{border:1px solid #dedee3!important;border-radius:6px!important;background:#fff!important;color:#65666c!important;font-size:10px!important;line-height:1.3!important;min-height:24px!important;padding:3px 9px!important}
+.planner-subject-sort-bar button.active{color:#3f7252!important;border-color:#a9c9b4!important;background:#eef6f0!important;font-weight:700}
+.planner-subject-group-label{font-size:10.5px;font-weight:700;color:#63666b;padding:11px 2px 4px;margin-top:2px;border-top:1px solid #f0f0f1}
+.planner-subject-sort-bar + .planner-subject-group-label{border-top:0;padding-top:5px}
+.mobile-mission-list .planner-subject-sort-bar{position:sticky;top:0;z-index:1;background:#fff}
+</style>
 </head>
 <body>
 <header>
@@ -10511,6 +10521,76 @@ function plannerScheduleUiRender(){
     updatePlannerQuickButton();
   },wait+24);
 }
+/* 하루 미션의 화면 표시 순서만 변경한다. 회독 날짜·ID·완료 기록은 수정하지 않는다. */
+let plannerSubjectSortMode=(()=>{
+  try{return localStorage.getItem("study-planner-subject-sort") === "subject" ? "subject" : "default"}
+  catch(_){return "default"}
+})();
+function plannerSetSubjectSortMode(mode){
+  plannerSubjectSortMode=mode==="subject"?"subject":"default";
+  try{localStorage.setItem("study-planner-subject-sort",plannerSubjectSortMode)}catch(_){}
+  if(app.study.mode==="planner")renderPlanner();
+  renderWidePlannerSide();
+  if(!document.getElementById("mobileMissionBackdrop")?.classList.contains("hidden"))renderMobileMissionSheet();
+}
+function plannerMissionSubject(mission){
+  return String(mission?.subject||((mission?.title||"").split("›")[0])||"기타").trim()||"기타";
+}
+function plannerManualSubject(item){
+  if(item.manualKind==="memory"){
+    return app.study.subjects?.find(s=>s.id===item.subjectId)?.name||"암기판";
+  }
+  if(item.manualKind==="bank"){
+    const sheet=adventureSheet(item.sheetId);
+    return sheet?bankSheetMeta(sheet).subject||"문제은행":"문제은행";
+  }
+  return "기타";
+}
+function plannerSubjectSortBar(){
+  const bar=document.createElement("div");bar.className="planner-subject-sort-bar";
+  const label=document.createElement("span");label.textContent="정렬";bar.append(label);
+  for(const [mode,title] of [["default","기본"],["subject","과목별"]]){
+    const btn=document.createElement("button");btn.type="button";btn.textContent=title;
+    btn.classList.toggle("active",plannerSubjectSortMode===mode);
+    btn.setAttribute("aria-pressed",String(plannerSubjectSortMode===mode));
+    btn.onclick=()=>{if(plannerSubjectSortMode!==mode)plannerSetSubjectSortMode(mode)};
+    bar.append(btn);
+  }
+  return bar;
+}
+function plannerAppendSubjectSortedRows(container,pairs,manualItems=[],date="",{compact=true,overdue=false}={}){
+  const entries=[
+    ...pairs.map(([round,mission])=>({
+      subject:plannerMissionSubject(mission),label:mission.title||"",
+      build:()=>{
+        const row=plannerTaskRow(round,mission,{compact});
+        if(overdue){
+          const badge=document.createElement("small");
+          badge.className="wide-planner-date planner-overdue-date";
+          badge.textContent=`${mission.date} · ${round.name}`;
+          row.querySelector(".planner-task-text")?.prepend(badge);
+        }
+        return row;
+      }
+    })),
+    ...manualItems.map(item=>({
+      subject:plannerManualSubject(item),label:item.text||"",
+      build:()=>plannerManualRow(date,item,{compact})
+    }))
+  ];
+  if(plannerSubjectSortMode==="subject"){
+    entries.sort((a,b)=>a.subject.localeCompare(b.subject,"ko")||a.label.localeCompare(b.label,"ko"));
+  }
+  let last=null;
+  for(const item of entries){
+    if(plannerSubjectSortMode==="subject"&&item.subject!==last){
+      const heading=document.createElement("div");heading.className="planner-subject-group-label";
+      heading.textContent=item.subject;container.append(heading);last=item.subject;
+    }
+    container.append(item.build());
+  }
+}
+
 function plannerTaskRow(round,mission,{compact=false}={}){
   const done=plannerMissionDone(round,mission),row=document.createElement("div");
   const missionKey=plannerMissionStateKey(round.id,mission.id);
@@ -10682,6 +10762,7 @@ function renderPlanner(force=false){
     const reschedule=document.createElement("button");reschedule.type="button";reschedule.textContent="남은 일정 옮기기";reschedule.onclick=()=>openPlannerRescheduleModal(app.ui.activePlannerRoundId||"");
     const add=document.createElement("button");add.type="button";add.textContent="＋ 추가";add.onclick=()=>plannerQuickAdd(selected);
     quick.append(tomorrow,reschedule,add);dh.append(dt,quick);detail.append(dh);
+    detail.append(plannerSubjectSortBar());
 
     let selectedCount=0,selectedDone=0;
     const pendingRows=[],doneRows=[];
@@ -10694,20 +10775,21 @@ function renderPlanner(force=false){
         if(plannerMissionDone(r,m))doneRows.push(pair);else pendingRows.push(pair);
       });
     }
-    pendingRows.forEach(([r,m])=>detail.append(plannerTaskRow(r,m,{compact:true})));
-    if(pendingRows.length&&doneRows.length){
+    const selectedManual=p.manual[selected]||[];
+    const selectedManualPending=selectedManual.filter(x=>!x.done);
+    const selectedManualDone=selectedManual.filter(x=>x.done);
+    selectedCount+=selectedManual.length;selectedDone+=selectedManualDone.length;
+    plannerAppendSubjectSortedRows(detail,pendingRows,selectedManualPending,selected,{compact:true});
+    if((pendingRows.length||selectedManualPending.length)&&(doneRows.length||selectedManualDone.length)){
       const line=document.createElement("div");line.className="planner-completed-divider";detail.append(line);
     }
-    doneRows.forEach(([r,m])=>detail.append(plannerTaskRow(r,m,{compact:true})));
-    const selectedManual=p.manual[selected]||[];
-    selectedCount+=selectedManual.length;selectedDone+=selectedManual.filter(x=>x.done).length;
+    plannerAppendSubjectSortedRows(detail,doneRows,selectedManualDone,selected,{compact:true});
     if(!selectedCount){
       const empty=document.createElement("div");empty.className="planner-note";empty.textContent="이 날짜에 표시할 미션이 없습니다.";detail.append(empty);
     }else{
       const info=document.createElement("div");info.className="planner-v7-day-progress";info.textContent=`이날 전체 ${selectedDone}/${selectedCount} 완료`;detail.prepend(info);
     }
 
-    selectedManual.forEach(item=>detail.append(plannerManualRow(selected,item)));
     area.append(detail);
 
     /* 밀린 미션은 미완료만 원래 예정일 기준으로 표시 */
@@ -10721,11 +10803,7 @@ function renderPlanner(force=false){
       const box=document.createElement("details");box.className="planner-overdue";
       const sum=document.createElement("summary");sum.textContent=`밀린 미션 ${overdue.length}`;
       box.append(sum);
-      overdue.slice(0,60).forEach(([r,m])=>{
-        const row=plannerTaskRow(r,m,{compact:true});
-        const badge=document.createElement("small");badge.className="planner-overdue-date";badge.textContent=`${m.date} · ${r.name}`;
-        row.querySelector(".planner-task-text")?.prepend(badge);box.append(row);
-      });
+      plannerAppendSubjectSortedRows(box,overdue.slice(0,60),[],today,{compact:true,overdue:true});
       if(overdue.length>60){const more=document.createElement("div");more.className="planner-note";more.textContent=`외 ${overdue.length-60}개`;box.append(more)}
       area.append(box);
     }
@@ -11274,18 +11352,14 @@ function renderWidePlannerSchedule(list,count,date){
   const unfinished=overdue.length+pending.length+manualPending.length;
   const finished=done.length+manualDone.length;
   count.textContent=`${finished}/${unfinished+finished} 완료`;
+  list.append(plannerSubjectSortBar());
 
   if(overdue.length){
     const label=document.createElement("div");label.className="wide-planner-label";label.textContent=`밀린 미션 ${overdue.length}`;
     list.append(label);
     const mobileList=list.id==="mobileMissionList"&&useCompactMissionPanel();
     const visibleOverdue=mobileList?overdue.slice(0,mobileMissionOverdueLimit):overdue;
-    visibleOverdue.forEach(([r,m])=>{
-      const row=plannerTaskRow(r,m,{compact:true});
-      const badge=document.createElement("small");badge.className="wide-planner-date";badge.textContent=m.date;
-      row.querySelector(".planner-task-text")?.prepend(badge);
-      list.append(row);
-    });
+    plannerAppendSubjectSortedRows(list,visibleOverdue,[],date,{compact:true,overdue:true});
     if(mobileList&&visibleOverdue.length<overdue.length){
       const more=document.createElement("button");more.type="button";more.className="mobile-mission-more";
       more.textContent=`밀린 미션 더보기 +${Math.min(24,overdue.length-visibleOverdue.length)}`;
@@ -11293,14 +11367,12 @@ function renderWidePlannerSchedule(list,count,date){
       list.append(more);
     }
   }
-  pending.forEach(([r,m])=>list.append(plannerTaskRow(r,m,{compact:true})));
-  manualPending.forEach(item=>list.append(plannerManualRow(date,item,{compact:true})));
+  plannerAppendSubjectSortedRows(list,pending,manualPending,date,{compact:true});
 
   if((overdue.length||pending.length||manualPending.length)&&(done.length||manualDone.length)){
     const line=document.createElement("div");line.className="wide-planner-divider";list.append(line);
   }
-  done.forEach(([r,m])=>list.append(plannerTaskRow(r,m,{compact:true})));
-  manualDone.forEach(item=>list.append(plannerManualRow(date,item,{compact:true})));
+  plannerAppendSubjectSortedRows(list,done,manualDone,date,{compact:true});
 
   if(!overdue.length&&!pending.length&&!done.length&&!manual.length){
     const empty=document.createElement("div");empty.className="wide-planner-empty";
