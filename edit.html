@@ -139,6 +139,19 @@ td input:focus,td textarea:focus{background:#f7f7f9}
 .quiz-actions button{border:0;background:var(--soft);border-radius:9px;padding:9px 10px;font-size:12px}
 .quiz-actions .primary{margin-left:auto}
 .answer-panel{margin-top:10px;padding:10px;border-radius:10px;background:#f4f4f6;white-space:pre-wrap;font-size:13px}
+/* 직접 인출: 입력한 답과 기준 답안을 나란히 확인한 뒤 자가채점 */
+.quiz-self-label{font-size:11px;font-weight:750;color:#6b6c73;margin:10px 0 6px}
+.quiz-self-draft{min-height:110px;line-height:1.65;font-size:16px!important;background:#fff}
+.quiz-self-draft[readonly]{background:#fafafc;color:#3b3b41}
+.quiz-self-reference{padding:12px 13px;border:1px solid #d8e4dc;background:#f6faf7}
+.quiz-self-reference-title{font-size:11px;font-weight:800;color:#397250;margin-bottom:7px}
+.quiz-self-reference-answer{white-space:pre-wrap;line-height:1.7;font-size:15px;color:#242b26}
+.quiz-self-reference-memo{white-space:pre-wrap;line-height:1.6;margin-top:10px;padding-top:10px;border-top:1px solid #dfe9e2;font-size:12px;color:#616761}
+.quiz-self-grade{order:95;display:flex;flex:1 1 100%;width:100%;gap:8px}
+.quiz-actions .quiz-self-grade button{flex:1 1 0;min-height:43px;font-size:13px!important;font-weight:750!important;color:#282930!important}
+.quiz-actions .quiz-self-grade .quiz-self-right{background:#e5f4e9!important;color:#22653d!important}
+.quiz-actions .quiz-self-grade .quiz-self-wrong{background:#fcebe9!important;color:#9b3935!important}
+.quiz-self-history{background:#fafafa;color:#555}
 .bank-empty{background:#fff;border:1px dashed #ccc;border-radius:12px;padding:30px 15px;text-align:center;color:#777}
 .bank-empty button{margin-top:10px;border:0;background:var(--text);color:#fff;border-radius:10px;padding:10px 13px}
 .wrong-list{display:flex;flex-direction:column;gap:6px}
@@ -7153,7 +7166,7 @@ function recordQuiz(item,ok){
   if(quizSession){
     if(ok)quizSession.correctCount=(quizSession.correctCount||0)+1;else quizSession.wrongCount=(quizSession.wrongCount||0)+1;
     if(!Array.isArray(quizSession.recentAnswered))quizSession.recentAnswered=[];
-    quizSession.recentAnswered.push({id:quizItemId(item),question:item.question||"",answer:item.answer||"",memo:item.memo||"",sheetName:item.sheetName||"",category:item.category||item.section||"",ok:!!ok});
+    quizSession.recentAnswered.push({id:quizItemId(item),question:item.question||"",answer:item.answer||"",memo:item.memo||"",sheetName:item.sheetName||"",category:item.category||item.section||"",ok:!!ok,draft:activeQuizMode()==="self"?(quizSession.draft||""):""});
     if(quizSession.recentAnswered.length>10)quizSession.recentAnswered.splice(0,quizSession.recentAnswered.length-10);
     if(!ok){if(!Array.isArray(quizSession.wrongItemIds))quizSession.wrongItemIds=[];const qid=quizItemId(item);if(!quizSession.wrongItemIds.includes(qid))quizSession.wrongItemIds.push(qid)}
   }
@@ -7355,7 +7368,7 @@ function adventureSheetState(sheetId){
     if(!cfg||typeof cfg!=="object")cfg=state.paths[order]=newAdventurePath(order);
     cfg.order=order;
     if(![10,20,30,50].includes(cfg.size))cfg.size=20;
-    if(!["choice","subjective","write"].includes(cfg.mode))cfg.mode="choice";
+    if(!["choice","subjective","write","self"].includes(cfg.mode))cfg.mode="choice";
     if(!cfg.completed||typeof cfg.completed!=="object")cfg.completed={};
     if(!cfg.reviews||typeof cfg.reviews!=="object")cfg.reviews={};
     if(!cfg.activeSessions||typeof cfg.activeSessions!=="object")cfg.activeSessions={};
@@ -7453,6 +7466,20 @@ function adventureProgress(cfg){
   // 진행률은 본 세트 완료만 계산함. 복습/과거 보조 키가 completed에 섞여 있어도 제외.
   const done=Array.from({length:total},(_,i)=>String(i)).filter(key=>!!cfg?.completed?.[key]).length;
   return {total,done,pct:total?Math.round(done/total*100):0};
+}
+function setAdventureAnswerMode(sheetId,mode){
+  const cfg=adventureConfig(sheetId,{quiet:true}),sheet=adventureSheet(sheetId);
+  if(!cfg||!sheet||!["choice","subjective","write","self"].includes(mode))return false;
+  if(cfg.mode===mode)return true;
+  // 동일한 문제 풀을 쓰는 답 방식끼리는 완료·진행·이어하기를 지우지 않는다.
+  // 글쓰기 모드는 정답 없는 행도 포함하므로 기존 초기화 확인 절차를 유지한다.
+  if(cfg.mode!=="write"&&mode!=="write"){
+    cfg.mode=mode;
+    cfg.signature=adventureSignature(sheet,mode,adventureBaseItems(sheet,mode),cfg.order);
+    cfg.lastTouchedAt=Date.now();
+    markAdventureCloud();return true;
+  }
+  return resetAdventureConfig(sheetId,{mode});
 }
 function resetAdventureConfig(sheetId,patch){
   const state=adventureSheetState(sheetId),cfg=adventureConfig(sheetId,{quiet:true});if(!cfg)return false;
@@ -7727,7 +7754,8 @@ function renderBankToolbar(){
   const available=quizPool().length;
   const summary=document.createElement("button");summary.className="quiz-setup-summary";
   const sizeLabel=app.ui.quiz.sessionSize==="all"?`전체 ${available}문제`:`${Math.min(available,Number(app.ui.quiz.sessionSize)||20)}문제`;
-  summary.innerHTML=`<strong>${escapeHtml(quizRangeLabel())} <em>${available}</em></strong><span>${sizeLabel} · ${effectiveQuickOrder()==="random"?"랜덤":"순서대로"} ▾</span>`;
+  const modeLabel={choice:"객관식",subjective:"주관식",write:"글쓰기",self:"직접 인출"}[app.ui.quiz.mode]||"객관식";
+  summary.innerHTML=`<strong>${escapeHtml(quizRangeLabel())} <em>${available}</em></strong><span>${sizeLabel} · ${modeLabel} · ${effectiveQuickOrder()==="random"?"랜덤":"순서대로"} ▾</span>`;
   const panel=document.createElement("div");panel.className="quiz-setup-panel"+(app.ui.quiz.setupOpen?"":" hidden");
   summary.onclick=()=>{app.ui.quiz.setupOpen=!app.ui.quiz.setupOpen;saveLocal();renderBankToolbar()};
 
@@ -7778,6 +7806,11 @@ function renderBankToolbar(){
     select([["10","10문제"],["20","20문제"],["30","30문제"],["50","50문제"],["all",`전체 (${available})`]],app.ui.quiz.sessionSize,v=>{app.ui.quiz.sessionSize=v==="all"?"all":Number(v);saveLocal();renderQuiz()}),
     select([["sequence","순서대로"],["random","랜덤"]],effectiveQuickOrder(),v=>{app.ui.quiz.order=v;app.ui.quiz.groupOrder=v==="random"?"mixed":"grouped";saveLocal();renderQuiz()})
   );
+  const quizModeSelect=select([["choice","객관식 (4지선다)"],["self","직접 인출 · 자가채점"],["subjective","주관식 · 자동채점"],["write","글쓰기"]],app.ui.quiz.mode,v=>{app.ui.quiz.mode=v;quizCountCache.clear();saveLocal();renderQuiz()});
+  quizModeSelect.className="quiz-mode-select";
+  quizModeSelect.setAttribute("aria-label","문제 풀이 방식");
+  quizModeSelect.style.gridColumn="1 / -1";
+  core.append(quizModeSelect);
   panel.append(core);
 
   const details=document.createElement("details");details.className="quiz-advanced";details.open=!!app.ui.quiz.advancedOpen;
@@ -7785,7 +7818,7 @@ function renderBankToolbar(){
   const ds=document.createElement("summary");ds.textContent="세부 설정";
   const advanced=document.createElement("div");advanced.className="compact-options";
   advanced.append(
-    select([["choice","객관식"],["subjective","주관식"],["write","글쓰기"]],app.ui.quiz.mode,v=>{app.ui.quiz.mode=v;quizCountCache.clear();saveLocal();renderQuiz()}),
+    select([["choice","객관식"],["subjective","주관식"],["write","글쓰기"],["self","직접 인출"]],app.ui.quiz.mode,v=>{app.ui.quiz.mode=v;quizCountCache.clear();saveLocal();renderQuiz()}),
     select([["all","전체 문제"],["wrong","누적 오답"],["starred","★ 헷갈림"],["unchecked","E 미체크"],["checked","E 체크"]],app.ui.quiz.filter,v=>{app.ui.quiz.filter=v;quizCountCache.clear();saveLocal();renderQuiz()}),
     select([["yes","오답 다시"],["no","1회만"]],app.ui.quiz.mastery?"yes":"no",v=>{app.ui.quiz.mastery=v==="yes";saveLocal()})
   );
@@ -8008,7 +8041,7 @@ function renderAdventurePath(area,sheetId){
     };
     settingsBox.append(
       makeSelect("세트 크기",[["10","10문제"],["20","20문제"],["30","30문제"],["50","50문제"]],cfg.size,v=>resetAdventureConfig(sheetId,{size:Number(v)})),
-      makeSelect("답 방식",[["choice","객관식"],["subjective","주관식"],["write","글쓰기"]],cfg.mode,v=>resetAdventureConfig(sheetId,{mode:v}))
+      makeSelect("답 방식",[["choice","객관식"],["subjective","주관식"],["write","글쓰기"],["self","직접 인출"]],cfg.mode,v=>setAdventureAnswerMode(sheetId,v))
     );
     const help=document.createElement("div");help.className="path-settings-help";help.textContent="설정 변경은 지금 보고 있는 경로에만 적용됩니다.";
     settingsBox.append(help);area.append(settingsBox);
@@ -8033,7 +8066,7 @@ function renderAdventurePath(area,sheetId){
   const progress=roundProgress?.total?roundProgress:adventureProgress(cfg);
   const summary=document.createElement("div");summary.className="path-progress-summary";
   const cumulativeProgress=adventureProgress(cfg);
-  summary.innerHTML=`<span><b>${progress.pct}%</b>${activeRound&&roundProgress?.total?` <small>${escapeHtml(activeRound.name||"회독")}</small>`:""}</span><span>${progress.done}/${progress.total} 세트 · ${cfg.mode==="choice"?"객관식":cfg.mode==="subjective"?"주관식":"글쓰기"}${activeRound&&roundProgress?.total?` · 누적 ${cumulativeProgress.pct}% 보존`:""}</span>`;
+  summary.innerHTML=`<span><b>${progress.pct}%</b>${activeRound&&roundProgress?.total?` <small>${escapeHtml(activeRound.name||"회독")}</small>`:""}</span><span>${progress.done}/${progress.total} 세트 · ${cfg.mode==="choice"?"객관식":cfg.mode==="subjective"?"주관식":cfg.mode==="self"?"직접 인출":"글쓰기"}${activeRound&&roundProgress?.total?` · 누적 ${cumulativeProgress.pct}% 보존`:""}</span>`;
   const bar=document.createElement("div");bar.className="path-progress-bar";bar.innerHTML=`<i style="width:${progress.pct}%"></i>`;
   area.append(summary,bar);
 
@@ -8265,6 +8298,7 @@ function renderQuizHistoryView(area){
   const tag=document.createElement("div");tag.className="q-tag";tag.innerHTML=`<div class="quiz-sheet-name">${escapeHtml(item.sheetName||"")}</div><div class="quiz-category">${escapeHtml(item.category||"")}</div>`;
   const mark=document.createElement("div");mark.className="q-progress";mark.textContent=item.ok?"✓ 맞음":"× 틀림";top.append(tag,mark);
   const q=document.createElement("div");q.className="question";q.textContent=item.question||"";
+  const own=document.createElement("div");own.className="quiz-history-answer quiz-self-history";own.textContent=`내 답  ${item.draft||""}`;
   const ans=document.createElement("div");ans.className="quiz-history-answer";ans.textContent=`정답  ${item.answer||""}${item.memo?`
 
 ${item.memo}`:""}`;
@@ -8272,7 +8306,7 @@ ${item.memo}`:""}`;
   const older=document.createElement("button");older.textContent="← 더 이전";older.disabled=offset>=history.length;older.onclick=()=>{quizSession.historyOffset=Math.min(history.length,offset+1);renderQuizQuestion()};
   const newer=document.createElement("button");newer.textContent="다음 기록 →";newer.disabled=offset<=1;newer.onclick=()=>{quizSession.historyOffset=Math.max(1,offset-1);renderQuizQuestion()};
   const back=document.createElement("button");back.className="primary";back.textContent="현재 문제";back.onclick=()=>{quizSession.historyOffset=0;renderQuizQuestion()};
-  actions.append(older,newer,back);card.append(note,top,q,ans,actions);area.append(card);return true;
+  actions.append(older,newer,back);card.append(note,top,q);if(item.draft)card.append(own);card.append(ans,actions);area.append(card);return true;
 }
 function renderQuizQuestion(){
   updateAppBackButton();
@@ -8340,11 +8374,26 @@ function renderQuizQuestion(){
     input.oninput=e=>{quizSession.draft=e.target.value;saveQuizSessionLocal()};
     bindSafeEnter(input,()=>checkSubjective(input));
     card.append(input);
+  }else if(mode==="self"){
+    const mine=document.createElement("div");mine.className="quiz-self-label";mine.textContent="내 답";
+    const ta=document.createElement("textarea");ta.className="write-answer quiz-self-draft";ta.value=quizSession.draft||"";
+    ta.placeholder="기억나는 내용을 직접 적어보세요";
+    ta.readOnly=!!quizSession.showAnswer;
+    ta.oninput=e=>{quizSession.draft=e.target.value;saveQuizSessionLocal()};
+    card.append(mine,ta);
   }else{
     const ta=document.createElement("textarea");ta.className="write-answer";ta.value=quizSession.draft||"";ta.placeholder="내 답 작성";ta.oninput=e=>{quizSession.draft=e.target.value;saveQuizSessionLocal()};card.append(ta);
   }
   if(quizSession.showAnswer&&item.answer){
-    const ans=document.createElement("div");ans.className="answer-panel";ans.textContent=item.answer+(item.memo?`\n\n${item.memo}`:"");card.append(ans)
+    const ans=document.createElement("div");ans.className="answer-panel";
+    if(mode==="self"){
+      ans.classList.add("quiz-self-reference");
+      const title=document.createElement("div");title.className="quiz-self-reference-title";title.textContent="정답";
+      const body=document.createElement("div");body.className="quiz-self-reference-answer";body.textContent=item.answer;
+      ans.append(title,body);
+      if(item.memo){const memo=document.createElement("div");memo.className="quiz-self-reference-memo";memo.textContent=item.memo;ans.append(memo)}
+    }else ans.textContent=item.answer+(item.memo?`\n\n${item.memo}`:"");
+    card.append(ans);
   }
   const actions=document.createElement("div");actions.className="quiz-actions";
   const stop=document.createElement("button");stop.textContent=quizSession.adventure?"나가기":"중단";stop.onclick=requestQuizStop;actions.append(stop);
@@ -8369,7 +8418,11 @@ function renderQuizQuestion(){
     quizSession.awaitingExplanation=false;
     nextQuiz(true);
   };
-  actions.append(dont);
+  if(mode==="self"){
+    dont.textContent="모름 · 정답 보기";
+    dont.onclick=()=>{if(!quizSession||quizSession.showAnswer)return;quizSession.showAnswer=true;saveQuizSessionLocal();renderQuizQuestion()};
+    if(!quizSession.showAnswer)actions.append(dont);
+  }else actions.append(dont);
   if(mode==="write"){
     const show=document.createElement("button");show.textContent="답 보기";show.onclick=()=>{quizSession.showAnswer=true;saveQuizSessionLocal();renderQuizQuestion()};actions.append(show);
     if(item.answer){
@@ -8379,7 +8432,20 @@ function renderQuizQuestion(){
       const done=document.createElement("button");done.textContent="완료";done.onclick=nextQuiz;actions.append(done);
     }
   }
-  if((quizSession.answered||quizSession.showAnswer)&&mode!=="choice"){
+  if(mode==="self"){
+    if(!quizSession.showAnswer){
+      const reveal=document.createElement("button");reveal.className="primary";reveal.textContent="정답 확인";
+      reveal.onclick=()=>{quizSession.showAnswer=true;saveQuizSessionLocal();renderQuizQuestion()};
+      actions.append(reveal);
+    }else if(!quizSession.answered){
+      const grade=document.createElement("div");grade.className="quiz-self-grade";
+      const rate=(ok)=>{if(!quizSession||quizSession.answered||!quizSession.showAnswer)return;quizSession.answered=true;recordQuiz(item,ok);nextQuiz()};
+      const yes=document.createElement("button");yes.className="quiz-self-right";yes.textContent="✓ 맞음";yes.onclick=()=>rate(true);
+      const no=document.createElement("button");no.className="quiz-self-wrong";no.textContent="× 틀림";no.onclick=()=>rate(false);
+      grade.append(yes,no);actions.append(grade);
+    }
+  }
+  if((quizSession.answered||quizSession.showAnswer)&&mode!=="choice"&&mode!=="self"){
     const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=nextQuiz;actions.append(next);
   }
   card.append(actions);area.append(card);
