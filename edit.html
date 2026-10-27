@@ -3734,6 +3734,32 @@ body.mobile-mission-open{overflow:hidden}
 .planner-subject-sort-bar + .planner-subject-group-label{border-top:0;padding-top:5px}
 .mobile-mission-list .planner-subject-sort-bar{position:sticky;top:0;z-index:1;background:#fff}
 </style>
+
+<style>
+/* 직접 쓰기 / 정답 보기 / 자가채점 */
+.quiz-answer-methods{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:9px 0}
+.quiz-answer-methods button{min-height:39px;border:1px solid #dddde4;border-radius:9px;background:#fff;color:#55565d;font-size:12px;font-weight:600}
+.quiz-answer-methods button.active{background:#282831;border-color:#282831;color:#fff}
+.quiz-session-method{min-width:91px;max-width:120px;border:1px solid #e0e0e5;border-radius:7px;background:#f7f7f9;color:#555;font-size:11px;padding:5px 3px}
+.quiz-session-method:disabled{opacity:.65}
+.quiz-write-wrap{margin:12px 0 6px}
+.quiz-write-label,.quiz-self-answer-label,.quiz-self-memo-label{font-size:12px;font-weight:750;color:#777981;margin:0 0 7px}
+#quizView .quiz-write-wrap .write-answer{display:block;width:100%;min-height:125px;max-height:45vh;line-height:1.65;background:#fafafb;border:1px solid #dcdce4;border-radius:12px;padding:13px 14px;resize:vertical;color:#24242b;box-sizing:border-box}
+#quizView .quiz-write-wrap .write-answer:focus{border-color:#7768d6;box-shadow:0 0 0 2px rgba(101,87,232,.12)}
+#quizView .quiz-write-wrap .write-answer[readonly]{background:#f7f7f9;border-color:#e7e7ea;color:#55565e}
+.quiz-self-answer-panel{margin-top:14px!important;padding:14px!important;background:#f3f2fb!important;border-left:3px solid #7666d3;border-radius:9px;line-height:1.65;overflow-wrap:anywhere}
+.quiz-self-answer-label{color:#6557a6}
+.quiz-self-memo-label{margin:13px 0 6px;padding-top:12px;border-top:1px solid #dedde8}
+.quiz-self-rate{margin:14px 0 5px}
+.quiz-self-reveal{display:block;width:100%;min-height:48px;border:0;border-radius:10px;background:#282831;color:white;font-size:15px;font-weight:700}
+.quiz-self-rate-hint{font-size:12px;text-align:center;color:#777981;margin:3px 0 10px}
+.quiz-self-rate-buttons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.quiz-self-rate-buttons button{min-height:54px;border-radius:11px;font-size:15px;font-weight:750}
+.quiz-self-wrong{background:#fff1ef;color:#b44843;border:1px solid #e6c6c4}
+.quiz-self-correct{background:#eaf7ef;color:#28734a;border:1px solid #c6dfd0}
+.quiz-self-rate-buttons button:focus-visible,.quiz-self-reveal:focus-visible{outline:3px solid #8276dd;outline-offset:2px}
+@media(max-width:520px){.quiz-session-method{max-width:94px;font-size:10px}.quiz-answer-methods button{font-size:11px}}
+</style>
 </head>
 <body>
 <header>
@@ -4157,7 +4183,7 @@ function initialApp(){
   return {
     study:{subjectId:s.id,mode:"study",subjects:[s],updatedAt:0},
     bank:{sheets:[],stats:{},contentUpdatedAt:0,statsUpdatedAt:0},
-    ui:{workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",typingPractice:true,typingPracticeDefaultV1:true,settings:{fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"},quiz:{subject:"all",areas:[],mode:"choice",filter:"all",order:"sequence",mastery:true,sessionSize:20,groupOrder:"grouped",recentRanges:[]}}
+    ui:{workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",typingPractice:true,typingPracticeDefaultV1:true,settings:{fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"},quiz:{subject:"all",areas:[],mode:"write",filter:"all",order:"sequence",mastery:true,sessionSize:20,groupOrder:"grouped",recentRanges:[]}}
   };
 }
 function migrate(){
@@ -4449,7 +4475,7 @@ function cleanup(){
   if(!Array.isArray(app.bank.trashSheets))app.bank.trashSheets=[];
   if(app.bank.updatedAt && !app.bank.contentUpdatedAt)app.bank.contentUpdatedAt=app.bank.updatedAt;
   if(app.bank.updatedAt && !app.bank.statsUpdatedAt)app.bank.statsUpdatedAt=app.bank.updatedAt;
-  if(!app.ui)app.ui={workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",quiz:{sheetId:"",mode:"choice",filter:"all",order:"sequence",mastery:true}};
+  if(!app.ui)app.ui={workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",quiz:{sheetId:"",mode:"write",filter:"all",order:"sequence",mastery:true}};
   if(!["memory","bank","curriculum"].includes(app.ui.workspace))app.ui.workspace="memory";if(!app.ui.bankMode)app.ui.bankMode="quiz";
   curriculumUi();curriculumStore();
   if(!app.ui.settings)app.ui.settings={fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"};
@@ -4473,8 +4499,13 @@ function cleanup(){
   app.ui.settings.quizFontSize=Math.max(14,Math.min(24,app.ui.settings.quizFontSize));
   if(!["compact","normal"].includes(app.ui.settings.density))app.ui.settings.density="compact";
   if(typeof app.ui.settings.fontName!=="string")app.ui.settings.fontName="";
-  if(!app.ui.quiz)app.ui.quiz={subject:"all",areas:[],mode:"choice",filter:"all",order:"sequence",mastery:true,sessionSize:20,groupOrder:"grouped",recentRanges:[]};
-  if(app.ui.quiz.mastery==null)app.ui.quiz.mastery=true;
+  if(!app.ui.quiz)app.ui.quiz={subject:"all",areas:[],mode:"write",filter:"all",order:"sequence",mastery:true,sessionSize:20,groupOrder:"grouped",recentRanges:[]};
+  /* 1회 설정 전환. 사용자가 이후 선택하는 모드는 존중하고 기존 기록은 건드리지 않는다. */
+   if(!app.ui.quiz.selfGradeDefaultV1){
+     if(!["write","subjective"].includes(app.ui.quiz.mode))app.ui.quiz.mode="write";
+     app.ui.quiz.selfGradeDefaultV1=true;
+   }
+   if(app.ui.quiz.mastery==null)app.ui.quiz.mastery=true;
   if(!app.ui.quiz.order)app.ui.quiz.order="sequence";
   if(!app.ui.quiz.subject)app.ui.quiz.subject="all";
   if(!Array.isArray(app.ui.quiz.areas))app.ui.quiz.areas=[];
@@ -7326,7 +7357,11 @@ function migrateAdventureOrderIds(cfg,base){
   }
   return null;
 }
-function newAdventurePath(order="sequence",size=20,mode="choice"){
+function adventureAnswerMode(cfg){
+  const mode=cfg?.answerMode||(cfg?.mode==="choice"?"write":cfg?.mode);
+  return ["choice","subjective","write"].includes(mode)?mode:"write";
+}
+function newAdventurePath(order="sequence",size=20,mode="write"){
   return {size,order,mode,signature:"",orderIds:[],completed:{},reviews:{},activeSessions:{},lastTouchedAt:0};
 }
 function adventureSheetState(sheetId){
@@ -7355,7 +7390,7 @@ function adventureSheetState(sheetId){
     if(!cfg||typeof cfg!=="object")cfg=state.paths[order]=newAdventurePath(order);
     cfg.order=order;
     if(![10,20,30,50].includes(cfg.size))cfg.size=20;
-    if(!["choice","subjective","write"].includes(cfg.mode))cfg.mode="choice";
+    if(!["choice","subjective","write"].includes(cfg.mode))cfg.mode="write";
     if(!cfg.completed||typeof cfg.completed!=="object")cfg.completed={};
     if(!cfg.reviews||typeof cfg.reviews!=="object")cfg.reviews={};
     if(!cfg.activeSessions||typeof cfg.activeSessions!=="object")cfg.activeSessions={};
@@ -7508,7 +7543,7 @@ function startAdventureSet(sheetId,setIndex,{replay=false}={}){
   quizLastComplete=null;
   quizSession={items,index:0,remaining:[],answered:false,selected:null,showAnswer:false,draft:"",choices:[],round:1,nextRound:[],deferred:[],
     mastery:true,rangeLabel:`${bankSheetMeta(sheet).area||sheet.name} · ${setIndex+1}세트`,initialCount:items.length,resumeSlotId:"",
-    correctCount:0,wrongCount:0,wrongItemIds:[],recentAnswered:[],quizMode:cfg.mode,quizOrder:cfg.order,
+    correctCount:0,wrongCount:0,wrongItemIds:[],recentAnswered:[],quizMode:adventureAnswerMode(cfg),quizOrder:cfg.order,
     adventure:{sheetId,setIndex,sessionKey:key,replay:!!replay,review:false,order:cfg.order}};
   adventureStore().activeSheetId=sheetId;app.ui.quizHomeMode="path";
   document.body.classList.add("quiz-running");buildChoices();saveQuizSessionLocal();markAdventureCloud();renderQuizQuestion();
@@ -7521,7 +7556,7 @@ function startAdventureReview(sheetId,milestone){
   if(!items.length)return toast("지금 복습할 오답/★ 문제가 없습니다");
   quizSession={items,index:0,remaining:[],answered:false,selected:null,showAnswer:false,draft:"",choices:[],round:1,nextRound:[],deferred:[],
     mastery:true,rangeLabel:`${bankSheetMeta(sheet).area||sheet.name} · 복습`,initialCount:items.length,resumeSlotId:"",
-    correctCount:0,wrongCount:0,wrongItemIds:[],recentAnswered:[],quizMode:cfg.mode,quizOrder:"random",
+    correctCount:0,wrongCount:0,wrongItemIds:[],recentAnswered:[],quizMode:adventureAnswerMode(cfg),quizOrder:"random",
     adventure:{sheetId,milestone,sessionKey:key,replay:true,review:true,order:cfg.order}};
   adventureStore().activeSheetId=sheetId;app.ui.quizHomeMode="path";
   document.body.classList.add("quiz-running");buildChoices();saveQuizSessionLocal();markAdventureCloud();renderQuizQuestion();
@@ -7538,7 +7573,7 @@ function startAdventureRoundMission(round,mission){
   quizLastComplete=null;
   quizSession={items,index:0,remaining:[],answered:false,selected:null,showAnswer:false,draft:"",choices:[],round:1,nextRound:[],deferred:[],wrongItemIds:[],recentAnswered:[],
     mastery:true,rangeLabel:`${bankSheetMeta(sheet).area||sheet.name} · ${mission.setIndex+1}세트 · ${round.name}`,initialCount:items.length,resumeSlotId:"",
-    correctCount:0,wrongCount:0,quizMode:cfg.mode,quizOrder:mission.order||cfg.order,plannerRoundId:round.id,
+    correctCount:0,wrongCount:0,quizMode:adventureAnswerMode(cfg),quizOrder:mission.order||cfg.order,plannerRoundId:round.id,
     adventure:{sheetId:mission.sheetId,setIndex:mission.setIndex,sessionKey,replay:!!cfg.completed?.[String(mission.setIndex)],review:false,order:mission.order||cfg.order,roundId:round.id,missionId:mission.id}};
   adventureStore().activeSheetId=mission.sheetId;app.ui.quizHomeMode="path";document.body.classList.add("quiz-running");
   buildChoices();saveQuizSessionLocal();markAdventureCloud();renderQuizQuestion();
@@ -7727,7 +7762,7 @@ function renderBankToolbar(){
   const available=quizPool().length;
   const summary=document.createElement("button");summary.className="quiz-setup-summary";
   const sizeLabel=app.ui.quiz.sessionSize==="all"?`전체 ${available}문제`:`${Math.min(available,Number(app.ui.quiz.sessionSize)||20)}문제`;
-  summary.innerHTML=`<strong>${escapeHtml(quizRangeLabel())} <em>${available}</em></strong><span>${sizeLabel} · ${effectiveQuickOrder()==="random"?"랜덤":"순서대로"} ▾</span>`;
+  summary.innerHTML=`<strong>${escapeHtml(quizRangeLabel())} <em>${available}</em></strong><span>${sizeLabel} · ${app.ui.quiz.mode==="write"?"직접 쓰기":app.ui.quiz.mode==="choice"?"4지선다":"자동채점"} · ${effectiveQuickOrder()==="random"?"랜덤":"순서대로"} ▾</span>`;
   const panel=document.createElement("div");panel.className="quiz-setup-panel"+(app.ui.quiz.setupOpen?"":" hidden");
   summary.onclick=()=>{app.ui.quiz.setupOpen=!app.ui.quiz.setupOpen;saveLocal();renderBankToolbar()};
 
@@ -7773,6 +7808,15 @@ function renderBankToolbar(){
     x.value=String(value);x.onchange=()=>onchange(x.value);return x;
   };
 
+  const modePicker=document.createElement("div");modePicker.className="quiz-answer-methods";
+  [["write","직접 쓰기"],["choice","4지선다"],["subjective","자동채점"]].forEach(([value,label])=>{
+    const b=document.createElement("button");b.type="button";b.textContent=label;
+    b.className=app.ui.quiz.mode===value?"active":"";
+    b.setAttribute("aria-pressed",String(app.ui.quiz.mode===value));
+    b.onclick=()=>{app.ui.quiz.mode=value;quizCountCache.clear();saveLocal();renderQuiz()};
+    modePicker.append(b);
+  });
+  panel.append(modePicker);
   const core=document.createElement("div");core.className="quick-core-options";
   core.append(
     select([["10","10문제"],["20","20문제"],["30","30문제"],["50","50문제"],["all",`전체 (${available})`]],app.ui.quiz.sessionSize,v=>{app.ui.quiz.sessionSize=v==="all"?"all":Number(v);saveLocal();renderQuiz()}),
@@ -7785,7 +7829,6 @@ function renderBankToolbar(){
   const ds=document.createElement("summary");ds.textContent="세부 설정";
   const advanced=document.createElement("div");advanced.className="compact-options";
   advanced.append(
-    select([["choice","객관식"],["subjective","주관식"],["write","글쓰기"]],app.ui.quiz.mode,v=>{app.ui.quiz.mode=v;quizCountCache.clear();saveLocal();renderQuiz()}),
     select([["all","전체 문제"],["wrong","누적 오답"],["starred","★ 헷갈림"],["unchecked","E 미체크"],["checked","E 체크"]],app.ui.quiz.filter,v=>{app.ui.quiz.filter=v;quizCountCache.clear();saveLocal();renderQuiz()}),
     select([["yes","오답 다시"],["no","1회만"]],app.ui.quiz.mastery?"yes":"no",v=>{app.ui.quiz.mastery=v==="yes";saveLocal()})
   );
@@ -8008,9 +8051,9 @@ function renderAdventurePath(area,sheetId){
     };
     settingsBox.append(
       makeSelect("세트 크기",[["10","10문제"],["20","20문제"],["30","30문제"],["50","50문제"]],cfg.size,v=>resetAdventureConfig(sheetId,{size:Number(v)})),
-      makeSelect("답 방식",[["choice","객관식"],["subjective","주관식"],["write","글쓰기"]],cfg.mode,v=>resetAdventureConfig(sheetId,{mode:v}))
+      makeSelect("답 방식",[["write","직접 쓰기"],["choice","4지선다"],["subjective","자동채점"]],adventureAnswerMode(cfg),v=>{cfg.answerMode=v;markAdventureCloud();return true})
     );
-    const help=document.createElement("div");help.className="path-settings-help";help.textContent="설정 변경은 지금 보고 있는 경로에만 적용됩니다.";
+    const help=document.createElement("div");help.className="path-settings-help";help.textContent="답 방식 변경은 기존 진도·완료 기록을 지우지 않습니다. 세트 크기는 별도입니다.";
     settingsBox.append(help);area.append(settingsBox);
   }
 
@@ -8310,6 +8353,14 @@ function renderQuizQuestion(){
     memoWrap.append(memoSettings,memoMenu);
     top.append(tag,qStar,memoWrap,prog);
   }else top.append(tag,qStar,prog);
+  const modeSel=document.createElement("select");modeSel.className="quiz-session-method";
+  modeSel.setAttribute("aria-label","답 방식");
+  [["write","직접 쓰기"],["choice","4지선다"],["subjective","자동채점"]].forEach(([value,label])=>{
+    const opt=document.createElement("option");opt.value=value;opt.textContent=label;modeSel.append(opt);
+  });
+  modeSel.value=activeQuizMode();modeSel.disabled=!!quizSession.answered||!!quizSession.showAnswer;
+  modeSel.onchange=()=>changeQuizResponseMode(modeSel.value);
+  top.append(modeSel);
   const q=document.createElement("div");q.className="question";q.textContent=(item.question||"").replace(/\s*\/\s*/g,"  /  ");
   card.append(top,q);
   const mode=activeQuizMode();
@@ -8341,10 +8392,47 @@ function renderQuizQuestion(){
     bindSafeEnter(input,()=>checkSubjective(input));
     card.append(input);
   }else{
-    const ta=document.createElement("textarea");ta.className="write-answer";ta.value=quizSession.draft||"";ta.placeholder="내 답 작성";ta.oninput=e=>{quizSession.draft=e.target.value;saveQuizSessionLocal()};card.append(ta);
+    const wrap=document.createElement("div");wrap.className="quiz-write-wrap";
+    const label=document.createElement("div");label.className="quiz-write-label";
+    label.textContent=quizSession.showAnswer?"내가 쓴 답":"생각나는 답을 직접 적어보세요";
+    const ta=document.createElement("textarea");ta.className="write-answer";ta.rows=4;
+    ta.value=quizSession.draft||"";ta.placeholder="여기에 답을 작성하세요 · Shift+Enter는 줄바꿈";
+    ta.readOnly=!!quizSession.showAnswer;
+    ta.oninput=e=>{quizSession.draft=e.target.value;saveQuizSessionLocal()};
+    ta.onkeydown=e=>{
+      if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing&&e.keyCode!==229&&!quizSession.showAnswer&&item.answer){
+        e.preventDefault();revealWrittenQuizAnswer();
+      }
+    };
+    wrap.append(label,ta);card.append(wrap);
   }
   if(quizSession.showAnswer&&item.answer){
-    const ans=document.createElement("div");ans.className="answer-panel";ans.textContent=item.answer+(item.memo?`\n\n${item.memo}`:"");card.append(ans)
+    const ans=document.createElement("div");ans.className="answer-panel";
+    if(mode==="write"){
+      ans.classList.add("quiz-self-answer-panel");
+      const label=document.createElement("div");label.className="quiz-self-answer-label";label.textContent="정답";
+      const txt=document.createElement("div");txt.textContent=item.answer;ans.append(label,txt);
+      if(item.memo){
+        const ml=document.createElement("div");ml.className="quiz-self-memo-label";ml.textContent="메모 · 해설";
+        const mt=document.createElement("div");mt.textContent=item.memo;ans.append(ml,mt);
+      }
+    }else ans.textContent=item.answer+(item.memo?"\n\n"+item.memo:"");
+    card.append(ans);
+  }
+  if(mode==="write"&&item.answer){
+    const rate=document.createElement("div");rate.className="quiz-self-rate";
+    if(!quizSession.showAnswer){
+      const show=document.createElement("button");show.className="quiz-self-reveal";
+      show.textContent="정답 확인";show.onclick=revealWrittenQuizAnswer;rate.append(show);
+    }else if(!quizSession.answered){
+      const note=document.createElement("div");note.className="quiz-self-rate-hint";
+      note.textContent="내 답을 비교한 후 직접 판정하세요";
+      const buttons=document.createElement("div");buttons.className="quiz-self-rate-buttons";
+      const wrong=document.createElement("button");wrong.className="quiz-self-wrong";wrong.textContent="틀림";wrong.onclick=()=>rateWrittenQuiz(false);
+      const correct=document.createElement("button");correct.className="quiz-self-correct";correct.textContent="맞음";correct.onclick=()=>rateWrittenQuiz(true);
+      buttons.append(wrong,correct);rate.append(note,buttons);
+    }
+    card.append(rate);
   }
   const actions=document.createElement("div");actions.className="quiz-actions";
   const stop=document.createElement("button");stop.textContent=quizSession.adventure?"나가기":"중단";stop.onclick=requestQuizStop;actions.append(stop);
@@ -8361,28 +8449,43 @@ function renderQuizQuestion(){
   if(mode==="subjective"){
     const check=document.createElement("button");check.textContent="확인";check.onclick=()=>checkSubjective(card.querySelector(".quiz-answer"));actions.append(check);
   }
-  const dont=document.createElement("button");dont.className="quiz-dont";dont.textContent="모름";
-  dont.onclick=()=>{
-    if(!quizSession)return;
-    if(!quizSession.answered){recordQuiz(item,false);quizSession.answered=true}
-    quizSession.showAnswer=false;
-    quizSession.awaitingExplanation=false;
-    nextQuiz(true);
-  };
-  actions.append(dont);
-  if(mode==="write"){
-    const show=document.createElement("button");show.textContent="답 보기";show.onclick=()=>{quizSession.showAnswer=true;saveQuizSessionLocal();renderQuizQuestion()};actions.append(show);
-    if(item.answer){
-      const ok=document.createElement("button");ok.textContent="맞음";ok.onclick=()=>{recordQuiz(item,true);quizSession.answered=true;nextQuiz()};
-      const bad=document.createElement("button");bad.textContent="틀림";bad.onclick=()=>{recordQuiz(item,false);quizSession.answered=true;nextQuiz()};actions.append(ok,bad);
-    }else{
-      const done=document.createElement("button");done.textContent="완료";done.onclick=nextQuiz;actions.append(done);
-    }
+  if(mode!=="write"){
+    const dont=document.createElement("button");dont.className="quiz-dont";dont.textContent="모름";
+    dont.onclick=()=>{
+      if(!quizSession)return;
+      if(!quizSession.answered){recordQuiz(item,false);quizSession.answered=true}
+      quizSession.showAnswer=false;
+      quizSession.awaitingExplanation=false;
+      nextQuiz(true);
+    };
+    actions.append(dont);
   }
-  if((quizSession.answered||quizSession.showAnswer)&&mode!=="choice"){
+  if(mode==="write"&&!item.answer){
+    const done=document.createElement("button");done.textContent="작성 완료 · 다음";done.onclick=()=>nextQuiz();actions.append(done);
+  }
+  if(mode==="subjective"&&(quizSession.answered||quizSession.showAnswer)){
     const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=nextQuiz;actions.append(next);
   }
   card.append(actions);area.append(card);
+}
+function revealWrittenQuizAnswer(){
+  if(!quizSession||activeQuizMode()!=="write"||quizSession.answered||quizSession.showAnswer)return;
+  if(!currentQuizItem()?.answer)return;
+  quizSession.showAnswer=true;saveQuizSessionLocal();renderQuizQuestion();
+}
+function rateWrittenQuiz(ok){
+  if(!quizSession||activeQuizMode()!=="write"||!quizSession.showAnswer||quizSession.answered)return;
+  const item=currentQuizItem();if(!item?.answer)return;
+  quizSession.answered=true;recordQuiz(item,!!ok);saveQuizSessionLocal();nextQuiz(true);
+}
+function changeQuizResponseMode(mode){
+  if(!quizSession||quizSession.answered||quizSession.showAnswer||!["write","choice","subjective"].includes(mode))return;
+  quizSession.quizMode=mode;
+  if(quizSession.adventure){
+    const cfg=adventureConfig(quizSession.adventure.sheetId,{quiet:true,order:quizSession.adventure.order||"sequence"});
+    if(cfg){cfg.answerMode=mode;markAdventureCloud()}
+  }else{app.ui.quiz.mode=mode;quizCountCache.clear();saveLocal()}
+  buildChoices();saveQuizSessionLocal();renderQuizQuestion();
 }
 function selectChoice(i){
   if(!quizSession||quizSession.answered||i<0||i>=quizSession.choices.length)return;
@@ -8682,7 +8785,11 @@ window.addEventListener("keydown",e=>{
     else if(e.code==="Digit6"||e.code==="Numpad6")n=2;
     if(n){e.preventDefault();e.stopPropagation();selectChoice(n-1);return}
   }
-  if((e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")&&(quizSession.answered||quizSession.showAnswer)){
+  if(activeQuizMode()==="write"&&quizSession.showAnswer&&!quizSession.answered){
+    if(e.key.toLowerCase()==="z"){e.preventDefault();rateWrittenQuiz(false);return}
+    if(e.key.toLowerCase()==="c"){e.preventDefault();rateWrittenQuiz(true);return}
+  }
+  if((e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")&&(quizSession.answered||quizSession.showAnswer)&&activeQuizMode()!=="write"){
     e.preventDefault();e.stopPropagation();nextQuiz(true)
   }
 },true);
@@ -8697,7 +8804,7 @@ function renderWrong(){
   if(!items.length){area.innerHTML='<div class="bank-empty">현재 오답이 없습니다.</div>';return}
   const top=document.createElement("div");top.className="bank-toolbar";
   const row=document.createElement("div");row.className="bank-toolbar-row";
-  const start=document.createElement("button");start.className="primary";start.textContent=`오답 ${items.length}개 풀기`;start.onclick=()=>{app.ui.quiz.mode="subjective";app.ui.workspace="bank";app.ui.bankMode="quiz";quizSession=null;renderMode();startQuiz(items)};
+  const start=document.createElement("button");start.className="primary";start.textContent=`오답 ${items.length}개 풀기`;start.onclick=()=>{app.ui.quiz.mode="write";app.ui.workspace="bank";app.ui.bankMode="quiz";quizSession=null;renderMode();startQuiz(items)};
   row.append(start);top.append(row);area.append(top);
   const list=document.createElement("div");list.className="wrong-list";
   items.forEach(i=>{
