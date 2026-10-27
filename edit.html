@@ -8207,8 +8207,8 @@ function writtenAutoAdvanceLabel(){return quizMemoAdvanceLabel(writtenAutoAdvanc
 function writtenAutoAdvanceHint(){
   const mode=writtenAutoAdvanceMode();
   return mode==="manual"
-    ?"✓ 자동 정답 · 모범답안을 확인한 뒤 '다음'을 누르세요"
-    :`✓ 자동 정답 · 모범답안을 확인하세요 · ${quizMemoAdvanceLabel(mode)} 뒤 다음 문제`;
+    ?"✓ 자동 정답 · 모범답안 확인 후 Enter 또는 다음"
+    :`✓ 자동 정답 · 모범답안 확인 · ${quizMemoAdvanceLabel(mode)} 뒤 자동 이동 / Enter 즉시 다음`;
 }
 function setWrittenAutoAdvanceMode(mode){
   app.ui.quiz.writeAutoAdvance=normalizeQuizMemoAdvanceMode(mode);
@@ -8914,6 +8914,19 @@ function checkSubjective(input){
 }
 window.addEventListener("keydown",e=>{
   if(app.ui.workspace!=="bank"||app.ui.bankMode!=="quiz")return;
+  // 직접 쓰기: 완전 일치로 자동 정답 처리된 뒤, 모범답안을 확인하고 Enter로 즉시 넘길 수 있다.
+  // 설정 메뉴 조작 및 IME 조합 중 Enter는 가로채지 않는다.
+  if(quizSession&&activeQuizMode()==="write"&&quizSession.writeAutoCorrect
+      &&quizSession.showAnswer&&quizSession.answered&&!quizSession.historyOffset
+      &&(e.key==="Enter"||e.code==="Enter"||e.code==="NumpadEnter")
+      &&!e.repeat&&!e.isComposing&&e.keyCode!==229
+      &&!e.shiftKey&&!e.ctrlKey&&!e.altKey&&!e.metaKey){
+    const menuOpen=!!document.querySelector("#quizArea .quiz-play-settings-menu:not(.hidden)");
+    if(!menuOpen&&!e.target?.closest?.(".quiz-play-settings-wrap, .quiz-more-wrap")){
+      e.preventDefault();e.stopPropagation();
+      nextQuiz(true);return;
+    }
+  }
   // Tab으로 답 방식을 선택하는 드롭다운 대신 직접 쓰기 입력창에 바로 포커스한다.
   if(quizSession&&activeQuizMode()==="write"&&!quizSession.showAnswer&&!quizSession.answered
       &&e.key==="Tab"&&!e.shiftKey&&!e.ctrlKey&&!e.metaKey&&!e.altKey){
