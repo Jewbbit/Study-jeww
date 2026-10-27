@@ -8264,29 +8264,36 @@ function buildQuizMemoSettingsMenu(){
   const menu=document.createElement("div");menu.className="quiz-memo-settings-menu hidden";
   const title=document.createElement("div");title.className="quiz-memo-speed-title";title.textContent="메모 자동 넘김";
   const grid=document.createElement("div");grid.className="quiz-memo-speed-grid";
+  const buttons=[];
+  const current=document.createElement("div");current.className="quiz-memo-speed-current";
+  const refresh=()=>{
+    const mode=quizMemoAdvanceMode();
+    buttons.forEach(([button,value])=>button.classList.toggle("active",value===mode));
+    current.textContent=quizMemoAdvanceLabel();
+  };
   [["0.5","0.5초"],["0.8","0.8초"],["1","1초"],["1.5","1.5초"],["2","2초"],["3","3초"],["4","4초"],["manual","수동"]].forEach(([value,label])=>{
-    const b=document.createElement("button");b.type="button";b.textContent=label;
-    if(value==="manual")b.classList.add("manual");
-    b.classList.toggle("active",quizMemoAdvanceMode()===value);
-    b.onclick=e=>{e.preventDefault();e.stopPropagation();setQuizMemoAdvanceMode(value)};
-    grid.append(b);
+    const button=document.createElement("button");button.type="button";button.textContent=label;
+    if(value==="manual")button.classList.add("manual");
+    buttons.push([button,value]);
+    button.onclick=e=>{e.preventDefault();e.stopPropagation();setQuizMemoAdvanceMode(value);refresh()};
+    grid.append(button);
   });
   const adjust=document.createElement("div");adjust.className="quiz-memo-speed-adjust";
   const minus=document.createElement("button");minus.type="button";minus.textContent="−";minus.title="0.1초 빠르게";
-  const current=document.createElement("div");current.className="quiz-memo-speed-current";current.textContent=quizMemoAdvanceLabel();
   const plus=document.createElement("button");plus.type="button";plus.textContent="＋";plus.title="0.1초 느리게";
   minus.onclick=e=>{
     e.preventDefault();e.stopPropagation();
     const cur=quizMemoAdvanceMode()==="manual"?1:Number(quizMemoAdvanceMode());
-    setQuizMemoAdvanceMode(cur-.1);
+    setQuizMemoAdvanceMode(cur-.1);refresh();
   };
   plus.onclick=e=>{
     e.preventDefault();e.stopPropagation();
     const cur=quizMemoAdvanceMode()==="manual"?1:Number(quizMemoAdvanceMode());
-    setQuizMemoAdvanceMode(cur+.1);
+    setQuizMemoAdvanceMode(cur+.1);refresh();
   };
   adjust.append(minus,current,plus);
   menu.append(title,grid,adjust);
+  refresh();
   return menu;
 }
 function buildWrittenSpeedSettings(){
@@ -8463,8 +8470,15 @@ function renderQuizQuestion(){
     settingsBtn.classList.toggle("active",open);settingsBtn.setAttribute("aria-expanded",String(open));
   };
   settingsMenu.addEventListener("click",e=>e.stopPropagation());
+  settingsMenu.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){e.preventDefault();settingsMenu.classList.add("hidden");settingsBtn.classList.remove("active");settingsBtn.setAttribute("aria-expanded","false");settingsBtn.focus()}
+  });
   settingsWrap.append(settingsBtn,settingsMenu);
   top.append(tag,qStar,prog,settingsWrap);
+  card.addEventListener("click",e=>{
+    if(settingsMenu.classList.contains("hidden")||settingsWrap.contains(e.target))return;
+    settingsMenu.classList.add("hidden");settingsBtn.classList.remove("active");settingsBtn.setAttribute("aria-expanded","false");
+  });
   const q=document.createElement("div");q.className="question";q.textContent=(item.question||"").replace(/\s*\/\s*/g,"  /  ");
   card.append(top,q);
   const mode=activeQuizMode();
