@@ -4184,7 +4184,7 @@ function initialApp(){
   return {
     study:{subjectId:s.id,mode:"study",subjects:[s],updatedAt:0},
     bank:{sheets:[],stats:{},contentUpdatedAt:0,statsUpdatedAt:0},
-    ui:{workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",typingPractice:true,typingPracticeDefaultV1:true,settings:{fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"},quiz:{subject:"all",areas:[],mode:"write",filter:"all",order:"sequence",mastery:true,sessionSize:20,groupOrder:"grouped",recentRanges:[]}}
+    ui:{workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",typingPractice:true,typingPracticeDefaultV1:true,settings:{fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"},quiz:{subject:"all",areas:[],mode:"choice",filter:"all",order:"sequence",mastery:true,sessionSize:20,groupOrder:"grouped",recentRanges:[]}}
   };
 }
 function migrate(){
@@ -4476,7 +4476,7 @@ function cleanup(){
   if(!Array.isArray(app.bank.trashSheets))app.bank.trashSheets=[];
   if(app.bank.updatedAt && !app.bank.contentUpdatedAt)app.bank.contentUpdatedAt=app.bank.updatedAt;
   if(app.bank.updatedAt && !app.bank.statsUpdatedAt)app.bank.statsUpdatedAt=app.bank.updatedAt;
-  if(!app.ui)app.ui={workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",quiz:{sheetId:"",mode:"write",filter:"all",order:"sequence",mastery:true}};
+  if(!app.ui)app.ui={workspace:"memory",flaggedOnly:false,collapsedSections:{},bankMode:"quiz",quiz:{sheetId:"",mode:"choice",filter:"all",order:"sequence",mastery:true}};
   if(!["memory","bank","curriculum"].includes(app.ui.workspace))app.ui.workspace="memory";if(!app.ui.bankMode)app.ui.bankMode="quiz";
   curriculumUi();curriculumStore();
   if(!app.ui.settings)app.ui.settings={fontName:"",memoryFontSize:14,quizFontSize:17,density:"compact"};
@@ -4500,12 +4500,8 @@ function cleanup(){
   app.ui.settings.quizFontSize=Math.max(14,Math.min(24,app.ui.settings.quizFontSize));
   if(!["compact","normal"].includes(app.ui.settings.density))app.ui.settings.density="compact";
   if(typeof app.ui.settings.fontName!=="string")app.ui.settings.fontName="";
-  if(!app.ui.quiz)app.ui.quiz={subject:"all",areas:[],mode:"write",filter:"all",order:"sequence",mastery:true,sessionSize:20,groupOrder:"grouped",recentRanges:[]};
-  /* 1회 설정 전환. 사용자가 이후 선택하는 모드는 존중하고 기존 기록은 건드리지 않는다. */
-   if(!app.ui.quiz.selfGradeDefaultV1){
-     if(!["write","subjective"].includes(app.ui.quiz.mode))app.ui.quiz.mode="write";
-     app.ui.quiz.selfGradeDefaultV1=true;
-   }
+  if(!app.ui.quiz)app.ui.quiz={subject:"all",areas:[],mode:"choice",filter:"all",order:"sequence",mastery:true,sessionSize:20,groupOrder:"grouped",recentRanges:[]};
+  // 기존 사용자의 풀이 방식을 바꾸지 않는다. 직접 쓰기는 선택할 수 있는 별도 모드다.
    if(app.ui.quiz.mastery==null)app.ui.quiz.mastery=true;
   if(!app.ui.quiz.order)app.ui.quiz.order="sequence";
   if(!app.ui.quiz.subject)app.ui.quiz.subject="all";
@@ -7359,10 +7355,10 @@ function migrateAdventureOrderIds(cfg,base){
   return null;
 }
 function adventureAnswerMode(cfg){
-  const mode=cfg?.answerMode||(cfg?.mode==="choice"?"write":cfg?.mode);
-  return ["choice","subjective","write"].includes(mode)?mode:"write";
+  const mode=cfg?.answerMode||cfg?.mode||"choice";
+  return ["choice","subjective","write"].includes(mode)?mode:"choice";
 }
-function newAdventurePath(order="sequence",size=20,mode="write"){
+function newAdventurePath(order="sequence",size=20,mode="choice"){
   return {size,order,mode,signature:"",orderIds:[],completed:{},reviews:{},activeSessions:{},lastTouchedAt:0};
 }
 function adventureSheetState(sheetId){
@@ -7391,7 +7387,7 @@ function adventureSheetState(sheetId){
     if(!cfg||typeof cfg!=="object")cfg=state.paths[order]=newAdventurePath(order);
     cfg.order=order;
     if(![10,20,30,50].includes(cfg.size))cfg.size=20;
-    if(!["choice","subjective","write"].includes(cfg.mode))cfg.mode="write";
+    if(!["choice","subjective","write"].includes(cfg.mode))cfg.mode="choice";
     if(!cfg.completed||typeof cfg.completed!=="object")cfg.completed={};
     if(!cfg.reviews||typeof cfg.reviews!=="object")cfg.reviews={};
     if(!cfg.activeSessions||typeof cfg.activeSessions!=="object")cfg.activeSessions={};
@@ -8813,7 +8809,7 @@ function renderWrong(){
   if(!items.length){area.innerHTML='<div class="bank-empty">현재 오답이 없습니다.</div>';return}
   const top=document.createElement("div");top.className="bank-toolbar";
   const row=document.createElement("div");row.className="bank-toolbar-row";
-  const start=document.createElement("button");start.className="primary";start.textContent=`오답 ${items.length}개 풀기`;start.onclick=()=>{app.ui.quiz.mode="write";app.ui.workspace="bank";app.ui.bankMode="quiz";quizSession=null;renderMode();startQuiz(items)};
+  const start=document.createElement("button");start.className="primary";start.textContent=`오답 ${items.length}개 풀기`;start.onclick=()=>{app.ui.quiz.mode="subjective";app.ui.workspace="bank";app.ui.bankMode="quiz";quizSession=null;renderMode();startQuiz(items)};
   row.append(start);top.append(row);area.append(top);
   const list=document.createElement("div");list.className="wrong-list";
   items.forEach(i=>{
