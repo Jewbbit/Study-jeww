@@ -8402,6 +8402,16 @@ function renderQuizQuestion(){
       }
     };
     wrap.append(label,ta);card.append(wrap);
+    // 직접 쓰기에서는 문제 본문이나 카드의 빈 곳을 탭해도 곧바로 입력할 수 있게 한다.
+    // 버튼·메뉴·선택 영역을 누른 경우에는 해당 조작을 우선한다.
+    if(!quizSession.showAnswer){
+      card.classList.add("quiz-tap-to-write");
+      card.addEventListener("click",e=>{
+        if(!quizSession||activeQuizMode()!=="write"||quizSession.showAnswer)return;
+        if(e.target.closest("button,input,textarea,select,a,summary,[contenteditable]"))return;
+        try{ta.focus({preventScroll:true})}catch{ta.focus()}
+      });
+    }
   }
   if(quizSession.showAnswer&&item.answer){
     const ans=document.createElement("div");ans.className="answer-panel";
@@ -8425,8 +8435,8 @@ function renderQuizQuestion(){
       const note=document.createElement("div");note.className="quiz-self-rate-hint";
       note.textContent="내 답을 비교한 후 직접 판정하세요";
       const buttons=document.createElement("div");buttons.className="quiz-self-rate-buttons";
-      const wrong=document.createElement("button");wrong.className="quiz-self-wrong";wrong.textContent="틀림";wrong.onclick=()=>rateWrittenQuiz(false);
-      const correct=document.createElement("button");correct.className="quiz-self-correct";correct.textContent="맞음";correct.onclick=()=>rateWrittenQuiz(true);
+      const wrong=document.createElement("button");wrong.className="quiz-self-wrong";wrong.textContent="1  틀림";wrong.title="단축키 1 · 틀림";wrong.onclick=()=>rateWrittenQuiz(false);
+      const correct=document.createElement("button");correct.className="quiz-self-correct";correct.textContent="2  맞음";correct.title="단축키 2 · 맞음";correct.onclick=()=>rateWrittenQuiz(true);
       buttons.append(wrong,correct);rate.append(note,buttons);
     }
     card.append(rate);
@@ -8762,6 +8772,19 @@ function checkSubjective(input){
 }
 window.addEventListener("keydown",e=>{
   if(app.ui.workspace!=="bank"||app.ui.bankMode!=="quiz")return;
+  // 답안 공개 후에만 1=틀림, 2=맞음. 쓰는 중에는 숫자를 정상 입력한다.
+  // readonly 답안창에 초점이 남아 있어도 채점할 수 있도록 일반 입력창 검사보다 먼저 처리한다.
+  if(quizSession&&activeQuizMode()==="write"&&quizSession.showAnswer&&!quizSession.answered&&currentQuizItem()?.answer
+      &&!e.isComposing&&e.keyCode!==229&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!e.shiftKey){
+    const focused=document.activeElement,tag=focused?.tagName;
+    const editing=focused?.isContentEditable||tag==="SELECT"
+      ||((tag==="INPUT"||tag==="TEXTAREA")&&!focused.readOnly);
+    if(!editing){
+      const key=e.key==="1"||e.code==="Digit1"||e.code==="Numpad1"?1
+        :e.key==="2"||e.code==="Digit2"||e.code==="Numpad2"?2:0;
+      if(key){e.preventDefault();e.stopPropagation();rateWrittenQuiz(key===2);return}
+    }
+  }
   const tag=document.activeElement?.tagName;
   if(tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT")return;
   if(!quizSession){
