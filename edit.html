@@ -8430,7 +8430,10 @@ function renderQuizQuestion(){
     const rate=document.createElement("div");rate.className="quiz-self-rate";
     if(!quizSession.showAnswer){
       const show=document.createElement("button");show.className="quiz-self-reveal";
-      show.textContent="정답 확인";show.onclick=revealWrittenQuizAnswer;rate.append(show);
+      show.textContent="정답 확인";show.title="완전히 일치하면 자동으로 맞음 처리하고, 그 외에는 직접 채점합니다";show.onclick=revealWrittenQuizAnswer;rate.append(show);
+      const hint=document.createElement("div");hint.className="quiz-self-rate-hint";
+      hint.textContent="정답과 완전히 일치하면 자동 맞음 · 그 외에는 직접 채점";
+      rate.append(hint);
     }else if(!quizSession.answered){
       const note=document.createElement("div");note.className="quiz-self-rate-hint";
       note.textContent="내 답을 비교한 후 직접 판정하세요";
@@ -8485,7 +8488,15 @@ function renderQuizQuestion(){
 }
 function revealWrittenQuizAnswer(){
   if(!quizSession||activeQuizMode()!=="write"||quizSession.answered||quizSession.showAnswer)return;
-  if(!currentQuizItem()?.answer)return;
+  const item=currentQuizItem();if(!item?.answer)return;
+  // 자가채점 기본: 입력한 답과 정답이 완전히 같을 때만 자동으로 맞음 처리한다.
+  // 비어 있거나 표기 차이가 있는 답은 정답을 공개하고 사용자가 직접 채점한다.
+  const entered=String(quizSession.draft||"").replace(/\r\n?/g,"\n").trim().normalize("NFC");
+  const expected=String(item.answer).replace(/\r\n?/g,"\n").trim().normalize("NFC");
+  if(entered&&entered===expected){
+    quizSession.answered=true;recordQuiz(item,true);
+    saveQuizSessionLocal();nextQuiz(true);return;
+  }
   quizSession.showAnswer=true;saveQuizSessionLocal();renderQuizQuestion();
 }
 function rateWrittenQuiz(ok){
