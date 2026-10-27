@@ -3749,6 +3749,7 @@ body.mobile-mission-open{overflow:hidden}
 #quizView .quiz-write-wrap .write-answer[readonly]{background:#f7f7f9;border-color:#e7e7ea;color:#55565e}
 .quiz-self-answer-panel{margin-top:14px!important;padding:14px!important;background:#f3f2fb!important;border-left:3px solid #7666d3;border-radius:9px;line-height:1.65;overflow-wrap:anywhere}
 .quiz-self-answer-label{color:#6557a6}
+.quiz-self-missing-answer{font-size:12px;color:#777981;margin:10px 0}
 .quiz-self-memo-label{margin:13px 0 6px;padding-top:12px;border-top:1px solid #dedde8}
 .quiz-self-rate{margin:14px 0 5px}
 .quiz-self-reveal{display:block;width:100%;min-height:48px;border:0;border-radius:10px;background:#282831;color:white;font-size:15px;font-weight:700}
@@ -8437,9 +8438,12 @@ function renderQuizQuestion(){
   const actions=document.createElement("div");actions.className="quiz-actions";
   const stop=document.createElement("button");stop.textContent=quizSession.adventure?"나가기":"중단";stop.onclick=requestQuizStop;actions.append(stop);
   if((quizSession.recentAnswered||[]).length){const prev=document.createElement("button");prev.textContent="← 직전";prev.title="보기 전용 · 정오답 기록 유지";prev.onclick=()=>{quizSession.historyOffset=1;renderQuizQuestion()};actions.append(prev)}
-  const later=document.createElement("button");later.textContent="나중에";later.onclick=()=>{quizSession.deferred=quizSession.deferred||[];quizSession.deferred.push(item);nextQuiz(true)};actions.append(later);
-  if(!quizSession.adventure){
-    const skip=document.createElement("button");skip.textContent="건너뛰기";skip.onclick=()=>nextQuiz();actions.append(skip);
+  /* 정답을 본 뒤에는 반드시 자가채점해야 다음 문제로 넘어간다. */
+  if(!(mode==="write"&&quizSession.showAnswer&&item.answer)){
+    const later=document.createElement("button");later.textContent="나중에";later.onclick=()=>{quizSession.deferred=quizSession.deferred||[];quizSession.deferred.push(item);nextQuiz(true)};actions.append(later);
+    if(!quizSession.adventure){
+      const skip=document.createElement("button");skip.textContent="건너뛰기";skip.onclick=()=>nextQuiz();actions.append(skip);
+    }
   }
   const moreWrap=document.createElement("div");moreWrap.className="quiz-more-wrap";const more=document.createElement("button");more.textContent="•••";const moreMenu=document.createElement("div");moreMenu.className="menu hidden";
   const editQ=document.createElement("button");editQ.textContent="문제 수정";editQ.onclick=()=>{moreMenu.classList.add("hidden");toggleQuizInlineEdit(card,item)};
@@ -8461,7 +8465,12 @@ function renderQuizQuestion(){
     actions.append(dont);
   }
   if(mode==="write"&&!item.answer){
+    const notice=document.createElement("div");notice.className="quiz-self-missing-answer";
+    notice.textContent="등록된 정답이 없어 채점할 수 없는 문제입니다.";card.append(notice);
     const done=document.createElement("button");done.textContent="작성 완료 · 다음";done.onclick=()=>nextQuiz();actions.append(done);
+  }
+  if(mode==="write"&&quizSession.answered){
+    const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=()=>nextQuiz(true);actions.append(next);
   }
   if(mode==="subjective"&&(quizSession.answered||quizSession.showAnswer)){
     const next=document.createElement("button");next.className="primary";next.textContent="다음";next.onclick=nextQuiz;actions.append(next);
